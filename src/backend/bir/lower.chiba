@@ -34,7 +34,7 @@ def lower_cps_to_bir(program: CpsProgram): BirProgram = {
 
 // ── FunId pre-scan ──────────────────────────────────────────────────────────
 
-def bir_lower_assign_top_fun_ids(defs: List[FunDef], ctx: LowerCtx): i64 =
+def bir_lower_assign_top_fun_ids(defs: List[FunDef], ctx: BirLowerCtx): i64 =
     match defs {
         Nil => 0
         Cons(fdef, rest) => {
@@ -45,7 +45,7 @@ def bir_lower_assign_top_fun_ids(defs: List[FunDef], ctx: LowerCtx): i64 =
         }
     }
 
-def bir_lower_scan_letfun_ids(expr: CpsExpr, ctx: LowerCtx): i64 = {
+def bir_lower_scan_letfun_ids(expr: CpsExpr, ctx: BirLowerCtx): i64 = {
     if (expr as i64) < 65536 { 0 }
     else {
     match expr {
@@ -68,7 +68,7 @@ def bir_lower_scan_letfun_ids(expr: CpsExpr, ctx: LowerCtx): i64 = {
     }
 }
 
-def bir_lower_scan_letfun_defs(defs: List[FunDef], ctx: LowerCtx): i64 =
+def bir_lower_scan_letfun_defs(defs: List[FunDef], ctx: BirLowerCtx): i64 =
     match defs {
         Nil => 0
         Cons(fdef, rest) => {
@@ -79,7 +79,7 @@ def bir_lower_scan_letfun_defs(defs: List[FunDef], ctx: LowerCtx): i64 =
         }
     }
 
-def bir_lower_scan_letfun_cont_defs(defs: List[(i64, ContDef)], ctx: LowerCtx): i64 =
+def bir_lower_scan_letfun_cont_defs(defs: List[(i64, ContDef)], ctx: BirLowerCtx): i64 =
     match defs {
         Nil => 0
         Cons(entry, rest) => {
@@ -93,7 +93,7 @@ def bir_lower_scan_letfun_cont_defs(defs: List[(i64, ContDef)], ctx: LowerCtx): 
 
 // ── Lower function sets ─────────────────────────────────────────────────────
 
-def bir_lower_fun_defs(defs: List[FunDef], ctx: LowerCtx): i64 =
+def bir_lower_fun_defs(defs: List[FunDef], ctx: BirLowerCtx): i64 =
     match defs {
         Nil => 0
         Cons(fdef, rest) => {
@@ -102,7 +102,7 @@ def bir_lower_fun_defs(defs: List[FunDef], ctx: LowerCtx): i64 =
         }
     }
 
-def bir_lower_entry_letfuns(expr: CpsExpr, ctx: LowerCtx): i64 =
+def bir_lower_entry_letfuns(expr: CpsExpr, ctx: BirLowerCtx): i64 =
     if (expr as i64) < 65536 { 0 }
     else {
     match expr {
@@ -120,7 +120,7 @@ def bir_lower_entry_letfuns(expr: CpsExpr, ctx: LowerCtx): i64 =
     }
     }
 
-def bir_lower_entry_letfun_cont_defs(defs: List[(i64, ContDef)], ctx: LowerCtx): i64 =
+def bir_lower_entry_letfun_cont_defs(defs: List[(i64, ContDef)], ctx: BirLowerCtx): i64 =
     match defs {
         Nil => 0
         Cons(entry, rest) => {
@@ -134,7 +134,7 @@ def bir_lower_entry_letfun_cont_defs(defs: List[(i64, ContDef)], ctx: LowerCtx):
 
 // ── Function / entry lowering ──────────────────────────────────────────────
 
-def bir_lower_fun(ctx: LowerCtx, fun: FunDef): i64 = {
+def bir_lower_fun(ctx: BirLowerCtx, fun: FunDef): i64 = {
     let fun_id = fun.id
     let fun_name = fun.name
     let fun_ret = fun.ret
@@ -145,7 +145,7 @@ def bir_lower_fun(ctx: LowerCtx, fun: FunDef): i64 = {
         None => 0 - 1
     }
     let fctx = fun_ctx_new(bir_fid, fun_name, fun_ret)
-    let base_vreg = load64(lctx_next_vreg(ctx), 0)
+    let base_vreg = load64(ctx.next_vreg, 0)
 
     let _ = fun_ctx_map_cont(fctx, fun_ret, CTFunReturn)
 
@@ -156,7 +156,7 @@ def bir_lower_fun(ctx: LowerCtx, fun: FunDef): i64 = {
     let _ = bir_lower_expr(ctx, fctx, fun_body)
 
     let blocks = fun_ctx_get_blocks(fctx)
-    let local_vregs = load64(lctx_next_vreg(ctx), 0) - base_vreg
+    let local_vregs = load64(ctx.next_vreg, 0) - base_vreg
     let bir_fun = BirFun {
         id: bir_fid,
         name: fun_name,
@@ -168,7 +168,7 @@ def bir_lower_fun(ctx: LowerCtx, fun: FunDef): i64 = {
     lower_push_fun(ctx, bir_fun)
 }
 
-def bir_lower_map_fun_params(params: List[i64], fctx: FunCtx, ctx: LowerCtx): List[i64] =
+def bir_lower_map_fun_params(params: List[i64], fctx: BirFunCtx, ctx: BirLowerCtx): List[i64] =
     match params {
         Nil => Nil
         Cons(p, rest) => {
@@ -177,16 +177,16 @@ def bir_lower_map_fun_params(params: List[i64], fctx: FunCtx, ctx: LowerCtx): Li
         }
     }
 
-def bir_lower_entry(ctx: LowerCtx, main_id: i64, expr: CpsExpr): i64 = {
+def bir_lower_entry(ctx: BirLowerCtx, main_id: i64, expr: CpsExpr): i64 = {
     let fctx = fun_ctx_new(main_id, bir_ir_mk_str_cstr("_chiba_main"), 0 - 1)
-    let base_vreg = load64(lctx_next_vreg(ctx), 0)
+    let base_vreg = load64(ctx.next_vreg, 0)
     let entry_block = lower_fresh_block(ctx)
     let _ = fun_ctx_set_fun_params(fctx, Nil)
     let _ = fun_ctx_start_block(fctx, entry_block, Nil)
     let _ = bir_lower_expr(ctx, fctx, expr)
 
     let blocks = fun_ctx_get_blocks(fctx)
-    let local_vregs = load64(lctx_next_vreg(ctx), 0) - base_vreg
+    let local_vregs = load64(ctx.next_vreg, 0) - base_vreg
     let bir_fun = BirFun {
         id: main_id,
         name: bir_ir_mk_str_cstr("_chiba_main"),
@@ -200,7 +200,7 @@ def bir_lower_entry(ctx: LowerCtx, main_id: i64, expr: CpsExpr): i64 = {
 
 // ── Core lowering ───────────────────────────────────────────────────────────
 
-def bir_lower_expr(ctx: LowerCtx, fctx: FunCtx, expr: CpsExpr): i64 =
+def bir_lower_expr(ctx: BirLowerCtx, fctx: BirFunCtx, expr: CpsExpr): i64 =
     if (expr as i64) < 65536 { 0 }
     else {
         match expr {
@@ -274,9 +274,9 @@ def bir_lower_expr(ctx: LowerCtx, fctx: FunCtx, expr: CpsExpr): i64 =
                 let handler_frame_kind = lower_fresh_frame_kind(ctx)
                 let handler_frame_desc = FrameDesc {
                     kind: handler_frame_kind,
-                    name: bir_lower_mk_frame_name(bir_ir_mk_str_cstr("handler_frame_"), fctx_cur_fun_name(fctx), 0),
+                    name: bir_lower_mk_frame_name(bir_ir_mk_str_cstr("handler_frame_"), fctx.cur_fun_name, 0),
                     resume_block: exit_block,
-                    resume_fun: fctx_cur_fun_id(fctx)
+                    resume_fun: fctx.cur_fun_id
                 }
                 let _ = lower_push_frame_desc(ctx, handler_frame_desc)
                 let frame_vr = lower_fresh_vreg(ctx)
@@ -293,7 +293,7 @@ def bir_lower_expr(ctx: LowerCtx, fctx: FunCtx, expr: CpsExpr): i64 =
 
 // ── LetCont helpers ─────────────────────────────────────────────────────────
 
-def bir_lower_alloc_cont_blocks(defs: List[(i64, ContDef)], fctx: FunCtx, ctx: LowerCtx): List[(i64, i64)] =
+def bir_lower_alloc_cont_blocks(defs: List[(i64, ContDef)], fctx: BirFunCtx, ctx: BirLowerCtx): List[(i64, i64)] =
     match defs {
         Nil => Nil
         Cons(entry, rest) => {
@@ -305,7 +305,7 @@ def bir_lower_alloc_cont_blocks(defs: List[(i64, ContDef)], fctx: FunCtx, ctx: L
         }
     }
 
-def bir_lower_cont_blocks(defs: List[(i64, ContDef)], fctx: FunCtx, ctx: LowerCtx): i64 =
+def bir_lower_cont_blocks(defs: List[(i64, ContDef)], fctx: BirFunCtx, ctx: BirLowerCtx): i64 =
     match defs {
         Nil => 0
         Cons(entry, rest) => {
@@ -323,13 +323,13 @@ def bir_lower_cont_blocks(defs: List[(i64, ContDef)], fctx: FunCtx, ctx: LowerCt
 
 // ── AppFun helpers ──────────────────────────────────────────────────────────
 
-def bir_lower_is_cont_func(fctx: FunCtx, func: Val): i64 =
+def bir_lower_is_cont_func(fctx: BirFunCtx, func: Val): i64 =
     match func {
         VVar(v) => fun_ctx_is_cont_var(fctx, v)
         _ => 0
     }
 
-def bir_lower_restore_cont(ctx: LowerCtx, fctx: FunCtx, func: Val,
+def bir_lower_restore_cont(ctx: BirLowerCtx, fctx: BirFunCtx, func: Val,
                       ret: i64, args: List[Val]): i64 = {
     let k_vr = val_to_vreg(ctx, fctx, func)
     let arg_vr = bir_lower_restore_arg(ctx, fctx, args)
@@ -341,9 +341,9 @@ def bir_lower_restore_cont(ctx: LowerCtx, fctx: FunCtx, func: Val,
                     let frame_kind = lower_fresh_frame_kind(ctx)
                     let frame_desc = FrameDesc {
                         kind: frame_kind,
-                        name: bir_lower_mk_frame_name(bir_ir_mk_str_cstr("cont_resume_"), fctx_cur_fun_name(fctx), ret_blk),
+                        name: bir_lower_mk_frame_name(bir_ir_mk_str_cstr("cont_resume_"), fctx.cur_fun_name, ret_blk),
                         resume_block: ret_blk,
-                        resume_fun: fctx_cur_fun_id(fctx)
+                        resume_fun: fctx.cur_fun_id
                     }
                     let _ = lower_push_frame_desc(ctx, frame_desc)
                     let frame_vr = lower_fresh_vreg(ctx)
@@ -355,7 +355,7 @@ def bir_lower_restore_cont(ctx: LowerCtx, fctx: FunCtx, func: Val,
     }
 }
 
-def bir_lower_restore_arg(ctx: LowerCtx, fctx: FunCtx, args: List[Val]): i64 =
+def bir_lower_restore_arg(ctx: BirLowerCtx, fctx: BirFunCtx, args: List[Val]): i64 =
     match args {
         Nil => {
             let u = lower_fresh_vreg(ctx)
@@ -365,7 +365,7 @@ def bir_lower_restore_arg(ctx: LowerCtx, fctx: FunCtx, args: List[Val]): i64 =
         Cons(v, _) => val_to_vreg(ctx, fctx, v)
     }
 
-def bir_lower_regular_call(ctx: LowerCtx, fctx: FunCtx, func: Val,
+def bir_lower_regular_call(ctx: BirLowerCtx, fctx: BirFunCtx, func: Val,
                       ret: i64, args: List[Val]): i64 = {
     let func_vr = val_to_vreg(ctx, fctx, func)
     let arg_vregs = vals_to_vregs(ctx, fctx, args)
@@ -377,9 +377,9 @@ def bir_lower_regular_call(ctx: LowerCtx, fctx: FunCtx, func: Val,
                     let frame_kind = lower_fresh_frame_kind(ctx)
                     let frame_desc = FrameDesc {
                         kind: frame_kind,
-                        name: bir_lower_mk_frame_name(bir_ir_mk_str_cstr("frame_"), fctx_cur_fun_name(fctx), ret_blk),
+                        name: bir_lower_mk_frame_name(bir_ir_mk_str_cstr("frame_"), fctx.cur_fun_name, ret_blk),
                         resume_block: ret_blk,
-                        resume_fun: fctx_cur_fun_id(fctx)
+                        resume_fun: fctx.cur_fun_id
                     }
                     let _ = lower_push_frame_desc(ctx, frame_desc)
                     let frame_vr = lower_fresh_vreg(ctx)
@@ -393,7 +393,7 @@ def bir_lower_regular_call(ctx: LowerCtx, fctx: FunCtx, func: Val,
 
 // ── Switch helpers ──────────────────────────────────────────────────────────
 
-def bir_lower_switch_branches(branches: List[(i64, i64)], fctx: FunCtx): List[(i64, i64, List[i64])] =
+def bir_lower_switch_branches(branches: List[(i64, i64)], fctx: BirFunCtx): List[(i64, i64, List[i64])] =
     match branches {
         Nil => Nil
         Cons(entry, rest) => {
@@ -403,14 +403,14 @@ def bir_lower_switch_branches(branches: List[(i64, i64)], fctx: FunCtx): List[(i
         }
     }
 
-def bir_lower_switch_default(default: Option[i64], fctx: FunCtx): Option[(i64, List[i64])] =
+def bir_lower_switch_default(default: Option[i64], fctx: BirFunCtx): Option[(i64, List[i64])] =
     match default {
         Some(cid) => {
             let blk = bir_lower_cont_block_unwrap(fctx, cid)
             let _ = if blk == 0 {
                 let s = str_new()
                 let _ = str_push_cstr(s, "[bir-lower] switch default fun=")
-                let _ = str_append_i64(s, fctx_cur_fun_id(fctx))
+                let _ = str_append_i64(s, fctx.cur_fun_id)
                 let _ = str_push_cstr(s, " cid=")
                 let _ = str_append_i64(s, cid)
                 let _ = str_push_cstr(s, " blk=")
@@ -423,7 +423,7 @@ def bir_lower_switch_default(default: Option[i64], fctx: FunCtx): Option[(i64, L
         None => None
     }
 
-def bir_lower_cont_block_unwrap(fctx: FunCtx, cid: i64): i64 =
+def bir_lower_cont_block_unwrap(fctx: BirFunCtx, cid: i64): i64 =
     match fun_ctx_get_cont(fctx, cid) {
         Some(target) =>
             match target {
@@ -435,7 +435,7 @@ def bir_lower_cont_block_unwrap(fctx: FunCtx, cid: i64): i64 =
 
 // ── PrimOp lowering ─────────────────────────────────────────────────────────
 
-def bir_lower_primop(ctx: LowerCtx, fctx: FunCtx, bind: i64, op: PrimOp): i64 = {
+def bir_lower_primop(ctx: BirLowerCtx, fctx: BirFunCtx, bind: i64, op: PrimOp): i64 = {
     let dst = lower_map_var(fctx, ctx, bind)
     match op {
         PIAdd(a, b) => fun_ctx_emit(fctx, IIAdd(dst, val_to_vreg(ctx, fctx, a), val_to_vreg(ctx, fctx, b)))
@@ -477,7 +477,7 @@ def bir_lower_primop(ctx: LowerCtx, fctx: FunCtx, bind: i64, op: PrimOp): i64 = 
         _ => 0
     }
 
-def bir_lower_inline_asm(ctx: LowerCtx, fctx: FunCtx, dst: i64,
+def bir_lower_inline_asm(ctx: BirLowerCtx, fctx: BirFunCtx, dst: i64,
                     inputs: List[(Val, Str)], outputs: List[Str], instrs: List[Str]): i64 = {
     let in_regs = bir_lower_inline_inputs(ctx, fctx, inputs)
     let out_count = length(outputs)
@@ -491,7 +491,7 @@ def bir_lower_inline_asm(ctx: LowerCtx, fctx: FunCtx, dst: i64,
     }
 }
 
-def bir_lower_inline_inputs(ctx: LowerCtx, fctx: FunCtx, inputs: List[(Val, Str)]): List[(Str, i64)] =
+def bir_lower_inline_inputs(ctx: BirLowerCtx, fctx: BirFunCtx, inputs: List[(Val, Str)]): List[(Str, i64)] =
     match inputs {
         Nil => Nil
         Cons(entry, rest) => {
@@ -500,7 +500,7 @@ def bir_lower_inline_inputs(ctx: LowerCtx, fctx: FunCtx, inputs: List[(Val, Str)
         }
     }
 
-def bir_lower_fresh_inline_out_vregs(ctx: LowerCtx, n: i64): List[i64] =
+def bir_lower_fresh_inline_out_vregs(ctx: BirLowerCtx, n: i64): List[i64] =
     if n <= 0 { Nil }
     else { Cons(lower_fresh_vreg(ctx), bir_lower_fresh_inline_out_vregs(ctx, n - 1)) }
 
@@ -512,7 +512,7 @@ def bir_lower_tag_val(tag: Val): i64 =
         _ => 0
     }
 
-def bir_lower_mark_handler_param_as_cont_var(fctx: FunCtx, cid: i64): i64 =
+def bir_lower_mark_handler_param_as_cont_var(fctx: BirFunCtx, cid: i64): i64 =
     match fun_ctx_get_cont_params(fctx, cid) {
         Some(params) =>
             match params {

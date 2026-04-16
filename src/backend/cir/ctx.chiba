@@ -31,11 +31,6 @@ type LowerCtx {
     strings:      i64    // Ref[i64] — ptr to List[Str]
 }
 
-def lower_ctx_next_var_ref(ctx: LowerCtx): i64 = load64(ctx as i64, 1)
-def lower_ctx_next_cont_ref(ctx: LowerCtx): i64 = load64(ctx as i64, 2)
-def lower_ctx_next_fun_ref(ctx: LowerCtx): i64 = load64(ctx as i64, 3)
-def lower_ctx_reset_stack_ref(ctx: LowerCtx): i64 = load64(ctx as i64, 4)
-def lower_ctx_strings_ref(ctx: LowerCtx): i64 = load64(ctx as i64, 5)
 
 def ctx_new(): LowerCtx = {
     let r_nv = heap_alloc(8)
@@ -60,14 +55,14 @@ def ctx_new(): LowerCtx = {
 // ── Fresh ID allocation ──────────────────────────────────────────────────────
 
 def fresh_var(ctx: LowerCtx): i64 = {
-    let v = load64(lower_ctx_next_var_ref(ctx), 0)
-    let _ = store64(lower_ctx_next_var_ref(ctx), 0, v + 1)
+    let v = load64(ctx.next_var, 0)
+    let _ = store64(ctx.next_var, 0, v + 1)
     v
 }
 
 def fresh_cont(ctx: LowerCtx): i64 = {
-    let c = load64(lower_ctx_next_cont_ref(ctx), 0)
-    let _ = store64(lower_ctx_next_cont_ref(ctx), 0, c + 1)
+    let c = load64(ctx.next_cont, 0)
+    let _ = store64(ctx.next_cont, 0, c + 1)
     if c == CTRL_SENTINEL() { fresh_cont(ctx) }
     else {
         if c == RESUME_SENTINEL() { fresh_cont(ctx) }
@@ -76,28 +71,28 @@ def fresh_cont(ctx: LowerCtx): i64 = {
 }
 
 def fresh_fun(ctx: LowerCtx): i64 = {
-    let f = load64(lower_ctx_next_fun_ref(ctx), 0)
-    let _ = store64(lower_ctx_next_fun_ref(ctx), 0, f + 1)
+    let f = load64(ctx.next_fun, 0)
+    let _ = store64(ctx.next_fun, 0, f + 1)
     f
 }
 
 // ── Reset stack management ───────────────────────────────────────────────────
 
 def ctx_push_reset(ctx: LowerCtx, tag_opt: i64, exit_cont: i64): i64 = {
-    let old = load64(lower_ctx_reset_stack_ref(ctx), 0) as List[(i64, i64)]
-    store64(lower_ctx_reset_stack_ref(ctx), 0, Cons(pair(tag_opt, exit_cont), old) as i64)
+    let old = load64(ctx.reset_stack, 0) as List[(i64, i64)]
+    store64(ctx.reset_stack, 0, Cons(pair(tag_opt, exit_cont), old) as i64)
 }
 
 def ctx_pop_reset(ctx: LowerCtx): i64 = {
-    let cur = load64(lower_ctx_reset_stack_ref(ctx), 0) as List[(i64, i64)]
+    let cur = load64(ctx.reset_stack, 0) as List[(i64, i64)]
     match cur {
-        Cons(_, rest) => store64(lower_ctx_reset_stack_ref(ctx), 0, rest as i64)
+        Cons(_, rest) => store64(ctx.reset_stack, 0, rest as i64)
         Nil => 0
     }
 }
 
 def ctx_get_reset_stack(ctx: LowerCtx): List[(i64, i64)] =
-    load64(lower_ctx_reset_stack_ref(ctx), 0) as List[(i64, i64)]
+    load64(ctx.reset_stack, 0) as List[(i64, i64)]
 
 // ── String interning ─────────────────────────────────────────────────────────
 
@@ -111,19 +106,19 @@ def intern_string_search(strs: List[Str], s: Str, idx: i64): i64 =
     }
 
 def ctx_intern_string(ctx: LowerCtx, s: Str): i64 = {
-    let strs = load64(lower_ctx_strings_ref(ctx), 0) as List[Str]
+    let strs = load64(ctx.strings, 0) as List[Str]
     let found = intern_string_search(strs, s, 0)
     if found >= 0 { found }
     else {
         // Append at end; index = length
         let len = length(strs)
-        let _ = store64(lower_ctx_strings_ref(ctx), 0, append(strs, Cons(s, Nil)) as i64)
+        let _ = store64(ctx.strings, 0, append(strs, Cons(s, Nil)) as i64)
         len
     }
 }
 
 def ctx_get_strings(ctx: LowerCtx): List[Str] =
-    load64(lower_ctx_strings_ref(ctx), 0) as List[Str]
+    load64(ctx.strings, 0) as List[Str]
 
 // ── Lowering environment ─────────────────────────────────────────────────────
 //
