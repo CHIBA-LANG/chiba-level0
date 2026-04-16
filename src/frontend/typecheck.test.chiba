@@ -1,0 +1,77 @@
+namespace frontend.typecheck.test
+use metalstd.mem.*
+use metalstd.list.*
+use metalstd.str.*
+use metalstd.test.*
+use metalstd.print.*
+use frontend.ast.*
+use frontend.parser.*
+use frontend.resolve.*
+use frontend.typecheck.*
+use frontend.resolve.test.*
+
+// ── Typecheck helpers ───────────────────────────────────────────────────────
+
+def tc_ok(src: i64, src_len: i64): i64 = {
+    let items = parse_program_items(src, src_len)
+    let r = resolve_items(items)
+    match r {
+        ROk(m) => {
+            let errs = typecheck_items(items, m)
+            is_nil(errs)
+        }
+        RErr(_) => 0
+    }
+}
+
+def tc_errs(src: i64, src_len: i64): List[Str] = {
+    let items = parse_program_items(src, src_len)
+    let r = resolve_items(items)
+    match r {
+        ROk(m) => typecheck_items(items, m)
+        RErr(_) => Nil
+    }
+}
+
+// ── Typecheck tests ─────────────────────────────────────────────────────────
+
+def test_typecheck(ctx: i64): i64 = {
+    let _ = write_fd(1, "-- Typecheck tests --\n", 22)
+
+    // 1. Simple arith OK
+    let _ = assert_eq(ctx, "tc arith ok", tc_ok("def foo(x: i64): i64 = x + 1", 29), 1)
+
+    // 2. If same type OK
+    let _ = assert_eq(ctx, "tc if ok", tc_ok("def foo(n: i64): i64 = if n == 0 { 0 } else { 1 }", 51), 1)
+
+    // 3. If branch type mismatch
+    let e3 = tc_errs("def foo(n: i64): i64 = if n == 0 { 0 } else { true }", 53)
+    let _ = assert_eq(ctx, "tc if mismatch", is_nil(e3), 0)
+    let _ = assert_true(ctx, "tc if msg", str_contains(head(e3), mk_str("incompatible", 12)))
+
+    // 4. Bool in arithmetic
+    let e4 = tc_errs("def foo(n: i64): i64 = true + 1", 31)
+    let _ = assert_eq(ctx, "tc arith bool", is_nil(e4), 0)
+    let _ = assert_true(ctx, "tc arith msg", str_contains(head(e4), mk_str("integer operand", 15)))
+
+    // 5. Reset tag must be integer
+    let e5 = tc_errs("def foo(n: i64): i64 = reset true { n }", 39)
+    let _ = assert_eq(ctx, "tc reset tag", is_nil(e5), 0)
+    let _ = assert_true(ctx, "tc reset msg", str_contains(head(e5), mk_str("tag must be an integer", 22)))
+
+    // 6. Return type mismatch
+    let e6 = tc_errs("def foo(n: i64): i64 = n == 0", 29)
+    let _ = assert_eq(ctx, "tc ret mismatch", is_nil(e6), 0)
+    let _ = assert_true(ctx, "tc ret msg", str_contains(head(e6), mk_str("return type", 11)))
+
+    // 7. Full program OK
+    let _ = assert_eq(ctx, "tc full ok", tc_ok("data List { Nil, Cons(i64, List) }\ndef sum(n: i64): i64 = if n == 0 { 0 } else { n + sum(n - 1) }", 96), 1)
+
+    // 8. if let constructor-bound record field access
+    let _ = assert_eq(ctx, "tc iflet ctor field", tc_ok("type Point { x: i64 }\ndata Opt { None, Some(Point) }\ndef foo(o: Opt): i64 = if let Some(p) = o { p.x } else { 0 }", 113), 1)
+
+    // 9. match constructor-bound record field access
+    let _ = assert_eq(ctx, "tc match ctor field", tc_ok("type Point { x: i64 }\ndata Opt { None, Some(Point) }\ndef foo(o: Opt): i64 = match o { Some(p) => p.x _ => 0 }", 109), 1)
+
+    0
+}

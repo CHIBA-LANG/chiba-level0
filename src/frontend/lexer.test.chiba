@@ -1,0 +1,60 @@
+namespace frontend.lexer.test
+use metalstd.mem.*
+use metalstd.list.*
+use metalstd.test.*
+use metalstd.print.*
+use frontend.ast.*
+use frontend.lexer.*
+
+def test_lexer(ctx: i64): i64 = {
+    let _ = write_fd(1, "-- Lexer tests --\n", 18)
+
+    // Lex a simple integer
+    let t1 = lex("42", 2)
+    let _ = assert_eq(ctx, "lex int len", length(t1), 2)
+    let tok1 = head(t1)
+    let v1 = match tok1 { TokInt(v) => v  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "lex int val", v1, 42)
+
+    // Lex an identifier
+    let t2 = lex("foo", 3)
+    let tok2 = head(t2)
+    let is_ident = match tok2 { TokIdent(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex ident", is_ident, 1)
+
+    // Lex keyword "def"
+    let t3 = lex("def", 3)
+    let tok3 = head(t3)
+    let is_def = match tok3 { TokKwDef => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex kw def", is_def, 1)
+
+    // Lex operators
+    let t4 = lex("+ - * == =>", 11)
+    let _ = assert_eq(ctx, "lex ops len", length(t4), 6)
+    let is_plus = match nth(t4, 0) { TokPlus => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex plus", is_plus, 1)
+    let is_minus = match nth(t4, 1) { TokMinus => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex minus", is_minus, 1)
+    let is_star = match nth(t4, 2) { TokStar => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex star", is_star, 1)
+    let is_eqeq = match nth(t4, 3) { TokEqEq => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex eqeq", is_eqeq, 1)
+    let is_fat = match nth(t4, 4) { TokFatArrow => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex fat_arrow", is_fat, 1)
+
+    // Lex parens/braces
+    let t5 = lex("( ) { } [ ]", 11)
+    let _ = assert_eq(ctx, "lex delims len", length(t5), 7)
+    let is_lp = match nth(t5, 0) { TokLParen => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex lparen", is_lp, 1)
+    let is_rb = match nth(t5, 5) { TokRBracket => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex rbracket", is_rb, 1)
+
+    // Lex string literal
+    let t6 = lex("\"hello\"", 7)
+    let tok6 = head(t6)
+    let is_str = match tok6 { TokStr(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex string", is_str, 1)
+
+    0
+}

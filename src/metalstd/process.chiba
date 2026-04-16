@@ -1,0 +1,105 @@
+namespace metalstd.process
+use metalstd.mem.*
+use metalstd.list.*
+use metalstd.str.*
+use metalstd.file.*
+
+// ── Linux x86-64 process syscalls/helpers ────────────────────────────────
+
+data ProcResult {
+    ProcResult(i64, Str)
+}
+
+def proc_result_status(res: ProcResult): i64 =
+    match res {
+        ProcResult(status, _) => status
+    }
+
+def proc_result_stdout(res: ProcResult): Str =
+    match res {
+        ProcResult(_, out) => out
+    }
+
+def proc_fork(): i64 =
+    asm (57: rax) : (rax) => {
+        "syscall"
+    }
+
+def proc_execve(path: i64, argv: i64, envp: i64): i64 =
+    asm (59: rax, path: rdi, argv: rsi, envp: rdx) : (rax) => {
+        "syscall"
+    }
+
+def proc_wait4(pid: i64, status_ptr: i64, options: i64, rusage: i64): i64 =
+    asm (61: rax, pid: rdi, status_ptr: rsi, options: rdx, rusage: r10) : (rax) => {
+        "syscall"
+    }
+
+def proc_pipe(pipefd_ptr: i64): i64 =
+    asm (22: rax, pipefd_ptr: rdi) : (rax) => {
+        "syscall"
+    }
+
+def proc_dup2(oldfd: i64, newfd: i64): i64 =
+    asm (33: rax, oldfd: rdi, newfd: rsi) : (rax) => {
+        "syscall"
+    }
+
+def proc__exit(code: i64): i64 =
+    asm (60: rax, code: rdi) : (rax) => {
+        "syscall"
+    }
+
+def proc_load32le(ptr: i64, off: i64): i64 =
+    load8(ptr, off) + load8(ptr, off + 1) * 256 + load8(ptr, off + 2) * 65536 + load8(ptr, off + 3) * 16777216
+
+def proc_shr8(x: i64): i64 =
+    asm (x: rax) : (rax) => {
+        "shr rax, 8"
+    }
+
+def proc_argv_build(args: List[i64]): i64 = {
+    let argc = length(args)
+    let buf = heap_alloc((argc + 1) * 8)
+    let _ = proc_argv_fill(buf, args, 0)
+    let _ = store64(buf, argc, 0)
+    buf
+}
+
+def proc_argv_fill(buf: i64, args: List[i64], i: i64): i64 =
+    match args {
+        Nil => 0
+        Cons(arg, rest) => {
+            let _ = store64(buf, i, arg)
+            proc_argv_fill(buf, rest, i + 1)
+        }
+    }
+
+def proc_run_capture(path: i64, argv_list: List[i64]): ProcResult = {
+    let pipefds = heap_alloc(8)
+    let _ = store64(pipefds, 0, 0)
+    let _ = proc_pipe(pipefds)
+    let read_fd = proc_load32le(pipefds, 0)
+    let write_fd_num = proc_load32le(pipefds, 4)
+    let pid = proc_fork()
+    if pid == 0 {
+        let _ = proc_dup2(write_fd_num, 1)
+        let _ = file_close(read_fd)
+        let _ = file_close(write_fd_num)
+        let argv = proc_argv_build(argv_list)
+        let envp = heap_alloc(8)
+        let _ = store64(envp, 0, 0)
+        let _ = proc_execve(path, argv, envp)
+        proc__exit(127)
+        ProcResult(127, str_new())
+    } else {
+        let _ = file_close(write_fd_num)
+        let out = file_read_fd_all(read_fd)
+        let _ = file_close(read_fd)
+        let status_ptr = heap_alloc(8)
+        let _ = store64(status_ptr, 0, 0)
+        let _ = proc_wait4(pid, status_ptr, 0, 0)
+        let raw_status = proc_load32le(status_ptr, 0)
+        ProcResult(proc_shr8(raw_status), out)
+    }
+}

@@ -1,0 +1,177 @@
+namespace frontend.parser.test
+use metalstd.mem.*
+use metalstd.list.*
+use metalstd.str.*
+use metalstd.test.*
+use metalstd.print.*
+use frontend.ast.*
+use frontend.parser.*
+
+def test_parser_expr(ctx: i64): i64 = {
+    let _ = write_fd(1, "-- Parser expr tests --\n", 23)
+
+    // Parse integer literal
+    let e1 = parse_expr("42", 2)
+    let v1 = match e1 { EInt(v) => v  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse int", v1, 42)
+
+    // Parse addition
+    let e2 = parse_expr("1 + 2", 5)
+    let is_binop = match e2 { EBinOp(_, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse add binop", is_binop, 1)
+    let (op2, l2, r2) = match e2 {
+        EBinOp(op, l, r) => (op, l, r)
+        _ => (OpAdd, EUnit, EUnit)
+    }
+    let is_add = match op2 { OpAdd => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse add op", is_add, 1)
+    let lv = match l2 { EInt(v) => v  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse add lhs", lv, 1)
+    let rv = match r2 { EInt(v) => v  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse add rhs", rv, 2)
+
+    // Precedence: 1 + 2 * 3  =>  +(1, *(2,3))
+    let e3 = parse_expr("1 + 2 * 3", 9)
+    let r3 = match e3 {
+        EBinOp(_, _, rhs) =>
+            match rhs { EBinOp(op, _, _) => match op { OpMul => 1  _ => 0 }  _ => 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse prec mul", r3, 1)
+
+    // Parse variable
+    let e4 = parse_expr("foo", 3)
+    let is_var = match e4 { EVar(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse var", is_var, 1)
+
+    // Parse call: f(1, 2)
+    let e5 = parse_expr("f(1, 2)", 7)
+    let is_call = match e5 { ECall(_, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse call", is_call, 1)
+    let nargs = match e5 { ECall(_, args) => length(args)  _ => 0 }
+    let _ = assert_eq(ctx, "parse call nargs", nargs, 2)
+
+    // Parse if expression
+    let e6 = parse_expr("if 1 { 2 } else { 3 }", 22)
+    let is_if = match e6 { EIf(_, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse if", is_if, 1)
+
+    // Parse match expression
+    let e7 = parse_expr("match x { 1 => 10  _ => 20 }", 29)
+    let is_match = match e7 { EMatch(_, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse match", is_match, 1)
+    let n_arms = match e7 { EMatch(_, arms) => length(arms)  _ => 0 }
+    let _ = assert_eq(ctx, "parse match arms", n_arms, 2)
+
+    // Parse block: { let x = 1  x + 2 }
+    let e8 = parse_expr("{ let x = 1  x + 2 }", 21)
+    let is_block = match e8 { EBlock(_, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse block", is_block, 1)
+    let n_stmts = match e8 { EBlock(stmts, _) => length(stmts)  _ => 0 }
+    let _ = assert_eq(ctx, "parse block stmts", n_stmts, 1)
+
+    // Parse subtraction: a - 1 (use var so lexer doesn't greedily parse -1)
+    let e9 = parse_expr("a - 1", 5)
+    let is_sub = match e9 {
+        EBinOp(OpSub, _, _) => 1
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse sub", is_sub, 1)
+
+    // Parse tuple
+    let e10 = parse_expr("(1, 2, 3)", 9)
+    let is_tuple = match e10 { ETuple(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse tuple", is_tuple, 1)
+    let tup_len = match e10 { ETuple(es) => length(es)  _ => 0 }
+    let _ = assert_eq(ctx, "parse tuple len", tup_len, 3)
+
+    // Parse record literal
+    let e11 = parse_expr("Point { x: 1, y: 2 }", 20)
+    let is_record_lit = match e11 { ERecordLit(_, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse record lit", is_record_lit, 1)
+    let field_count = match e11 { ERecordLit(_, fields) => length(fields)  _ => 0 }
+    let _ = assert_eq(ctx, "parse record lit fields", field_count, 2)
+
+    // Parse lambda with one parameter
+    let e12 = parse_expr("(x: i64): i64 => x", 19)
+    let is_lambda = match e12 { ELambda(_, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse lambda", is_lambda, 1)
+    let lambda_arity = match e12 { ELambda(params, _, _) => length(params)  _ => 0 }
+    let _ = assert_eq(ctx, "parse lambda arity", lambda_arity, 1)
+
+    // Parse inline asm
+    let e13 = parse_expr("asm (1: rax) : (rax) => { \"syscall\" }", 37)
+    let is_asm = match e13 { EAsm(_, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse asm", is_asm, 1)
+
+    0
+}
+
+def test_parser_item(ctx: i64): i64 = {
+    let _ = write_fd(1, "-- Parser item tests --\n", 23)
+
+    // Parse a function definition
+    let items = parse_program_items("def foo(x: i64): i64 = x + 1", 29)
+    let _ = assert_eq(ctx, "parse def items", length(items), 1)
+    let item0 = head(items)
+    let is_fun = match item0 { FunDef(_, _, _, _, _, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse def is_fun", is_fun, 1)
+    let nparams = match item0 { FunDef(_, _, _, params, _, _, _) => length(params)  _ => 0 }
+    let _ = assert_eq(ctx, "parse def nparams", nparams, 1)
+
+    // Parse a data definition
+    let items2 = parse_program_items("data Color { Red, Green, Blue }", 31)
+    let _ = assert_eq(ctx, "parse data items", length(items2), 1)
+    let item1 = head(items2)
+    let is_data = match item1 { DataDef(_, _, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse data is_data", is_data, 1)
+    let nvariants = match item1 { DataDef(_, _, _, vs) => length(vs)  _ => 0 }
+    let _ = assert_eq(ctx, "parse data nvars", nvariants, 3)
+
+    // Parse a type definition
+    let items3 = parse_program_items("type Point { x: i64  y: i64 }", 30)
+    let _ = assert_eq(ctx, "parse type items", length(items3), 1)
+    let item2 = head(items3)
+    let is_typedef = match item2 { TypeDef(_, _, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse type is_type", is_typedef, 1)
+    let nfields = match item2 { TypeDef(_, _, _, fs) => length(fs)  _ => 0 }
+    let _ = assert_eq(ctx, "parse type nfields", nfields, 2)
+
+    // Parse extern declaration
+    let items4 = parse_program_items("def malloc(size: usize): *u8 = extern \"c\" \"malloc\"", 50)
+    let _ = assert_eq(ctx, "parse extern items", length(items4), 1)
+    let ext = head(items4)
+    let is_extern = match ext { ExternDecl(_, _, _, _, _, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse extern", is_extern, 1)
+
+    // Parse union definition
+    let items5 = parse_program_items("union Val { tag: i64  val: i64 }", 33)
+    let _ = assert_eq(ctx, "parse union items", length(items5), 1)
+    let un = head(items5)
+    let is_union = match un { UnionDef(_, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse union", is_union, 1)
+    let un_fields = match un { UnionDef(_, _, fs) => length(fs)  _ => 0 }
+    let _ = assert_eq(ctx, "parse union nfields", un_fields, 2)
+
+    // Parse private def
+    let items6 = parse_program_items("private def bar(): i64 = 0", 26)
+    let _ = assert_eq(ctx, "parse private items", length(items6), 1)
+    let priv_fun = head(items6)
+    let priv_flag = match priv_fun { FunDef(_, p, _, _, _, _, _) => p  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse private flag", priv_flag, 1)
+
+    // Parse type params on data
+    let items7 = parse_program_items("data Maybe[T] { Nothing, Just(T) }", 34)
+    let _ = assert_eq(ctx, "parse tparam items", length(items7), 1)
+    let tp_data = head(items7)
+    let tp_len = match tp_data { DataDef(_, _, tps, _) => length(tps)  _ => 0 }
+    let _ = assert_eq(ctx, "parse tparam len", tp_len, 1)
+
+    // Parse use declarations via parse_program
+    let prog = parse_program("namespace test\nuse a.b.*\nuse x.y.z\ndef f(): i64 = 0", 52)
+    let _ = assert_eq(ctx, "parse uses len", length(prog.uses), 2)
+    let _ = assert_true(ctx, "parse ns", streq(prog.ns, mk_str("test", 4)))
+    let _ = assert_eq(ctx, "parse prog items", length(prog.items), 1)
+
+    0
+}

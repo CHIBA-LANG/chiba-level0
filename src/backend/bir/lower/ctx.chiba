@@ -1,0 +1,392 @@
+namespace backend.bir.lower.ctx
+use metalstd.mem.*
+use metalstd.list.*
+use metalstd.option.*
+use metalstd.ref.*
+use metalstd.str.*
+use backend.bir.ir.*
+use backend.cir.ir.*
+
+// ── Lowering state for CPS → BIR ───────────────────────────────────────────
+
+data ContTarget {
+	CTLocalBlock(i64),
+	CTFunReturn
+}
+
+data LowerCtx {
+	LowerCtxV(i64)
+}
+
+data FunCtx {
+	FunCtxV(i64)
+}
+
+data I64Binding[V] {
+	I64Binding(i64, V)
+}
+
+// ── Raw field accessors ───────────────────────────────────────────────────
+//
+// Type records are heap objects with a tag word at offset 0.
+// Accessors here avoid relying on generated field loads/stores for the mutable
+// lowering contexts while the self-hosted backend is still stabilizing.
+
+def lctx_raw(ctx: LowerCtx): i64 =
+	match ctx {
+		LowerCtxV(raw) => raw
+	}
+
+def fctx_raw(fctx: FunCtx): i64 =
+	match fctx {
+		FunCtxV(raw) => raw
+	}
+
+def fctx_cur_fun_id(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 0)
+def fctx_cur_fun_name(fctx: FunCtx): Str = load64(fctx_raw(fctx), 1) as Str
+def fctx_cur_fun_ret_cont(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 3)
+
+def lctx_next_vreg(ctx: LowerCtx): i64 = load64(lctx_raw(ctx), 0)
+def lctx_next_block(ctx: LowerCtx): i64 = load64(lctx_raw(ctx), 1)
+def lctx_next_fun(ctx: LowerCtx): i64 = load64(lctx_raw(ctx), 2)
+def lctx_next_frame_kind(ctx: LowerCtx): i64 = load64(lctx_raw(ctx), 3)
+def lctx_fun_map(ctx: LowerCtx): i64 = load64(lctx_raw(ctx), 4)
+def lctx_funs(ctx: LowerCtx): i64 = load64(lctx_raw(ctx), 5)
+def lctx_frame_descs(ctx: LowerCtx): i64 = load64(lctx_raw(ctx), 6)
+
+def fctx_cur_fun_params(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 2)
+def fctx_var_map(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 4)
+def fctx_cont_map(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 5)
+def fctx_cont_params(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 6)
+def fctx_cont_vars(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 7)
+def fctx_blocks(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 8)
+def fctx_cur_insts(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 9)
+def fctx_cur_block_id_ref(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 10)
+def fctx_cur_block_params_ref(fctx: FunCtx): i64 = load64(fctx_raw(fctx), 11)
+
+def lower_ctx_new(): LowerCtx =
+	{
+		let raw = heap_alloc(56)
+		let r_nv = heap_alloc(8)
+		let _ = store64(r_nv, 0, 0)
+		let r_nb = heap_alloc(8)
+		let _ = store64(r_nb, 0, 0)
+		let r_nf = heap_alloc(8)
+		let _ = store64(r_nf, 0, 0)
+		let r_nk = heap_alloc(8)
+		let _ = store64(r_nk, 0, 0)
+		let r_fm = heap_alloc(8)
+		let _ = store64(r_fm, 0, Nil as i64)
+		let r_fs = heap_alloc(8)
+		let _ = store64(r_fs, 0, Nil as i64)
+		let r_fd = heap_alloc(8)
+		let _ = store64(r_fd, 0, Nil as i64)
+		let _ = store64(raw, 0, r_nv)
+		let _ = store64(raw, 1, r_nb)
+		let _ = store64(raw, 2, r_nf)
+		let _ = store64(raw, 3, r_nk)
+		let _ = store64(raw, 4, r_fm)
+		let _ = store64(raw, 5, r_fs)
+		let _ = store64(raw, 6, r_fd)
+		LowerCtxV(raw)
+	}
+
+def fun_ctx_new(fun_id: i64, fun_name: Str, ret_cont: i64): FunCtx =
+	{
+		let raw = heap_alloc(96)
+		let r_fp = heap_alloc(8)
+		let _ = store64(r_fp, 0, Nil as i64)
+		let r_vm = heap_alloc(8)
+		let _ = store64(r_vm, 0, Nil as i64)
+		let r_cm = heap_alloc(8)
+		let _ = store64(r_cm, 0, Nil as i64)
+		let r_cp = heap_alloc(8)
+		let _ = store64(r_cp, 0, Nil as i64)
+		let r_cv = heap_alloc(8)
+		let _ = store64(r_cv, 0, Nil as i64)
+		let r_bs = heap_alloc(8)
+		let _ = store64(r_bs, 0, Nil as i64)
+		let r_is = heap_alloc(8)
+		let _ = store64(r_is, 0, Nil as i64)
+		let r_bid = heap_alloc(8)
+		let _ = store64(r_bid, 0, 0)
+		let r_bps = heap_alloc(8)
+		let _ = store64(r_bps, 0, Nil as i64)
+		let _ = store64(raw, 0, fun_id)
+		let _ = store64(raw, 1, fun_name as i64)
+		let _ = store64(raw, 2, r_fp)
+		let _ = store64(raw, 3, ret_cont)
+		let _ = store64(raw, 4, r_vm)
+		let _ = store64(raw, 5, r_cm)
+		let _ = store64(raw, 6, r_cp)
+		let _ = store64(raw, 7, r_cv)
+		let _ = store64(raw, 8, r_bs)
+		let _ = store64(raw, 9, r_is)
+		let _ = store64(raw, 10, r_bid)
+		let _ = store64(raw, 11, r_bps)
+		FunCtxV(raw)
+	}
+
+// ── Fresh IDs ──────────────────────────────────────────────────────────────
+
+def lower_fresh_vreg(ctx: LowerCtx): i64 = {
+	let cell = lctx_next_vreg(ctx)
+	let v = load64(cell, 0)
+	let _ = store64(cell, 0, v + 1)
+	v
+}
+
+def lower_fresh_block(ctx: LowerCtx): i64 = {
+	let cell = lctx_next_block(ctx)
+	let b = load64(cell, 0)
+	let _ = store64(cell, 0, b + 1)
+	b
+}
+
+def lower_fresh_fun(ctx: LowerCtx): i64 = {
+	let cell = lctx_next_fun(ctx)
+	let f = load64(cell, 0)
+	let _ = store64(cell, 0, f + 1)
+	f
+}
+
+def lower_fresh_frame_kind(ctx: LowerCtx): i64 = {
+	let cell = lctx_next_frame_kind(ctx)
+	let k = load64(cell, 0)
+	let _ = store64(cell, 0, k + 1)
+	k
+}
+
+// ── Int-key assoc helpers ──────────────────────────────────────────────────
+
+def i64_assoc_get[V](xs: List[I64Binding[V]], key: i64): Option[V] =
+	match xs {
+		Nil => None
+		Cons(entry, rest) =>
+			match entry {
+				I64Binding(k, v) =>
+					if k == key { Some(v) } else { i64_assoc_get(rest, key) }
+			}
+	}
+
+def i64_assoc_put[V](xs: List[I64Binding[V]], key: i64, val: V): List[I64Binding[V]] =
+	match xs {
+		Nil => Cons(I64Binding(key, val), Nil)
+		Cons(entry, rest) =>
+			match entry {
+				I64Binding(k, v) =>
+					if k == key { Cons(I64Binding(key, val), rest) }
+					else { Cons(I64Binding(k, v), i64_assoc_put(rest, key, val)) }
+			}
+	}
+
+def i64_assoc_has[V](xs: List[I64Binding[V]], key: i64): i64 =
+	match i64_assoc_get(xs, key) {
+		Some(_) => 1
+		None => 0
+	}
+
+def i64_list_has(xs: List[i64], key: i64): i64 =
+	match xs {
+		Nil => 0
+		Cons(x, rest) => if x == key { 1 } else { i64_list_has(rest, key) }
+	}
+
+// ── Global fun map / outputs ───────────────────────────────────────────────
+
+def lower_fun_map_get(ctx: LowerCtx, key: i64): Option[i64] =
+	i64_assoc_get(load64(lctx_fun_map(ctx), 0) as List[I64Binding[i64]], key)
+
+def lower_fun_map_put(ctx: LowerCtx, key: i64, val: i64): i64 =
+	store64(lctx_fun_map(ctx), 0,
+		i64_assoc_put(load64(lctx_fun_map(ctx), 0) as List[I64Binding[i64]], key, val) as i64)
+
+def lower_fun_map_has(ctx: LowerCtx, key: i64): i64 =
+	i64_assoc_has(load64(lctx_fun_map(ctx), 0) as List[I64Binding[i64]], key)
+
+def lower_push_fun(ctx: LowerCtx, fun: BirFun): i64 =
+	store64(lctx_funs(ctx), 0, snoc(load64(lctx_funs(ctx), 0) as List[BirFun], fun) as i64)
+
+def lower_get_funs(ctx: LowerCtx): List[BirFun] = load64(lctx_funs(ctx), 0) as List[BirFun]
+
+def lower_push_frame_desc(ctx: LowerCtx, desc: FrameDesc): i64 =
+	store64(lctx_frame_descs(ctx), 0,
+		snoc(load64(lctx_frame_descs(ctx), 0) as List[FrameDesc], desc) as i64)
+
+def lower_get_frame_descs(ctx: LowerCtx): List[FrameDesc] =
+	load64(lctx_frame_descs(ctx), 0) as List[FrameDesc]
+
+// ── Per-function mutable state ─────────────────────────────────────────────
+
+def fun_ctx_map_var(fctx: FunCtx, cps_var: i64, vreg: i64): i64 =
+	store64(fctx_var_map(fctx), 0,
+		i64_assoc_put(load64(fctx_var_map(fctx), 0) as List[I64Binding[i64]], cps_var, vreg) as i64)
+
+def fun_ctx_get_var(fctx: FunCtx, cps_var: i64): Option[i64] =
+	i64_assoc_get(load64(fctx_var_map(fctx), 0) as List[I64Binding[i64]], cps_var)
+
+def fun_ctx_map_cont(fctx: FunCtx, cid: i64, target: ContTarget): i64 =
+	store64(fctx_cont_map(fctx), 0,
+		i64_assoc_put(load64(fctx_cont_map(fctx), 0) as List[I64Binding[ContTarget]], cid, target) as i64)
+
+def fun_ctx_get_cont(fctx: FunCtx, cid: i64): Option[ContTarget] =
+	i64_assoc_get(load64(fctx_cont_map(fctx), 0) as List[I64Binding[ContTarget]], cid)
+
+def fun_ctx_set_cont_params(fctx: FunCtx, cid: i64, params: List[i64]): i64 =
+	store64(fctx_cont_params(fctx), 0,
+		i64_assoc_put(load64(fctx_cont_params(fctx), 0) as List[I64Binding[List[i64]]], cid, params) as i64)
+
+def fun_ctx_get_cont_params(fctx: FunCtx, cid: i64): Option[List[i64]] =
+	i64_assoc_get(load64(fctx_cont_params(fctx), 0) as List[I64Binding[List[i64]]], cid)
+
+def fun_ctx_mark_cont_var(fctx: FunCtx, cps_var: i64): i64 =
+	if i64_list_has(load64(fctx_cont_vars(fctx), 0) as List[i64], cps_var) != 0 { 0 }
+	else { store64(fctx_cont_vars(fctx), 0, Cons(cps_var, load64(fctx_cont_vars(fctx), 0) as List[i64]) as i64) }
+
+def fun_ctx_is_cont_var(fctx: FunCtx, cps_var: i64): i64 =
+	i64_list_has(load64(fctx_cont_vars(fctx), 0) as List[i64], cps_var)
+
+def fun_ctx_emit(fctx: FunCtx, inst: Inst): i64 =
+	store64(fctx_cur_insts(fctx), 0, snoc(load64(fctx_cur_insts(fctx), 0) as List[Inst], inst) as i64)
+
+def fun_ctx_start_block(fctx: FunCtx, id: i64, params: List[i64]): i64 = {
+	let _ = store64(fctx_cur_block_id_ref(fctx), 0, id)
+	let _ = store64(fctx_cur_block_params_ref(fctx), 0, params as i64)
+	store64(fctx_cur_insts(fctx), 0, Nil as List[Inst] as i64)
+}
+
+def fun_ctx_finish_block(fctx: FunCtx, term: Terminator): i64 = {
+	let cur_fun = fctx_cur_fun_id(fctx)
+	let cur_block = load64(fctx_cur_block_id_ref(fctx), 0)
+	let _ = if cur_fun == 0 {
+		let s = str_new()
+		let _ = str_push_cstr(s, "[bir-lower] finish fun=0 block=")
+		let _ = str_append_i64(s, cur_block)
+		let _ = str_push_nl(s)
+		str_write_to(s, 2)
+	} else { 0 }
+	let block = Block {
+		id: cur_block,
+		params: load64(fctx_cur_block_params_ref(fctx), 0) as List[i64],
+		insts: load64(fctx_cur_insts(fctx), 0) as List[Inst],
+		term: term
+	}
+	store64(fctx_blocks(fctx), 0, Cons(block, load64(fctx_blocks(fctx), 0) as List[Block]) as i64)
+}
+
+def fun_ctx_get_blocks(fctx: FunCtx): List[Block] = rev(load64(fctx_blocks(fctx), 0) as List[Block])
+
+def block_list_has_id(blocks: List[Block], id: i64): i64 =
+	match blocks {
+		Nil => 0
+		Cons(block, rest) =>
+			if block.id == id { 1 }
+			else { block_list_has_id(rest, id) }
+	}
+
+def fun_ctx_has_block_id(fctx: FunCtx, id: i64): i64 =
+	block_list_has_id(load64(fctx_blocks(fctx), 0) as List[Block], id)
+
+def fun_ctx_set_fun_params(fctx: FunCtx, params: List[i64]): i64 =
+	store64(fctx_cur_fun_params(fctx), 0, params as i64)
+
+def fun_ctx_get_fun_params(fctx: FunCtx): List[i64] =
+	load64(fctx_cur_fun_params(fctx), 0) as List[i64]
+
+// ── CPS Val → VReg ─────────────────────────────────────────────────────────
+
+def lower_map_var(fctx: FunCtx, ctx: LowerCtx, cps_var: i64): i64 =
+	match fun_ctx_get_var(fctx, cps_var) {
+		Some(vr) => vr
+		None => {
+			let vr = lower_fresh_vreg(ctx)
+			let _ = fun_ctx_map_var(fctx, cps_var, vr)
+			vr
+		}
+	}
+
+def val_to_vreg(ctx: LowerCtx, fctx: FunCtx, val: Val): i64 =
+	if (val as i64) < 65536 {
+		let dst = lower_fresh_vreg(ctx)
+		let _ = fun_ctx_emit(fctx, ILoadUnit(dst))
+		dst
+	} else {
+	match val {
+		VInt(n) => {
+			let dst = lower_fresh_vreg(ctx)
+			let _ = fun_ctx_emit(fctx, ILoadImm(dst, n))
+			dst
+		}
+		VUnit => {
+			let dst = lower_fresh_vreg(ctx)
+			let _ = fun_ctx_emit(fctx, ILoadUnit(dst))
+			dst
+		}
+		VVar(v) => lower_map_var(fctx, ctx, v)
+		VFun(fid) => {
+			let bir_fid = match lower_fun_map_get(ctx, fid) {
+				Some(x) => x
+				None => 0 - 1
+			}
+			let dst = lower_fresh_vreg(ctx)
+			let _ = fun_ctx_emit(fctx, ILoadFunPtr(dst, bir_fid))
+			dst
+		}
+		VClosure(fid, _) => {
+			let bir_fid = match lower_fun_map_get(ctx, fid) {
+				Some(x) => x
+				None => 0 - 1
+			}
+			let dst = lower_fresh_vreg(ctx)
+			let _ = fun_ctx_emit(fctx, ILoadFunPtr(dst, bir_fid))
+			dst
+		}
+		VStr(idx) => {
+			let dst = lower_fresh_vreg(ctx)
+			let _ = fun_ctx_emit(fctx, ILoadStrPtr(dst, idx))
+			dst
+		}
+	}
+	}
+
+def vals_to_vregs(ctx: LowerCtx, fctx: FunCtx, vals: List[Val]): List[i64] =
+	match vals {
+		Nil => Nil
+		Cons(v, rest) => Cons(val_to_vreg(ctx, fctx, v), vals_to_vregs(ctx, fctx, rest))
+	}
+
+// ── Misc utilities ─────────────────────────────────────────────────────────
+
+def expr_may_capture(expr: CpsExpr): i64 =
+	match expr {
+		XControl(_, _, _, _) => 1
+		XPrompt(_, _, _, _) => 1
+		XLetVal(_, _, cont) => expr_may_capture(cont)
+		XLetPrim(_, _, cont) => expr_may_capture(cont)
+		XLetCont(defs, cont) =>
+			if expr_may_capture(cont) != 0 { 1 }
+			else { cont_defs_may_capture(defs) }
+		XLetFun(defs, cont) =>
+			if expr_may_capture(cont) != 0 { 1 }
+			else { fun_defs_may_capture(defs) }
+		_ => 0
+	}
+
+def cont_defs_may_capture(defs: List[(i64, ContDef)]): i64 =
+	match defs {
+		Nil => 0
+		Cons(entry, rest) => {
+			let (_, cdef) = entry
+			if expr_may_capture(cdef.body) != 0 { 1 }
+			else { cont_defs_may_capture(rest) }
+		}
+	}
+
+def fun_defs_may_capture(defs: List[FunDef]): i64 =
+	match defs {
+		Nil => 0
+		Cons(fdef, rest) =>
+			if expr_may_capture(fdef.body) != 0 { 1 }
+			else { fun_defs_may_capture(rest) }
+	}
+
