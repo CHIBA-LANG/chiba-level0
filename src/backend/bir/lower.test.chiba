@@ -48,7 +48,7 @@ def test_bir_lower(ctx: i64): i64 = {
     let retk = 99
     let top = FunDef {
         id: fid,
-        name: "id",
+        name: bir_ir_mk_str_cstr("id"),
         params: Cons(0, Nil),
         ret: retk,
         body: XAppCont(retk, Cons(VVar(0), Nil))

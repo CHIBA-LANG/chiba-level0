@@ -85,7 +85,7 @@ def prog_single(fun: BirFun, strings: List[Str], frames: List[FrameDesc]): BirPr
 def block0(base_vreg: i64, insts: List[Inst], term: Terminator): BirFun =
     BirFun {
         id: 1,
-        name: "main",
+        name: bir_ir_mk_str_cstr("main"),
         params: Nil,
         blocks: Cons(Block { id: 0, params: Nil, insts: insts, term: term }, Nil),
         base_vreg: base_vreg,
@@ -148,7 +148,7 @@ def test_bir_codegen_amd64(ctx: i64): i64 = {
     let prog_switch = BirProgram {
         funs: Cons(BirFun {
             id: 1,
-            name: "main",
+            name: bir_ir_mk_str_cstr("main"),
             params: Nil,
             blocks: Cons(Block { id: 0, params: Nil, insts: Cons(ILoadImm(0, 2), Nil), term: TSwitch(0, Cons((1, 1, Nil), Cons((2, 2, Nil), Nil)), Some((3, Nil))) },
                     Cons(Block { id: 1, params: Nil, insts: Cons(ILoadImm(1, 11), Nil), term: THalt(1) },
@@ -165,7 +165,7 @@ def test_bir_codegen_amd64(ctx: i64): i64 = {
 
     let tail_target = BirFun {
         id: 2,
-        name: "tail_target",
+        name: bir_ir_mk_str_cstr("tail_target"),
         params: Cons(0, Nil),
         blocks: Cons(Block { id: 0, params: Cons(0, Nil), insts: Nil, term: THalt(0) }, Nil),
         base_vreg: 0,
@@ -173,7 +173,7 @@ def test_bir_codegen_amd64(ctx: i64): i64 = {
     }
     let tail_main = BirFun {
         id: 1,
-        name: "main",
+        name: bir_ir_mk_str_cstr("main"),
         params: Nil,
         blocks: Cons(Block {
             id: 0,

@@ -104,6 +104,11 @@ def test_parser_expr(ctx: i64): i64 = {
     let is_asm = match e13 { EAsm(_, _, _) => 1  _ => 0 }
     let _ = assert_eq(ctx, "parse asm", is_asm, 1)
 
+    // Parse record update { e | field: val }
+    let e14 = parse_expr("{ v | x: 1 }", 13)
+    let is_upd = match e14 { EBlock(_, inner) => match inner { ERecordUpd(_, _) => 1  _ => 0 }  _ => 0 }
+    let _ = assert_eq(ctx, "parse record update", is_upd, 1)
+
     0
 }
 

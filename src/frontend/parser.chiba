@@ -320,6 +320,12 @@ def p_parse_block_body(p: i64, stmts: List[Stmt]): (List[Stmt], Expr) =
                     mk_block_result(rev(stmts), e)
                 }
                 TokEof => mk_block_result(rev(stmts), e)
+                TokPipe => {
+                    let _ = p_advance(p)
+                    let updates = p_parse_field_init_list(p, Nil)
+                    let _ = p_expect_rbrace(p)
+                    mk_block_result(rev(stmts), ERecordUpd(e, updates))
+                }
                 _ => p_parse_block_body(p, Cons(SExpr(e), stmts))
             }
         }

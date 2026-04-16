@@ -39,7 +39,7 @@ def test_bir_ir(ctx: i64): i64 = {
 
     let fun = BirFun {
         id: 8,
-        name: "demo",
+        name: bir_ir_mk_str_cstr("demo"),
         params: Cons(1, Cons(2, Nil)),
         blocks: Cons(block, Nil),
         base_vreg: 10,
@@ -52,7 +52,7 @@ def test_bir_ir(ctx: i64): i64 = {
 
     let desc = FrameDesc {
         kind: 2,
-        name: "resume_main",
+        name: bir_ir_mk_str_cstr("resume_main"),
         resume_block: 9,
         resume_fun: 8
     }

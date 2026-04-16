@@ -63,5 +63,13 @@ def test_project(ctx: i64): i64 = {
     let tc3 = typecheck_program(merged3, m3)
     let _ = assert_eq(ctx, "project ctor import typecheck", is_nil(tc3), 1)
 
+
+    // Union e2e: parse + resolve
+    let uf1 = mk_source_file("u.chiba", "union UV { a: i64  b: i64 }")
+    let uf2 = mk_source_file("m.chiba", "use u.*\ndef uget(v: UV): i64 = v.a")
+    let um = merge_program(Cons(uf1, Cons(uf2, Nil)))
+    let ru = resolve(um)
+    let _ = assert_eq(ctx, "union e2e resolve", resolve_ok(ru), 1)
+
     0
 }

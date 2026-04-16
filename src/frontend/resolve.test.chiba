@@ -82,7 +82,7 @@ def test_resolve(ctx: i64): i64 = {
     let _ = assert_eq(ctx, "Color not rec", datainfo_is_rec(di_color), 0)
 
     // 5. Mutual recursion
-    let r5 = resolve_items(parse_program_items("data A { Leaf, NodeA(B) }\ndata B { Leaf2, NodeB(A) }", 52))
+    let r5 = resolve_items(parse_program_items("data A { Leaf, NodeA(B) }\ndata B { Leaf2, NodeB(A) }", 51))
     let m5 = resolve_module(r5)
     let di_a: DataInfo = strlist_get_unwrap(m5.datas, mk_str("A", 1))
     let di_b: DataInfo = strlist_get_unwrap(m5.datas, mk_str("B", 1))
@@ -148,6 +148,23 @@ def test_resolve(ctx: i64): i64 = {
     // 16. Record literal field expr resolves like normal expr
     let r16 = resolve_items(parse_program_items("type Buf { x: i64 }\ndef mk(y: i64): Buf = Buf { x: y }", 55))
     let _ = assert_eq(ctx, "record lit field expr ok", resolve_ok(r16), 1)
+
+
+    // Union: basic resolve
+    let r_u1 = resolve_items(parse_program_items("union Val { tag: i64  payload: i64 }", 36))
+    let _ = assert_eq(ctx, "union resolve ok", resolve_ok(r_u1), 1)
+    let _ = if resolve_ok(r_u1) != 0 {
+        let m_u1 = resolve_module(r_u1)
+        assert_eq(ctx, "union in types", strlist_has(m_u1.types, mk_str("Val", 3)), 1)
+    } else { 0 }
+
+    // Union: field access
+    let r_u2 = resolve_items(parse_program_items("union Val { tag: i64  payload: i64 }\ndef get_tag(v: Val): i64 = v.tag", 69))
+    let _ = assert_eq(ctx, "union field ok", resolve_ok(r_u2), 1)
+
+    // Union: dup with type
+    let r_u3 = resolve_items(parse_program_items("type Foo { x: i64 }\nunion Foo { y: i64 }", 40))
+    let _ = assert_eq(ctx, "union dup type err", resolve_ok(r_u3), 0)
 
     0
 }

@@ -49,6 +49,21 @@ def test_data_adt(ctx: i64): i64 = {
     0
 }
 
+
+union TestVal { val_a: i64  val_b: i64 }
+
+def test_union(ctx: i64): i64 = {
+    let _ = write_fd(1, "-- Union tests --\n", 18)
+    let v1 = TestVal { val_a: 42, val_b: 0 }
+    let _ = assert_eq(ctx, "union field val_a", v1.val_a, 42)
+    let v2 = { v1 | val_b: 99 }
+    let _ = assert_eq(ctx, "union update val_b", v2.val_b, 99)
+    let _ = assert_eq(ctx, "union update keeps val_a", v2.val_a, 42)
+    let v3 = TestVal { val_a: 123, val_b: 456 }
+    let _ = assert_eq(ctx, "union both fields", v3.val_a, 123)
+    let _ = assert_eq(ctx, "union both fields 2", v3.val_b, 456)
+    0
+}
 def run_all_tests(): i64 = {
     let ctx = test_init()
     let _ = write_fd(1, "=== chiba-level0 tests ===\n", 27)
@@ -61,6 +76,7 @@ def run_all_tests(): i64 = {
     let _ = test_dir(ctx)
     let _ = test_process(ctx)
     let _ = test_data_adt(ctx)
+    let _ = test_union(ctx)
     let _ = test_lexer(ctx)
     let _ = test_parser_expr(ctx)
     let _ = test_parser_item(ctx)

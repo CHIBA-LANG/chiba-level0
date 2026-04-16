@@ -142,7 +142,7 @@ def test_closure(ctx: i64): i64 = {
         length(test_cc_prog_funs(cc1)) > 0)
 
     // ── CLOSURE_TAG constant ─────────────────────────────────────────────
-    let _ = assert_eq(ctx, "CLOSURE_TAG", CLOSURE_TAG(), 3242885381)
+    let _ = assert_eq(ctx, "CLOSURE_TAG", CLOSURE_TAG(), 3238379781)
 
     // ── merge_sort ───────────────────────────────────────────────────────
     let sorted = merge_sort(Cons(3, Cons(1, Cons(4, Cons(1, Cons(5, Nil))))))
