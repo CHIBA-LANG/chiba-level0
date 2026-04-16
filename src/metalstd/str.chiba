@@ -21,7 +21,7 @@ def str_new(): Str = Str { ptr: 0, len: 0, cap: 0 }
 
 def str_eq_loop(a: i64, b: i64, i: i64, n: i64): i64 =
     if i >= n { 1 }
-    else { if load8(a, i) == load8(b, i) { str_eq_loop(a, b, i + 1, n) } else { 0 } }
+    else if load8(a, i) == load8(b, i) { str_eq_loop(a, b, i + 1, n) } else { 0 }
 
 def str_eq(a: i64, a_len: i64, b: i64, b_len: i64): i64 =
     if a_len != b_len { 0 } else { str_eq_loop(a, b, 0, a_len) }

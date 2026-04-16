@@ -12,50 +12,50 @@ def is_digit(c: i64): i64 =
 def is_alpha(c: i64): i64 =
     if c >= 65 {
         if c <= 90 { 1 }
-        else { if c >= 97 { if c <= 122 { 1 } else { 0 } } else { 0 } }
+        else if c >= 97 { if c <= 122 { 1 } else { 0 } } else { 0 }
     } else { 0 }
 
 def is_alnum_under(c: i64): i64 =
     if is_alpha(c) != 0 { 1 }
-    else { if is_digit(c) != 0 { 1 }
-    else { if c == 95 { 1 } else { 0 } } }
+    else if is_digit(c) != 0 { 1 }
+    else if c == 95 { 1 } else { 0 }
 
 def is_hex(c: i64): i64 =
     if is_digit(c) != 0 { 1 }
-    else { if c >= 65 { if c <= 70 { 1 } else { if c >= 97 { if c <= 102 { 1 } else { 0 } } else { 0 } } }
-    else { 0 } }
+    else if c >= 65 { if c <= 70 { 1 } else if c >= 97 { if c <= 102 { 1 } else { 0 } } else { 0 } }
+    else { 0 }
 
 def hex_val(c: i64): i64 =
     if c >= 48 { if c <= 57 { c - 48 }
-    else { if c >= 65 { if c <= 70 { c - 55 } else { c - 87 } } else { c - 87 } } }
+    else if c >= 65 { if c <= 70 { c - 55 } else { c - 87 } } else { c - 87 } }
     else { 0 }
 
 def is_ws(c: i64): i64 =
-    if c == 32 { 1 } else { if c == 9 { 1 } else { if c == 10 { 1 } else { if c == 13 { 1 } else { 0 } } } }
+    if c == 32 { 1 } else if c == 9 { 1 } else if c == 10 { 1 } else if c == 13 { 1 } else { 0 }
 
 // ── Keyword matching ──────────────────────────────────────────────────────────
 
 def match_keyword(s: Str): Token =
     if streq(s, mk_str("namespace", 9))  { TokKwNamespace }
-    else { if streq(s, mk_str("def", 3))       { TokKwDef }
-    else { if streq(s, mk_str("type", 4))      { TokKwType }
-    else { if streq(s, mk_str("data", 4))      { TokKwData }
-    else { if streq(s, mk_str("union", 5))     { TokKwUnion }
-    else { if streq(s, mk_str("let", 3))       { TokKwLet }
-    else { if streq(s, mk_str("if", 2))        { TokKwIf }
-    else { if streq(s, mk_str("else", 4))      { TokKwElse }
-    else { if streq(s, mk_str("match", 5))     { TokKwMatch }
-    else { if streq(s, mk_str("extern", 6))    { TokKwExtern }
-    else { if streq(s, mk_str("unsafe", 6))    { TokKwUnsafe }
-    else { if streq(s, mk_str("reset", 5))     { TokKwReset }
-    else { if streq(s, mk_str("shift", 5))     { TokKwShift }
-    else { if streq(s, mk_str("true", 4))      { TokKwTrue }
-    else { if streq(s, mk_str("false", 5))     { TokKwFalse }
-    else { if streq(s, mk_str("as", 2))        { TokKwAs }
-    else { if streq(s, mk_str("use", 3))       { TokKwUse }
-    else { if streq(s, mk_str("private", 7))   { TokKwPrivate }
-    else { if streq(s, mk_str("asm", 3))       { TokKwAsm }
-    else { TokIdent(s) } } } } } } } } } } } } } } } } } } }
+    else if streq(s, mk_str("def", 3))       { TokKwDef }
+    else if streq(s, mk_str("type", 4))      { TokKwType }
+    else if streq(s, mk_str("data", 4))      { TokKwData }
+    else if streq(s, mk_str("union", 5))     { TokKwUnion }
+    else if streq(s, mk_str("let", 3))       { TokKwLet }
+    else if streq(s, mk_str("if", 2))        { TokKwIf }
+    else if streq(s, mk_str("else", 4))      { TokKwElse }
+    else if streq(s, mk_str("match", 5))     { TokKwMatch }
+    else if streq(s, mk_str("extern", 6))    { TokKwExtern }
+    else if streq(s, mk_str("unsafe", 6))    { TokKwUnsafe }
+    else if streq(s, mk_str("reset", 5))     { TokKwReset }
+    else if streq(s, mk_str("shift", 5))     { TokKwShift }
+    else if streq(s, mk_str("true", 4))      { TokKwTrue }
+    else if streq(s, mk_str("false", 5))     { TokKwFalse }
+    else if streq(s, mk_str("as", 2))        { TokKwAs }
+    else if streq(s, mk_str("use", 3))       { TokKwUse }
+    else if streq(s, mk_str("private", 7))   { TokKwPrivate }
+    else if streq(s, mk_str("asm", 3))       { TokKwAsm }
+    else { TokIdent(s) }
 
 // ── Lexer state ───────────────────────────────────────────────────────────────
 //
@@ -146,26 +146,26 @@ def lx_lex_int(lx: i64): Token = {
 
 def lx_str_build(lx: i64, buf: Str): Str =
     if lx_cur(lx) == 0 { buf }
-    else { if lx_cur(lx) == 34 { buf }
+    else if lx_cur(lx) == 34 { buf }
     else {
         if lx_cur(lx) == 92 {
             let _ = lx_adv(lx)
             let esc = lx_cur(lx)
             let _ = lx_adv(lx)
             let _ = if esc == 110 { str_push(buf, 10) }
-                    else { if esc == 116 { str_push(buf, 9) }
-                    else { if esc == 114 { str_push(buf, 13) }
-                    else { if esc == 34  { str_push(buf, 34) }
-                    else { if esc == 92  { str_push(buf, 92) }
-                    else { if esc == 48  { str_push(buf, 0) }
-                    else { str_push(buf, esc) } } } } } }
+                    else if esc == 116 { str_push(buf, 9) }
+                    else if esc == 114 { str_push(buf, 13) }
+                    else if esc == 34  { str_push(buf, 34) }
+                    else if esc == 92  { str_push(buf, 92) }
+                    else if esc == 48  { str_push(buf, 0) }
+                    else { str_push(buf, esc) }
             lx_str_build(lx, buf)
         } else {
             let _ = str_push(buf, lx_cur(lx))
             let _ = lx_adv(lx)
             lx_str_build(lx, buf)
         }
-    } }
+    }
 
 def lx_lex_string(lx: i64): Token = {
     let _ = lx_adv(lx)
@@ -228,33 +228,32 @@ def lx_lex_hash(lx: i64): Token = {
 def lx_lex_punct(lx: i64, c: i64): Token = {
     let _ = lx_adv(lx)
     if c == 43  { TokPlus }
-    else { if c == 42  { TokStar }
-    else { if c == 47  { TokSlash }
-    else { if c == 37  { TokPercent }
-    else { if c == 44  { TokComma }
-    else { if c == 46  { TokDot }
-    else { if c == 40  { TokLParen }
-    else { if c == 41  { TokRParen }
-    else { if c == 123 { TokLBrace }
-    else { if c == 125 { TokRBrace }
-    else { if c == 91  { TokLBracket }
-    else { if c == 93  { TokRBracket }
+    else if c == 42  { TokStar }
+    else if c == 47  { TokSlash }
+    else if c == 37  { TokPercent }
+    else if c == 44  { TokComma }
+    else if c == 46  { TokDot }
+    else if c == 40  { TokLParen }
+    else if c == 41  { TokRParen }
+    else if c == 123 { TokLBrace }
+    else if c == 125 { TokRBrace }
+    else if c == 91  { TokLBracket }
+    else if c == 93  { TokRBracket }
     // Multi-char operators
-    else { if c == 61  { lx_punct_eq(lx) }
-    else { if c == 33  { lx_punct_bang(lx) }
-    else { if c == 60  { lx_punct_lt(lx) }
-    else { if c == 62  { lx_punct_gt(lx) }
-    else { if c == 38  { lx_punct_amp(lx) }
-    else { if c == 124 { lx_punct_pipe(lx) }
-    else { if c == 58  { lx_punct_colon(lx) }
+    else if c == 61  { lx_punct_eq(lx) }
+    else if c == 33  { lx_punct_bang(lx) }
+    else if c == 60  { lx_punct_lt(lx) }
+    else if c == 62  { lx_punct_gt(lx) }
+    else if c == 38  { lx_punct_amp(lx) }
+    else if c == 124 { lx_punct_pipe(lx) }
+    else if c == 58  { lx_punct_colon(lx) }
     else { TokEof }
-    } } } } } } } } } } } } } } } } } }
 }
 
 def lx_punct_eq(lx: i64): Token =
     if lx_cur(lx) == 61 { let _ = lx_adv(lx) TokEqEq }
-    else { if lx_cur(lx) == 62 { let _ = lx_adv(lx) TokFatArrow }
-    else { TokEq } }
+    else if lx_cur(lx) == 62 { let _ = lx_adv(lx) TokFatArrow }
+    else { TokEq }
 
 def lx_punct_bang(lx: i64): Token =
     if lx_cur(lx) == 61 { let _ = lx_adv(lx) TokBangEq }

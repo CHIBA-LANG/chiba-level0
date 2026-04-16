@@ -488,8 +488,8 @@ def extract_type_args(scrut_ty: Ty, data_name: Str): List[Ty] =
 
 def subst_ctor_field_tys(field_tys: List[Ty], type_params: List[Str], type_args: List[Ty]): List[Ty] =
     if length(type_params) == 0 { field_tys }
-    else { if length(type_args) == 0 { field_tys }
-    else { subst_type_list(field_tys, type_params, type_args) } }
+    else if length(type_args) == 0 { field_tys }
+    else { subst_type_list(field_tys, type_params, type_args) }
 
 def bind_pat_from_scrut(pat: Pat, scrut_ty: Option[Ty], env: List[TyBinding],
                         m: Module): List[TyBinding] =

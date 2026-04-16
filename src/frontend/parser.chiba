@@ -192,13 +192,13 @@ def p_parse_named_type(p: i64): Ty = {
     match tok {
         TokIdent(s) =>
             if streq(s, mk_str("i32", 3))    { TyI32 }
-            else { if streq(s, mk_str("i64", 3))    { TyI64 }
-            else { if streq(s, mk_str("u8", 2))     { TyU8 }
-            else { if streq(s, mk_str("u32", 3))    { TyU32 }
-            else { if streq(s, mk_str("u64", 3))    { TyU64 }
-            else { if streq(s, mk_str("usize", 5))  { TyUsize }
-            else { if streq(s, mk_str("bool", 4))   { TyBool }
-            else { if streq(s, mk_str("unit", 4))   { TyUnit }
+            else if streq(s, mk_str("i64", 3))    { TyI64 }
+            else if streq(s, mk_str("u8", 2))     { TyU8 }
+            else if streq(s, mk_str("u32", 3))    { TyU32 }
+            else if streq(s, mk_str("u64", 3))    { TyU64 }
+            else if streq(s, mk_str("usize", 5))  { TyUsize }
+            else if streq(s, mk_str("bool", 4))   { TyBool }
+            else if streq(s, mk_str("unit", 4))   { TyUnit }
             else {
                 // Check for type args: Name[T1, T2]
                 let type_args = match p_peek(p) {
@@ -211,7 +211,7 @@ def p_parse_named_type(p: i64): Ty = {
                     _ => Nil
                 }
                 TyNamed(s, type_args)
-            } } } } } } } }
+            }
         _ => TyUnit
     }
 }
@@ -641,6 +641,14 @@ def p_parse_paren_expr(p: i64): Expr = {
 }
 
 // `if [let pat =] cond { then } else { else_ }`
+// Supports `else if ...` and `else if let ...` by parsing the else branch
+// as either a block or another if-expression.
+def p_parse_else_expr(p: i64): Expr =
+    match p_peek(p) {
+        TokKwIf => p_parse_if_expr(p)
+        _ => p_parse_block(p)
+    }
+
 def p_parse_if_expr(p: i64): Expr = {
     let _ = p_advance(p)
     match p_peek(p) {
@@ -651,14 +659,14 @@ def p_parse_if_expr(p: i64): Expr = {
             let scrut = p_parse_expr(p)
             let then_ = p_parse_block(p)
             let _ = p_eat_kw_else(p)
-            let else_ = p_parse_block(p)
+            let else_ = p_parse_else_expr(p)
             EIfLet(pat, scrut, then_, else_)
         }
         _ => {
             let cond = p_parse_expr(p)
             let then_ = p_parse_block(p)
             let _ = p_eat_kw_else(p)
-            let else_ = p_parse_block(p)
+            let else_ = p_parse_else_expr(p)
             EIf(cond, then_, else_)
         }
     }

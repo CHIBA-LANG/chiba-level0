@@ -104,6 +104,22 @@ def test_parser_expr(ctx: i64): i64 = {
     let is_asm = match e13 { EAsm(_, _, _) => 1  _ => 0 }
     let _ = assert_eq(ctx, "parse asm", is_asm, 1)
 
+    // Parse else if
+    let e15 = parse_expr("if 1 { 2 } else if 3 { 4 } else { 5 }", 39)
+    let is_else_if = match e15 {
+        EIf(_, _, else_) => match else_ { EIf(_, _, _) => 1  _ => 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse else if", is_else_if, 1)
+
+    // Parse else if let
+    let e16 = parse_expr("if 1 { 2 } else if let Some(x) = y { x } else { 0 }", 54)
+    let is_else_if_let = match e16 {
+        EIf(_, _, else_) => match else_ { EIfLet(_, _, _, _) => 1  _ => 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse else if let", is_else_if_let, 1)
+
     // Parse record update { e | field: val }
     let e14 = parse_expr("{ v | x: 1 }", 13)
     let is_upd = match e14 { EBlock(_, inner) => match inner { ERecordUpd(_, _) => 1  _ => 0 }  _ => 0 }
