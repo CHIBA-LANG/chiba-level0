@@ -83,6 +83,13 @@ data Inst {
     IBOr(i64, i64, i64),                              // dst, lhs, rhs
     IBNot(i64, i64),                                  // dst, src
 
+    // §3.3b Bitwise
+    IBitAnd(i64, i64, i64),                           // dst, lhs, rhs
+    IBitOr(i64, i64, i64),                            // dst, lhs, rhs
+    IBitXor(i64, i64, i64),                           // dst, lhs, rhs
+    IShl(i64, i64, i64),                              // dst, lhs, rhs
+    IShr(i64, i64, i64),                              // dst, lhs, rhs
+
     // §3.4 Tagged data
     ITagOf(i64, i64),                                 // dst, val
     IMakeTagged(i64, i64, List[i64]),                 // dst, tag, fields

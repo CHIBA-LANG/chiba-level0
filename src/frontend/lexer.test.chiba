@@ -56,5 +56,33 @@ def test_lexer(ctx: i64): i64 = {
     let is_str = match tok6 { TokStr(_) => 1  _ => 0 }
     let _ = assert_eq(ctx, "lex string", is_str, 1)
 
+    // Lex bitwise operators
+    let t7 = lex("& | ^", 5)
+    let _ = assert_eq(ctx, "lex bitwise len", length(t7), 4)
+    let is_amp = match nth(t7, 0) { TokAmp => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex bitand token", is_amp, 1)
+    let is_pipe = match nth(t7, 1) { TokPipe => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex bitor token", is_pipe, 1)
+    let is_caret = match nth(t7, 2) { TokCaret => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex bitxor token", is_caret, 1)
+
+    // Lex shifts individually to isolate failures
+    let t8 = lex("<<", 2)
+    let _ = assert_eq(ctx, "lex shl len", length(t8), 2)
+    let is_ltl = match nth(t8, 0) { TokLtLt => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex shl token", is_ltl, 1)
+
+    let t9 = lex(">>", 2)
+    let _ = assert_eq(ctx, "lex shr len", length(t9), 2)
+    let is_gtg = match nth(t9, 0) { TokGtGt => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex shr token", is_gtg, 1)
+
+    // && and || should still lex as logical operators
+    let t10 = lex("&& ||", 5)
+    let is_ampamp = match nth(t10, 0) { TokAmpAmp => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex logical and token", is_ampamp, 1)
+    let is_pipepipe = match nth(t10, 1) { TokPipePipe => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex logical or token", is_pipepipe, 1)
+
     0
 }

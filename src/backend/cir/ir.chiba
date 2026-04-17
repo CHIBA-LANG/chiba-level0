@@ -51,6 +51,13 @@ data PrimOp {
     PBOr(Val, Val),
     PBNot(Val),
 
+    // Bitwise integer operations
+    PBitAnd(Val, Val),
+    PBitOr(Val, Val),
+    PBitXor(Val, Val),
+    PShl(Val, Val),
+    PShr(Val, Val),
+
     // Integer ↔ pointer cast (unsafe; no type check)
     PPtrToInt(Val),
     PIntToPtr(Val),

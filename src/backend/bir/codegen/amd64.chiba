@@ -189,6 +189,11 @@ def emit_inst(out: Str, fun: BirFun, inst: Inst): i64 = {
         IBAnd(dst, lhs, rhs) => emit_and(out, dst, lhs, rhs, fun.base_vreg)
         IBOr(dst, lhs, rhs) => emit_or(out, dst, lhs, rhs, fun.base_vreg)
         IBNot(dst, src) => emit_bnot(out, dst, src, fun.base_vreg)
+        IBitAnd(dst, lhs, rhs) => emit_bitand(out, dst, lhs, rhs, fun.base_vreg)
+        IBitOr(dst, lhs, rhs) => emit_bitor(out, dst, lhs, rhs, fun.base_vreg)
+        IBitXor(dst, lhs, rhs) => emit_bitxor(out, dst, lhs, rhs, fun.base_vreg)
+        IShl(dst, lhs, rhs) => emit_shl(out, dst, lhs, rhs, fun.base_vreg)
+        IShr(dst, lhs, rhs) => emit_shr(out, dst, lhs, rhs, fun.base_vreg)
         ITagOf(dst, val) => emit_tag_of(out, dst, val, fun.base_vreg)
         IMakeTagged(dst, tag, fields) => emit_make_tagged(out, dst, tag, fields, fun.base_vreg)
         IGetField(dst, val, idx) => emit_get_field(out, dst, val, idx, fun.base_vreg)
@@ -318,6 +323,73 @@ def emit_or(out: Str, dst: i64, lhs: i64, rhs: i64, base_vreg: i64): i64 = {
     let _ = str_push_cstr(out, "    mov ")
     let _ = emit_spill(out, dst, base_vreg)
     let _ = str_push_cstr(out, ", rax        # BOr\n")
+    0
+}
+
+def emit_bitand(out: Str, dst: i64, lhs: i64, rhs: i64, base_vreg: i64): i64 = {
+    let _ = str_push_cstr(out, "    mov rax, ")
+    let _ = emit_spill(out, lhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    and rax, ")
+    let _ = emit_spill(out, rhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    mov ")
+    let _ = emit_spill(out, dst, base_vreg)
+    let _ = str_push_cstr(out, ", rax        # BitAnd\n")
+    0
+}
+
+def emit_bitor(out: Str, dst: i64, lhs: i64, rhs: i64, base_vreg: i64): i64 = {
+    let _ = str_push_cstr(out, "    mov rax, ")
+    let _ = emit_spill(out, lhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    or rax, ")
+    let _ = emit_spill(out, rhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    mov ")
+    let _ = emit_spill(out, dst, base_vreg)
+    let _ = str_push_cstr(out, ", rax        # BitOr\n")
+    0
+}
+
+def emit_bitxor(out: Str, dst: i64, lhs: i64, rhs: i64, base_vreg: i64): i64 = {
+    let _ = str_push_cstr(out, "    mov rax, ")
+    let _ = emit_spill(out, lhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    xor rax, ")
+    let _ = emit_spill(out, rhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    mov ")
+    let _ = emit_spill(out, dst, base_vreg)
+    let _ = str_push_cstr(out, ", rax        # BitXor\n")
+    0
+}
+
+def emit_shl(out: Str, dst: i64, lhs: i64, rhs: i64, base_vreg: i64): i64 = {
+    let _ = str_push_cstr(out, "    mov rax, ")
+    let _ = emit_spill(out, lhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    mov rcx, ")
+    let _ = emit_spill(out, rhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    shl rax, cl\n")
+    let _ = str_push_cstr(out, "    mov ")
+    let _ = emit_spill(out, dst, base_vreg)
+    let _ = str_push_cstr(out, ", rax        # Shl\n")
+    0
+}
+
+def emit_shr(out: Str, dst: i64, lhs: i64, rhs: i64, base_vreg: i64): i64 = {
+    let _ = str_push_cstr(out, "    mov rax, ")
+    let _ = emit_spill(out, lhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    mov rcx, ")
+    let _ = emit_spill(out, rhs, base_vreg)
+    let _ = str_push_nl(out)
+    let _ = str_push_cstr(out, "    shr rax, cl\n")
+    let _ = str_push_cstr(out, "    mov ")
+    let _ = emit_spill(out, dst, base_vreg)
+    let _ = str_push_cstr(out, ", rax        # Shr\n")
     0
 }
 

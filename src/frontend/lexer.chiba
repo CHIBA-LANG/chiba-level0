@@ -239,6 +239,7 @@ def lx_lex_punct(lx: i64, c: i64): Token = {
     else if c == 125 { TokRBrace }
     else if c == 91  { TokLBracket }
     else if c == 93  { TokRBracket }
+    else if c == 94  { TokCaret }
     // Multi-char operators
     else if c == 61  { lx_punct_eq(lx) }
     else if c == 33  { lx_punct_bang(lx) }
@@ -260,11 +261,13 @@ def lx_punct_bang(lx: i64): Token =
     else { TokBang }
 
 def lx_punct_lt(lx: i64): Token =
-    if lx_cur(lx) == 61 { let _ = lx_adv(lx) TokLtEq }
+    if lx_cur(lx) == 60 { let _ = lx_adv(lx) TokLtLt }
+    else if lx_cur(lx) == 61 { let _ = lx_adv(lx) TokLtEq }
     else { TokLt }
 
 def lx_punct_gt(lx: i64): Token =
-    if lx_cur(lx) == 61 { let _ = lx_adv(lx) TokGtEq }
+    if lx_cur(lx) == 62 { let _ = lx_adv(lx) TokGtGt }
+    else if lx_cur(lx) == 61 { let _ = lx_adv(lx) TokGtEq }
     else { TokGt }
 
 def lx_punct_amp(lx: i64): Token =

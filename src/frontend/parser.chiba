@@ -338,7 +338,10 @@ def p_parse_expr(p: i64): Expr = p_parse_expr_prec(p, 0)
 def p_infix_bp(tok: Token): i64 =
     match tok {
         TokPipePipe => 2
+        TokPipe => 3
+        TokCaret => 3
         TokAmpAmp => 4
+        TokAmp => 5
         TokEqEq => 6
         TokBangEq => 6
         TokLt => 6
@@ -347,6 +350,8 @@ def p_infix_bp(tok: Token): i64 =
         TokGtEq => 6
         TokPlus => 8
         TokMinus => 8
+        TokLtLt => 9
+        TokGtGt => 9
         TokStar => 10
         TokSlash => 10
         TokPercent => 10
@@ -360,7 +365,10 @@ def p_infix_bp(tok: Token): i64 =
 def p_right_bp(tok: Token): i64 =
     match tok {
         TokPipePipe => 3
+        TokPipe => 3
+        TokCaret => 4
         TokAmpAmp => 5
+        TokAmp => 5
         TokEqEq => 7
         TokBangEq => 7
         TokLt => 7
@@ -369,6 +377,8 @@ def p_right_bp(tok: Token): i64 =
         TokGtEq => 7
         TokPlus => 9
         TokMinus => 9
+        TokLtLt => 9
+        TokGtGt => 9
         TokStar => 11
         TokSlash => 11
         TokPercent => 11
@@ -390,6 +400,11 @@ def tok_to_binop(tok: Token): BinOp =
         TokGtEq => OpGe
         TokAmpAmp => OpAnd
         TokPipePipe => OpOr
+        TokAmp => OpBitAnd
+        TokPipe => OpBitOr
+        TokCaret => OpBitXor
+        TokLtLt => OpShl
+        TokGtGt => OpShr
         _ => OpAdd
     }
 
@@ -406,6 +421,28 @@ def p_parse_infix_loop(p: i64, lhs: Expr, min_bp: i64): Expr = {
         if left_bp == 0 - 1 { lhs }
         else {
             match tok {
+                TokPipe => {
+                    match p_peek_next(p) {
+                        TokIdent(_) =>
+                            match p_peek_n2(p) {
+                                TokColon => lhs
+                                _ => {
+                                    let op = tok_to_binop(tok)
+                                    let _ = p_advance(p)
+                                    let rbp = p_right_bp(tok)
+                                    let rhs = p_parse_expr_prec(p, rbp)
+                                    p_parse_infix_loop(p, EBinOp(op, lhs, rhs), min_bp)
+                                }
+                            }
+                        _ => {
+                            let op = tok_to_binop(tok)
+                            let _ = p_advance(p)
+                            let rbp = p_right_bp(tok)
+                            let rhs = p_parse_expr_prec(p, rbp)
+                            p_parse_infix_loop(p, EBinOp(op, lhs, rhs), min_bp)
+                        }
+                    }
+                }
                 TokDot => {
                     let _ = p_advance(p)
                     let field_tok = p_advance(p)

@@ -103,6 +103,11 @@ def collect_free_vars_primop(op: PrimOp): List[i64] =
         PBOr(a, b)  => set_union(collect_free_vars_val(a), collect_free_vars_val(b))
         PINeg(a)      => collect_free_vars_val(a)
         PBNot(a)      => collect_free_vars_val(a)
+        PBitAnd(a, b) => set_union(collect_free_vars_val(a), collect_free_vars_val(b))
+        PBitOr(a, b)  => set_union(collect_free_vars_val(a), collect_free_vars_val(b))
+        PBitXor(a, b) => set_union(collect_free_vars_val(a), collect_free_vars_val(b))
+        PShl(a, b)    => set_union(collect_free_vars_val(a), collect_free_vars_val(b))
+        PShr(a, b)    => set_union(collect_free_vars_val(a), collect_free_vars_val(b))
         PPtrToInt(a)  => collect_free_vars_val(a)
         PIntToPtr(a)  => collect_free_vars_val(a)
         PLoad(ptr, offset) =>
@@ -457,6 +462,11 @@ def scan_ids_primop(op: PrimOp, mv: i64, mf: i64): i64 =
         PBOr(a, b)  => { let _ = scan_ids_val(a, mv, mf)  scan_ids_val(b, mv, mf) }
         PINeg(a)      => scan_ids_val(a, mv, mf)
         PBNot(a)      => scan_ids_val(a, mv, mf)
+        PBitAnd(a, b) => { let _ = scan_ids_val(a, mv, mf)  scan_ids_val(b, mv, mf) }
+        PBitOr(a, b)  => { let _ = scan_ids_val(a, mv, mf)  scan_ids_val(b, mv, mf) }
+        PBitXor(a, b) => { let _ = scan_ids_val(a, mv, mf)  scan_ids_val(b, mv, mf) }
+        PShl(a, b)    => { let _ = scan_ids_val(a, mv, mf)  scan_ids_val(b, mv, mf) }
+        PShr(a, b)    => { let _ = scan_ids_val(a, mv, mf)  scan_ids_val(b, mv, mf) }
         PPtrToInt(a)  => scan_ids_val(a, mv, mf)
         PIntToPtr(a)  => scan_ids_val(a, mv, mf)
         PLoad(ptr, offset) => {

@@ -225,6 +225,16 @@ def types_compatible_list(ts1: List[Ty], ts2: List[Ty]): i64 =
 
 // ── Type inference ────────────────────────────────────────────────────────────
 
+def is_bitwise_binop(op: BinOp): i64 =
+    match op {
+        OpBitAnd => 1
+        OpBitOr  => 1
+        OpBitXor => 1
+        OpShl    => 1
+        OpShr    => 1
+        _ => 0
+    }
+
 def infer_expr(e: Expr, env: List[TyBinding], m: Module): Option[Ty] =
     match e {
         EInt(_) => Some(TyI64)
@@ -236,20 +246,24 @@ def infer_expr(e: Expr, env: List[TyBinding], m: Module): Option[Ty] =
         EVar(name) => tyenv_get(env, name)
 
         EBinOp(op, _, _) =>
-            match op {
-                OpAdd => Some(TyI64)
-                OpSub => Some(TyI64)
-                OpMul => Some(TyI64)
-                OpDiv => Some(TyI64)
-                OpMod => Some(TyI64)
-                OpEq  => Some(TyBool)
-                OpNe  => Some(TyBool)
-                OpLt  => Some(TyBool)
-                OpLe  => Some(TyBool)
-                OpGt  => Some(TyBool)
-                OpGe  => Some(TyBool)
-                OpAnd => Some(TyBool)
-                OpOr  => Some(TyBool)
+            if is_bitwise_binop(op) != 0 { Some(TyI64) }
+            else {
+                match op {
+                    OpAdd => Some(TyI64)
+                    OpSub => Some(TyI64)
+                    OpMul => Some(TyI64)
+                    OpDiv => Some(TyI64)
+                    OpMod => Some(TyI64)
+                    OpEq  => Some(TyBool)
+                    OpNe  => Some(TyBool)
+                    OpLt  => Some(TyBool)
+                    OpLe  => Some(TyBool)
+                    OpGt  => Some(TyBool)
+                    OpGe  => Some(TyBool)
+                    OpAnd => Some(TyBool)
+                    OpOr  => Some(TyBool)
+                    _ => None
+                }
             }
 
         EUnOp(op, inner) =>
@@ -816,19 +830,22 @@ def tc_check_if_branches(then_e: Expr, else_e: Expr, env: List[TyBinding],
 
 def tc_check_binop(op: BinOp, lhs: Expr, rhs: Expr, env: List[TyBinding],
                     m: Module, errs: List[Str]): List[Str] =
-    match op {
-        OpAdd => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpSub => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpMul => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpDiv => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpMod => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpLt  => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpLe  => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpGt  => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpGe  => tc_check_arith_operands(lhs, rhs, env, m, errs)
-        OpAnd => tc_check_bool_operands(lhs, rhs, env, m, errs)
-        OpOr  => tc_check_bool_operands(lhs, rhs, env, m, errs)
-        _ => errs
+    if is_bitwise_binop(op) != 0 { tc_check_arith_operands(lhs, rhs, env, m, errs) }
+    else {
+        match op {
+            OpAdd => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpSub => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpMul => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpDiv => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpMod => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpLt  => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpLe  => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpGt  => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpGe  => tc_check_arith_operands(lhs, rhs, env, m, errs)
+            OpAnd => tc_check_bool_operands(lhs, rhs, env, m, errs)
+            OpOr  => tc_check_bool_operands(lhs, rhs, env, m, errs)
+            _ => errs
+        }
     }
 
 def tc_check_arith_operands(lhs: Expr, rhs: Expr, env: List[TyBinding],

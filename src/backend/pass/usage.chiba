@@ -172,6 +172,11 @@ def count_in_primop(op: PrimOp, report_ref: i64): i64 =
         PBOr(a, b) => { let _ = tally_value(a, report_ref)  tally_value(b, report_ref) }
         PINeg(a) => tally_value(a, report_ref)
         PBNot(a) => tally_value(a, report_ref)
+        PBitAnd(a, b) => { let _ = tally_value(a, report_ref)  tally_value(b, report_ref) }
+        PBitOr(a, b) => { let _ = tally_value(a, report_ref)  tally_value(b, report_ref) }
+        PBitXor(a, b) => { let _ = tally_value(a, report_ref)  tally_value(b, report_ref) }
+        PShl(a, b) => { let _ = tally_value(a, report_ref)  tally_value(b, report_ref) }
+        PShr(a, b) => { let _ = tally_value(a, report_ref)  tally_value(b, report_ref) }
         PPtrToInt(a) => tally_value(a, report_ref)
         PIntToPtr(a) => tally_value(a, report_ref)
         PLoad(ptr, offset) => {

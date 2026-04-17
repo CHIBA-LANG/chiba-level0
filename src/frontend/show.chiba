@@ -17,19 +17,24 @@ use frontend.ast.*
 
 def binop_to_str(s: Str, op: BinOp): i64 =
     match op {
-        OpAdd => str_push_cstr(s, "+")
-        OpSub => str_push_cstr(s, "-")
-        OpMul => str_push_cstr(s, "*")
-        OpDiv => str_push_cstr(s, "/")
-        OpMod => str_push_cstr(s, "%")
-        OpEq  => str_push_cstr(s, "==")
-        OpNe  => str_push_cstr(s, "!=")
-        OpLt  => str_push_cstr(s, "<")
-        OpLe  => str_push_cstr(s, "<=")
-        OpGt  => str_push_cstr(s, ">")
-        OpGe  => str_push_cstr(s, ">=")
-        OpAnd => str_push_cstr(s, "&&")
-        OpOr  => str_push_cstr(s, "||")
+        OpAdd    => str_push_cstr(s, "+")
+        OpSub    => str_push_cstr(s, "-")
+        OpMul    => str_push_cstr(s, "*")
+        OpDiv    => str_push_cstr(s, "/")
+        OpMod    => str_push_cstr(s, "%")
+        OpEq     => str_push_cstr(s, "==")
+        OpNe     => str_push_cstr(s, "!=")
+        OpLt     => str_push_cstr(s, "<")
+        OpLe     => str_push_cstr(s, "<=")
+        OpGt     => str_push_cstr(s, ">")
+        OpGe     => str_push_cstr(s, ">=")
+        OpAnd    => str_push_cstr(s, "&&")
+        OpOr     => str_push_cstr(s, "||")
+        OpBitAnd => str_push_cstr(s, "&")
+        OpBitOr  => str_push_cstr(s, "|")
+        OpBitXor => str_push_cstr(s, "^")
+        OpShl    => str_push_cstr(s, "<<")
+        OpShr    => str_push_cstr(s, ">>")
     }
 
 def binop_to_string(op: BinOp): Str = {
@@ -619,10 +624,13 @@ def tok_to_str(s: Str, t: Token): i64 =
         TokLtEq      => str_push_cstr(s, "<=")
         TokGt        => str_push(s, 62)   // '>'
         TokGtEq      => str_push_cstr(s, ">=")
+        TokLtLt      => str_push_cstr(s, "<<")
+        TokGtGt      => str_push_cstr(s, ">>")
         TokAmpAmp    => str_push_cstr(s, "&&")
         TokPipePipe  => str_push_cstr(s, "||")
         TokBang      => str_push(s, 33)   // '!'
         TokAmp       => str_push(s, 38)   // '&'
+        TokCaret     => str_push(s, 94)   // '^'
         TokEq        => str_push(s, 61)   // '='
         TokFatArrow  => str_push_cstr(s, "=>")
         TokColon     => str_push(s, 58)   // ':'

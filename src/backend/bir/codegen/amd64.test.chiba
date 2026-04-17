@@ -192,5 +192,33 @@ def test_bir_codegen_amd64(ctx: i64): i64 = {
     }
     let _ = expect_run(ctx, "codegen tailcall", prog_tail, "42\n")
 
+    let prog_bitwise = prog_single(
+        block0(0,
+            Cons(ILoadImm(0, 6),
+            Cons(ILoadImm(1, 3),
+            Cons(IBitAnd(2, 0, 1),
+            Cons(IBitOr(3, 0, 1),
+            Cons(IBitXor(4, 0, 1),
+            Cons(IIAdd(5, 2, 3),
+            Cons(IIAdd(6, 5, 4), Nil))))))),
+            THalt(6)),
+        Nil,
+        Nil)
+    let _ = expect_run(ctx, "codegen bitwise", prog_bitwise, "14\n")
+
+    let prog_shift = prog_single(
+        block0(0,
+            Cons(ILoadImm(0, 3),
+            Cons(ILoadImm(1, 2),
+            Cons(IShl(2, 0, 1),
+            Cons(ILoadImm(3, 16),
+            Cons(ILoadImm(4, 1),
+            Cons(IShr(5, 3, 4),
+            Cons(IIAdd(6, 2, 5), Nil))))))),
+            THalt(6)),
+        Nil,
+        Nil)
+    let _ = expect_run(ctx, "codegen shift", prog_shift, "20\n")
+
     0
 }

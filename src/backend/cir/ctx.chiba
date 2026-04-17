@@ -312,19 +312,24 @@ def bind_val(val: Val, ctx: LowerCtx): (i64, (CpsExpr) => CpsExpr) =
 
 def ast_binop_to_prim(op: BinOp, lhs: Val, rhs: Val): PrimOp =
     match op {
-        OpAdd => PIAdd(lhs, rhs)
-        OpSub => PISub(lhs, rhs)
-        OpMul => PIMul(lhs, rhs)
-        OpDiv => PIDiv(lhs, rhs)
-        OpMod => PIMod(lhs, rhs)
-        OpEq  => PIEq(lhs, rhs)
-        OpNe  => PINe(lhs, rhs)
-        OpLt  => PILt(lhs, rhs)
-        OpLe  => PILe(lhs, rhs)
-        OpGt  => PIGt(lhs, rhs)
-        OpGe  => PIGe(lhs, rhs)
-        OpAnd => PBAnd(lhs, rhs)
-        OpOr  => PBOr(lhs, rhs)
+        OpAdd    => PIAdd(lhs, rhs)
+        OpSub    => PISub(lhs, rhs)
+        OpMul    => PIMul(lhs, rhs)
+        OpDiv    => PIDiv(lhs, rhs)
+        OpMod    => PIMod(lhs, rhs)
+        OpEq     => PIEq(lhs, rhs)
+        OpNe     => PINe(lhs, rhs)
+        OpLt     => PILt(lhs, rhs)
+        OpLe     => PILe(lhs, rhs)
+        OpGt     => PIGt(lhs, rhs)
+        OpGe     => PIGe(lhs, rhs)
+        OpAnd    => PBAnd(lhs, rhs)
+        OpOr     => PBOr(lhs, rhs)
+        OpBitAnd => PBitAnd(lhs, rhs)
+        OpBitOr  => PBitOr(lhs, rhs)
+        OpBitXor => PBitXor(lhs, rhs)
+        OpShl    => PShl(lhs, rhs)
+        OpShr    => PShr(lhs, rhs)
     }
 
 def ast_unop_to_prim(op: UnOp, inner: Val): PrimOp =

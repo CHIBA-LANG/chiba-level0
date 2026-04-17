@@ -125,6 +125,60 @@ def test_parser_expr(ctx: i64): i64 = {
     let is_upd = match e14 { EBlock(_, inner) => match inner { ERecordUpd(_, _) => 1  _ => 0 }  _ => 0 }
     let _ = assert_eq(ctx, "parse record update", is_upd, 1)
 
+    // Parse bitwise and
+    let src17 = "1 & 2"
+    let e17 = parse_expr(src17, strlen(src17))
+    let is_bitand = match e17 { EBinOp(OpBitAnd, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse bitand", is_bitand, 1)
+
+    // Parse bitwise or
+    let src18 = "1 | 2"
+    let e18 = parse_expr(src18, strlen(src18))
+    let is_bitor = match e18 { EBinOp(OpBitOr, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse bitor", is_bitor, 1)
+
+    // Parse bitwise xor
+    let src19 = "1 ^ 2"
+    let e19 = parse_expr(src19, strlen(src19))
+    let is_bitxor = match e19 { EBinOp(OpBitXor, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse bitxor", is_bitxor, 1)
+
+    // Parse shift left
+    let src20 = "1 << 2"
+    let e20 = parse_expr(src20, strlen(src20))
+    let is_shl = match e20 { EBinOp(OpShl, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse shl", is_shl, 1)
+
+    // Parse shift right
+    let src21 = "8 >> 1"
+    let e21 = parse_expr(src21, strlen(src21))
+    let is_shr = match e21 { EBinOp(OpShr, _, _) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse shr", is_shr, 1)
+
+    // Precedence: shift binds tighter than add
+    let src22 = "1 + 2 << 3"
+    let e22 = parse_expr(src22, strlen(src22))
+    let shift_inside_add = match e22 {
+        EBinOp(OpAdd, _, rhs) => match rhs { EBinOp(OpShl, _, _) => 1  _ => 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse shift precedence", shift_inside_add, 1)
+
+    // Precedence: bitand binds tighter than bitor
+    let src23 = "1 | 2 & 3"
+    let e23 = parse_expr(src23, strlen(src23))
+    let bitand_inside_bitor = match e23 {
+        EBinOp(OpBitOr, _, rhs) => match rhs { EBinOp(OpBitAnd, _, _) => 1  _ => 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse bit precedence", bitand_inside_bitor, 1)
+
+    // Record update must still win inside braces
+    let src24 = "{ v | y: zz }"
+    let e24 = parse_expr(src24, strlen(src24))
+    let is_upd2 = match e24 { EBlock(_, inner) => match inner { ERecordUpd(_, _) => 1  _ => 0 }  _ => 0 }
+    let _ = assert_eq(ctx, "parse record update vs bitor", is_upd2, 1)
+
     0
 }
 
