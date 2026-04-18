@@ -21,8 +21,8 @@ def test_process(ctx: i64): i64 = {
     let _ = write_fd(1, "-- metalstd.process tests --\n", 29)
 
     let res = proc_run_capture(
-        mk_cstr_view("/bin/echo", 9),
-        Cons(mk_cstr_view("echo", 4), Cons(mk_cstr_view("chiba-proc", 10), Nil)))
+        c"/bin/echo",
+        Cons(c"echo", Cons(c"chiba-proc", Nil)))
     let out = proc_result_stdout(res)
     let expected = mk_str("chiba-proc\n", strlen("chiba-proc\n"))
 

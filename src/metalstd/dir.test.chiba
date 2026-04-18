@@ -10,9 +10,9 @@ def test_dir(ctx: i64): i64 = {
     let _ = write_fd(1, "-- metalstd.dir tests --\n", 25)
 
     let _ = assert_true(ctx, "dir has mem.chiba",
-        dir_has_entry_cstr(mk_cstr_view("src/metalstd", 12), mk_cstr_view("mem.chiba", 9)))
+        dir_has_entry_cstr(c"src/metalstd", c"mem.chiba"))
     let _ = assert_true(ctx, "dir has str.chiba",
-        dir_has_entry_cstr(mk_cstr_view("src/metalstd", 12), mk_cstr_view("str.chiba", 9)))
+        dir_has_entry_cstr(c"src/metalstd", c"str.chiba"))
 
     0
 }

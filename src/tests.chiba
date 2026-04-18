@@ -66,10 +66,10 @@ def test_union(ctx: i64): i64 = {
     0
 }
 def ensure_test_runtime_dirs(): i64 = {
-    let _ = proc_run_capture(mk_cstr_view("/bin/mkdir", 10),
-        Cons(mk_cstr_view("mkdir", 5),
-        Cons(mk_cstr_view("-p", 2),
-        Cons(mk_cstr_view("runtime", 7), Nil))))
+    let _ = proc_run_capture(c"/bin/mkdir",
+        Cons(c"mkdir",
+        Cons(c"-p",
+        Cons(c"runtime", Nil))))
     0
 }
 

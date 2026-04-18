@@ -105,8 +105,8 @@ def str_ends_with_cstr(s: Str, suffix: cstr): i64 = {
 
 def path_is_source_file(path: cstr): i64 = {
     let path_s = mk_str(path.ptr, path.len)
-    if str_ends_with_cstr(path_s, mk_cstr_view(".chiba", 6)) != 0 { 1 }
-    else { str_ends_with_cstr(path_s, mk_cstr_view(".cbi", 4)) }
+    if str_ends_with_cstr(path_s, c".chiba") != 0 { 1 }
+    else { str_ends_with_cstr(path_s, c".cbi") }
 }
 
 def scan_find_line_end(ptr: i64, len: i64, i: i64): i64 =
@@ -134,13 +134,13 @@ def parse_source_buf(buf: Str, start: i64, acc: List[SourceFile]): List[SourceFi
     }
 
 def scan_and_parse(project_dir: Str): ScanParseResult = {
-    let src_dir = path_join(project_dir, mk_cstr_view("src", 3))
+    let src_dir = path_join(project_dir, c"src")
     let find_argv =
-        Cons(mk_cstr_view("find", 4),
+        Cons(c"find",
         Cons(src_dir,
-        Cons(mk_cstr_view("-type", 5),
-        Cons(mk_cstr_view("f", 1), Nil))))
-    let res = proc_run_capture(mk_cstr_view("/usr/bin/find", 13), find_argv)
+        Cons(c"-type",
+        Cons(c"f", Nil))))
+    let res = proc_run_capture(c"/usr/bin/find", find_argv)
     if proc_result_status(res) != 0 {
         let e = str_new()
         let _ = str_push_cstr(e, "scan failed: ")

@@ -66,7 +66,7 @@ def path_join_cstr(base: Str, child: i64): i64 = {
 }
 
 def ensure_dir(path: i64): i64 = {
-    let res = proc_run_capture(mk_cstr_view("/bin/mkdir", 10), Cons(mk_cstr_view("mkdir", 5), Cons(mk_cstr_view("-p", 2), Cons(mk_cstr_view(path, strlen(path)), Nil))))
+    let res = proc_run_capture(c"/bin/mkdir", Cons(c"mkdir", Cons(c"-p", Cons(mk_cstr_view(path, strlen(path)), Nil))))
     if proc_result_status(res) != 0 {
         let _ = print_err_line("[error] mkdir failed: ", proc_result_stdout(res))
         1
@@ -86,7 +86,7 @@ def run_gcc(out_path: i64, asm_path: i64, rt_path: i64): i64 = {
     let _ = str_append_raw(cmd, rt_path, rt_len)
     let _ = str_push_cstr(cmd, " 2>&1")
     let _ = str_null_terminate(cmd)
-    let res = proc_run_capture(mk_cstr_view("/bin/sh", 7), Cons(mk_cstr_view("sh", 2), Cons(mk_cstr_view("-c", 2), Cons(mk_cstr_view(cmd.ptr, cmd.len), Nil))))
+    let res = proc_run_capture(c"/bin/sh", Cons(c"sh", Cons(c"-c", Cons(mk_cstr_view(cmd.ptr, cmd.len), Nil))))
     if proc_result_status(res) != 0 {
         let _ = print_err_line("[error] gcc failed: ", proc_result_stdout(res))
         1
