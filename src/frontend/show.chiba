@@ -192,6 +192,11 @@ def expr_to_str(s: Str, e: Expr): i64 =
             let _ = expr_list_to_str(s, elems, 0)
             str_push(s, 41)          // ')'
         }
+        ESliceLit(elems) => {
+            let _ = str_push(s, 91)  // '['
+            let _ = expr_list_to_str(s, elems, 0)
+            str_push(s, 93)          // ']'
+        }
         EBlock(stmts, body) => {
             let _ = str_push_cstr(s, "{ ")
             let _ = stmt_list_to_str(s, stmts)

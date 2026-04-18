@@ -92,6 +92,25 @@ def test_parser_expr(ctx: i64): i64 = {
     let tup_len = match e10 { ETuple(es) => length(es)  _ => 0 }
     let _ = assert_eq(ctx, "parse tuple len", tup_len, 3)
 
+    // Parse slice literals
+    let e10b = parse_expr("[]", 2)
+    let is_empty_slice = match e10b { ESliceLit(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse empty slice", is_empty_slice, 1)
+    let empty_slice_len = match e10b { ESliceLit(es) => length(es)  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse empty slice len", empty_slice_len, 0)
+
+    let e10c = parse_expr("[1, 2, 3]", 9)
+    let is_slice = match e10c { ESliceLit(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse slice", is_slice, 1)
+    let slice_len = match e10c { ESliceLit(es) => length(es)  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse slice len", slice_len, 3)
+
+    let e10d = parse_expr("[x, y, z]", 9)
+    let is_var_slice = match e10d { ESliceLit(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse var slice", is_var_slice, 1)
+    let var_slice_len = match e10d { ESliceLit(es) => length(es)  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse var slice len", var_slice_len, 3)
+
     // Parse record literal
     let e11 = parse_expr("Point { x: 1, y: 2 }", 20)
     let is_record_lit = match e11 { ERecordLit(_, _) => 1  _ => 0 }

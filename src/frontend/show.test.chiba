@@ -47,6 +47,10 @@ def test_to_string(ctx: i64): i64 = {
     let _ = assert_true(ctx, "expr 1+2", streq(s10, mk_str("(1 + 2)", 7)))
     let s10b = expr_to_string(ECStr(mk_str("hello", 5)))
     let _ = assert_true(ctx, "expr cstr", streq(s10b, mk_str("c\"hello\"", 8)))
+    let s10c = expr_to_string(ESliceLit(Cons(EInt(1), Cons(EInt(2), Cons(EInt(3), Nil)))))
+    let _ = assert_true(ctx, "expr slice lit", streq(s10c, mk_str("[1, 2, 3]", 9)))
+    let s10d = expr_to_string(ESliceLit(Nil))
+    let _ = assert_true(ctx, "expr empty slice lit", streq(s10d, mk_str("[]", 2)))
 
     // Token
     let s11 = tok_to_string(TokKwDef)

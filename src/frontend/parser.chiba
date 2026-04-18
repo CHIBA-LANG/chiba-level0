@@ -494,6 +494,17 @@ def p_parse_call_args(p: i64, acc: List[Expr]): List[Expr] =
         }
     }
 
+def p_parse_bracket_exprs(p: i64, acc: List[Expr]): List[Expr] =
+    match p_peek(p) {
+        TokRBracket => rev(acc)
+        TokEof => rev(acc)
+        _ => {
+            let e = p_parse_expr(p)
+            let _ = p_eat_comma(p)
+            p_parse_bracket_exprs(p, Cons(e, acc))
+        }
+    }
+
 def p_parse_field_init_list(p: i64, acc: List[FieldInit]): List[FieldInit] =
     match p_peek(p) {
         TokRBrace => rev(acc)
@@ -618,6 +629,12 @@ def p_parse_primary(p: i64): Expr =
         TokBang => { let _ = p_advance(p) EUnOp(OpNot, p_parse_primary(p)) }
         TokStar => { let _ = p_advance(p) EUnOp(OpDeref, p_parse_primary(p)) }
         TokLParen => p_parse_paren_expr(p)
+        TokLBracket => {
+            let _ = p_advance(p)
+            let elems = p_parse_bracket_exprs(p, Nil)
+            let _ = p_expect_rbracket(p)
+            ESliceLit(elems)
+        }
         TokLBrace => p_parse_block(p)
         TokKwIf => p_parse_if_expr(p)
         TokKwMatch => p_parse_match_expr(p)

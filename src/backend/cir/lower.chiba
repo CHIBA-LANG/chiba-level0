@@ -206,6 +206,31 @@ def lower_expr(expr: Expr, k: (Val) => CpsExpr,
                 k(VVar(rec_v)))))
         }
 
+        ESliceLit(elems) =>
+            lower_args(elems, Nil, (elem_vals: List[Val]): CpsExpr => {
+                let n = length(elem_vals)
+                if n == 0 {
+                    // empty slice: {ptr=0, len=0}
+                    let ptr_v = fresh_var(ctx)
+                    let len_v = fresh_var(ctx)
+                    let rec_v = fresh_var(ctx)
+                    XLetVal(ptr_v, VInt(0),
+                    XLetVal(len_v, VInt(0),
+                    XLetPrim(rec_v, PMakeTagged(0, Cons(VVar(ptr_v), Cons(VVar(len_v), Nil))),
+                        k(VVar(rec_v)))))
+                } else {
+                    // allocate buffer, store elements, make {ptr, len} struct
+                    let buf_v = fresh_var(ctx)
+                    let len_v = fresh_var(ctx)
+                    let rec_v = fresh_var(ctx)
+                    let inner = XLetVal(len_v, VInt(n),
+                                XLetPrim(rec_v, PMakeTagged(0, Cons(VVar(buf_v), Cons(VVar(len_v), Nil))),
+                                    k(VVar(rec_v))))
+                    let stores = emit_slice_stores(buf_v, elem_vals, 0, inner, ctx)
+                    XLetPrim(buf_v, PAlloc(VInt(n * 8)), stores)
+                }
+            }, env, module, ctx)
+
         ETuple(elems) =>
             match elems {
                 Cons(e1, Nil) =>
@@ -345,8 +370,11 @@ def lower_expr(expr: Expr, k: (Val) => CpsExpr,
         EIndex(base, idx) =>
             lower_expr(base, (base_val: Val): CpsExpr => {
                 lower_expr(idx, (idx_val: Val): CpsExpr => {
+                    // slice[T]: {ptr, len} — extract ptr field first, then load
+                    let ptr_v = fresh_var(ctx)
                     let v = fresh_var(ctx)
-                    XLetPrim(v, PLoad(base_val, idx_val), k(VVar(v)))
+                    XLetPrim(ptr_v, PGetField(base_val, 0),
+                    XLetPrim(v, PLoad(VVar(ptr_v), idx_val), k(VVar(v))))
                 }, env, module, ctx)
             }, env, module, ctx)
 
@@ -536,6 +564,19 @@ def wrap_tuple_fields(tuple_var: i64, binds: List[(i64, i64)],
             let (fv, idx) = bind
             let inner = wrap_tuple_fields(tuple_var, rest, body)
             XLetPrim(fv, PGetField(VVar(tuple_var), idx), inner)
+        }
+    }
+
+// ── Slice element stores ─────────────────────────────────────────────────────
+
+def emit_slice_stores(buf_v: i64, vals: List[Val], idx: i64,
+                      cont: CpsExpr, ctx: LowerCtx): CpsExpr =
+    match vals {
+        Nil => cont
+        Cons(v, rest) => {
+            let inner = emit_slice_stores(buf_v, rest, idx + 1, cont, ctx)
+            let v_unit = fresh_var(ctx)
+            XLetPrim(v_unit, PStore(VVar(buf_v), VInt(idx), v), inner)
         }
     }
 

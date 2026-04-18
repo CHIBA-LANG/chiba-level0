@@ -358,6 +358,9 @@ def params_to_env(params: List[Param], acc: List[Str]): List[Str] =
 def ty_name_in_scope(name: Str, type_params: List[Str], m: Module): i64 =
     if streq(name, mk_str("str", 3)) != 0 { 1 }
     else if streq(name, mk_str("cstr", 4)) != 0 { 1 }
+    else if streq(name, mk_str("slice", 5)) != 0 { 1 }
+    else if streq(name, mk_str("Vector", 6)) != 0 { 1 }
+    else if streq(name, mk_str("String", 6)) != 0 { 1 }
     else if str_in_list(name, type_params) != 0 { 1 }
     else if strlist_has(m.types, name) != 0 { 1 }
     else { strlist_has(m.datas, name) }
@@ -483,6 +486,8 @@ def check_expr(e: Expr, env: List[Str], m: Module, errs: List[Str]): List[Str] =
         EUnOp(_, inner) => check_expr(inner, env, m, errs)
 
         ETuple(elems) => check_expr_list(elems, env, m, errs)
+
+        ESliceLit(elems) => check_expr_list(elems, env, m, errs)
 
         EBlock(stmts, body) => {
             let (env2, errs2) = check_stmts(stmts, env, m, errs)

@@ -104,6 +104,7 @@ data Expr {
     EBinOp(BinOp, Expr, Expr),
     EUnOp(UnOp, Expr),
     ETuple(List[Expr]),
+    ESliceLit(List[Expr]),
     EBlock(List[Stmt], Expr),
     EIf(Expr, Expr, Expr),                  // cond, then, else
     EIfLet(Pat, Expr, Expr, Expr),          // pat, scrut, then, else

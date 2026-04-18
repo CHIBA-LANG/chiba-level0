@@ -96,5 +96,31 @@ def test_typecheck(ctx: i64): i64 = {
     let src15 = "def foo(): str = c\"hello\""
     let _ = assert_eq(ctx, "tc str from cstr literal mismatch", tc_ok(src15, strlen(src15)), 0)
 
+    // 16. slice literal with i64 elements
+    let src16 = "def foo(): slice[i64] = [1, 2, 3]"
+    let _ = assert_eq(ctx, "tc slice literal i64", tc_ok(src16, strlen(src16)), 1)
+
+    // 17. bool slice literal
+    let src17 = "def foo(): slice[bool] = [true, false]"
+    let _ = assert_eq(ctx, "tc slice literal bool", tc_ok(src17, strlen(src17)), 1)
+
+    // 18. mixed element slice literal should fail typecheck
+    let src18 = "def foo(): slice[i64] = [1, true]"
+    let _ = assert_eq(ctx, "tc slice literal mixed mismatch", tc_ok(src18, strlen(src18)), 0)
+
+    // 19. empty slice literal (no element to infer from, but return type matches)
+    let src19 = "def foo(): slice[i64] = []"
+    let _ = assert_eq(ctx, "tc empty slice literal unresolved", tc_ok(src19, strlen(src19)), 1)
+
+    // 20. slice field access and indexing
+    let src20 = "def foo(xs: slice[i64]): i64 = xs.len"
+    let _ = assert_eq(ctx, "tc slice len staged", tc_ok(src20, strlen(src20)), 1)
+
+    let src21 = "def foo(xs: slice[i64]): i64 = xs.ptr"
+    let _ = assert_eq(ctx, "tc slice ptr staged", tc_ok(src21, strlen(src21)), 1)
+
+    let src22 = "def foo(xs: slice[i64]): i64 = xs[0]"
+    let _ = assert_eq(ctx, "tc slice index staged", tc_ok(src22, strlen(src22)), 1)
+
     0
 }

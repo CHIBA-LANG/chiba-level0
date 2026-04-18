@@ -64,6 +64,10 @@ def test_bir_lower(ctx: i64): i64 = {
     let lowered_fun = bir_program_fun_unwrap(bir3, first_non_entry_fun_id(bir3))
     let _ = assert_eq(ctx, "lowered top fun params", length(lowered_fun.params), 1)
 
+    // NOTE: slice runtime lowering is still staged. Keep BIR lowering tests
+    // focused on stable CPS/BIR paths until slice lowering is reintroduced
+    // in a memory-safe self-hosting step.
+
     0
 }
 

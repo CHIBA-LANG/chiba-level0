@@ -335,6 +335,8 @@ def infer_expr(e: Expr, env: List[TyBinding], m: Module): Option[Ty] =
 
         ETuple(elems) => infer_tuple(elems, env, m, Nil)
 
+        ESliceLit(elems) => infer_slice_lit(elems, env, m)
+
         EBlock(stmts, ret) => {
             let env2 = infer_stmts(stmts, env, m)
             infer_expr(ret, env2, m)
@@ -412,25 +414,49 @@ def infer_expr(e: Expr, env: List[TyBinding], m: Module): Option[Ty] =
                     let base_ty = load64(bt as i64, 1) as Ty
                     if (base_ty as i64) == 0 { None }
                     else {
-                        let ty_tag_raw = load64(base_ty as i64, 0)
-                        if ty_tag_raw != 12 { None }
-                        else {
-                            let name = load64(base_ty as i64, 1) as Str
-                            if (name as i64) == 0 { None }
-                            else {
-                                if strlist_has(m.types, name) != 0 {
-                                    match type_lookup(m.types, name) {
-                                        Some(info) =>
-                                            match info {
-                                                TypeInfo(fields, _) => find_field_ty(fields, field)
-                                            }
-                                        None => None
-                                    }
-                                } else { None }
-                            }
+                        match base_ty {
+                            TyCStr =>
+                                if streq(field, mk_str("ptr", 3)) != 0 { Some(TyI64) }
+                                else if streq(field, mk_str("len", 3)) != 0 { Some(TyI64) }
+                                else { None }
+                            TyNamed(name, args) =>
+                                if streq(name, mk_str("slice", 5)) != 0 {
+                                    if streq(field, mk_str("ptr", 3)) != 0 { Some(TyI64) }
+                                    else if streq(field, mk_str("len", 3)) != 0 { Some(TyI64) }
+                                    else { None }
+                                } else {
+                                    if strlist_has(m.types, name) != 0 {
+                                        match type_lookup(m.types, name) {
+                                            Some(info) =>
+                                                match info {
+                                                    TypeInfo(fields, _) => find_field_ty(fields, field)
+                                                }
+                                            None => None
+                                        }
+                                    } else { None }
+                                }
+                            _ => None
                         }
                     }
                 }
+            }
+        }
+
+        EIndex(base, _) => {
+            let bt = infer_expr(base, env, m)
+            match bt {
+                Some(base_ty) =>
+                    match base_ty {
+                        TyNamed(name, args) =>
+                            if streq(name, mk_str("slice", 5)) != 0 {
+                                match args {
+                                    Cons(elem_ty, Nil) => Some(elem_ty)
+                                    _ => None
+                                }
+                            } else { None }
+                        _ => None
+                    }
+                None => None
             }
         }
 
@@ -486,6 +512,40 @@ def infer_first_arm(arms: List[MatchArm], env: List[TyBinding], m: Module,
                     }
                 }
             }
+    }
+
+def infer_slice_lit(elems: List[Expr], env: List[TyBinding], m: Module): Option[Ty] =
+    match infer_slice_elem_ty(elems, env, m) {
+        Some(elem_ty) => Some(TyNamed(mk_str("slice", 5), Cons(elem_ty, Nil)))
+        None => None
+    }
+
+def infer_slice_elem_ty(elems: List[Expr], env: List[TyBinding], m: Module): Option[Ty] =
+    match elems {
+        Nil => None
+        Cons(e, rest) => {
+            let t = infer_expr(e, env, m)
+            match t {
+                Some(elem_ty) => infer_slice_elem_ty_rest(rest, env, m, elem_ty)
+                None => None
+            }
+        }
+    }
+
+def infer_slice_elem_ty_rest(elems: List[Expr], env: List[TyBinding], m: Module, elem_ty: Ty): Option[Ty] =
+    match elems {
+        Nil => Some(elem_ty)
+        Cons(e, rest) => {
+            let t = infer_expr(e, env, m)
+            match t {
+                Some(cur_ty) => {
+                    if types_compatible(elem_ty, cur_ty) != 0 {
+                        infer_slice_elem_ty_rest(rest, env, m, elem_ty)
+                    } else { None }
+                }
+                None => None
+            }
+        }
     }
 
 def infer_stmts(stmts: List[Stmt], env: List[TyBinding], m: Module): List[TyBinding] =
@@ -701,6 +761,11 @@ def tc_check_expr(e: Expr, env: List[TyBinding], m: Module, errs: List[Str]): Li
 
         ETuple(elems) => tc_check_expr_list(elems, env, m, errs)
 
+        ESliceLit(elems) => {
+            let e2 = tc_check_expr_list(elems, env, m, errs)
+            tc_check_slice_lit(elems, env, m, e2)
+        }
+
         EBlock(stmts, ret) => {
             let (env2, e2) = tc_check_stmts(stmts, env, m, errs)
             tc_check_expr(ret, env2, m, e2)
@@ -791,6 +856,34 @@ def tc_check_expr_list(es: List[Expr], env: List[TyBinding], m: Module, errs: Li
             let e2 = tc_check_expr(e, env, m, errs)
             tc_check_expr_list(rest, env, m, e2)
         }
+    }
+
+def tc_check_slice_lit(elems: List[Expr], env: List[TyBinding], m: Module, errs: List[Str]): List[Str] =
+    match elems {
+        Nil => errs
+        Cons(e, rest) =>
+            match infer_expr(e, env, m) {
+                Some(elem_ty) => tc_check_slice_lit_rest(rest, env, m, elem_ty, errs)
+                None => errs
+            }
+    }
+
+def tc_check_slice_lit_rest(elems: List[Expr], env: List[TyBinding], m: Module, elem_ty: Ty, errs: List[Str]): List[Str] =
+    match elems {
+        Nil => errs
+        Cons(e, rest) =>
+            match infer_expr(e, env, m) {
+                Some(cur_ty) => {
+                    if types_compatible(elem_ty, cur_ty) != 0 {
+                        tc_check_slice_lit_rest(rest, env, m, elem_ty, errs)
+                    } else {
+                        let e_msg = str_new()
+                        let _ = str_push_cstr(e_msg, "slice literal element type mismatch")
+                        tc_check_slice_lit_rest(rest, env, m, elem_ty, Cons(e_msg, errs))
+                    }
+                }
+                None => tc_check_slice_lit_rest(rest, env, m, elem_ty, errs)
+            }
     }
 
 def tc_check_arms(arms: List[MatchArm], env: List[TyBinding], m: Module,
