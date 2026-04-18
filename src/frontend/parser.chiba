@@ -49,7 +49,7 @@ def tok_is_int(tok: Token): i64 =
     match tok { TokInt(_) => 1  _ => 0 }
 
 def tok_is_str(tok: Token): i64 =
-    match tok { TokStr(_) => 1  _ => 0 }
+    match tok { TokStr(_) => 1  TokCStr(_) => 1  _ => 0 }
 
 def tok_is_atom(tok: Token): i64 =
     match tok { TokAtom(_) => 1  _ => 0 }
@@ -612,6 +612,7 @@ def p_parse_primary(p: i64): Expr =
         TokKwTrue => { let _ = p_advance(p) EBool(1) }
         TokKwFalse => { let _ = p_advance(p) EBool(0) }
         TokStr(s) => { let _ = p_advance(p) EStr(s) }
+        TokCStr(s) => { let _ = p_advance(p) ECStr(s) }
         TokAtom(s) => { let _ = p_advance(p) ESym(s) }
         TokMinus => { let _ = p_advance(p) EUnOp(OpNeg, p_parse_primary(p)) }
         TokBang => { let _ = p_advance(p) EUnOp(OpNot, p_parse_primary(p)) }
@@ -854,9 +855,9 @@ def p_parse_def(p: i64, attrs: List[Str], is_private: i64): Item = {
                 TokKwExtern => {
                     let _ = p_advance(p)
                     let conv_tok = p_advance(p)
-                    let convention = match conv_tok { TokStr(s) => s  _ => mk_str("c", 1) }
+                    let convention = match conv_tok { TokStr(s) => s  TokCStr(s) => s  _ => mk_str("c", 1) }
                     let sym_tok = p_advance(p)
-                    let sym = match sym_tok { TokStr(s) => s  _ => name }
+                    let sym = match sym_tok { TokStr(s) => s  TokCStr(s) => s  _ => name }
                     ExternDecl(name, is_private, tparams, params, ret, convention, sym)
                 }
                 _ => FunDef(name, is_private, tparams, params, ret, p_parse_expr(p), attrs)

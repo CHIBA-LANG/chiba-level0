@@ -455,6 +455,7 @@ def check_expr(e: Expr, env: List[Str], m: Module, errs: List[Str]): List[Str] =
         EBool(_) => errs
         EUnit    => errs
         EStr(_)  => errs
+        ECStr(_) => errs
         ESym(_)  => errs
 
         EVar(name) => {

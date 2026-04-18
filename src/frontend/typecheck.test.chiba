@@ -4,7 +4,6 @@ use metalstd.list.*
 use metalstd.str.*
 use metalstd.test.*
 use metalstd.print.*
-use frontend.ast.*
 use frontend.parser.*
 use frontend.resolve.*
 use frontend.typecheck.*
@@ -88,6 +87,14 @@ def test_typecheck(ctx: i64): i64 = {
     // 13. string literal should not typecheck directly as built-in `cstr`
     let src13 = "def foo(): cstr = \"hello\""
     let _ = assert_eq(ctx, "tc cstr literal mismatch", tc_ok(src13, strlen(src13)), 0)
+
+    // 14. c-string literal should typecheck directly as built-in `cstr`
+    let src14 = "def foo(): cstr = c\"hello\""
+    let _ = assert_eq(ctx, "tc cstr literal type", tc_ok(src14, strlen(src14)), 1)
+
+    // 15. c-string literal should not typecheck directly as built-in `str`
+    let src15 = "def foo(): str = c\"hello\""
+    let _ = assert_eq(ctx, "tc str from cstr literal mismatch", tc_ok(src15, strlen(src15)), 0)
 
     0
 }

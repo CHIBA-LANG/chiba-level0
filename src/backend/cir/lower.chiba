@@ -195,6 +195,17 @@ def lower_expr(expr: Expr, k: (Val) => CpsExpr,
             k(VStr(idx))
         }
 
+        ECStr(s) => {
+            let idx = ctx_intern_string(ctx, s)
+            let ptr_v = fresh_var(ctx)
+            let len_v = fresh_var(ctx)
+            let rec_v = fresh_var(ctx)
+            XLetVal(len_v, VInt(s.len),
+            XLetVal(ptr_v, VStr(idx),
+            XLetPrim(rec_v, PMakeTagged(0, Cons(VVar(ptr_v), Cons(VVar(len_v), Nil))),
+                k(VVar(rec_v)))))
+        }
+
         ETuple(elems) =>
             match elems {
                 Cons(e1, Nil) =>

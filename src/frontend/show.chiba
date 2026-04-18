@@ -164,6 +164,11 @@ def expr_to_str(s: Str, e: Expr): i64 =
             let _ = str_append(s, v)
             str_push(s, 34)           // '"'
         }
+        ECStr(v) => {
+            let _ = str_push_cstr(s, "c\"")
+            let _ = str_append(s, v)
+            str_push(s, 34)           // '"'
+        }
         ESym(v) => {
             let _ = str_push(s, 58)  // ':'
             str_append(s, v)
@@ -583,6 +588,11 @@ def tok_to_str(s: Str, t: Token): i64 =
         }
         TokStr(v) => {
             let _ = str_push_cstr(s, "TokStr(\"")
+            let _ = str_append(s, v)
+            str_push_cstr(s, "\")")
+        }
+        TokCStr(v) => {
+            let _ = str_push_cstr(s, "TokCStr(c\"")
             let _ = str_append(s, v)
             str_push_cstr(s, "\")")
         }

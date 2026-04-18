@@ -45,12 +45,16 @@ def test_to_string(ctx: i64): i64 = {
     let _ = assert_true(ctx, "expr foo", streq(s9, mk_str("foo", 3)))
     let s10 = expr_to_string(EBinOp(OpAdd, EInt(1), EInt(2)))
     let _ = assert_true(ctx, "expr 1+2", streq(s10, mk_str("(1 + 2)", 7)))
+    let s10b = expr_to_string(ECStr(mk_str("hello", 5)))
+    let _ = assert_true(ctx, "expr cstr", streq(s10b, mk_str("c\"hello\"", 8)))
 
     // Token
     let s11 = tok_to_string(TokKwDef)
     let _ = assert_true(ctx, "tok def", streq(s11, mk_str("def", 3)))
     let s12 = tok_to_string(TokInt(123))
     let _ = assert_true(ctx, "tok int", streq(s12, mk_str("TokInt(123)", 11)))
+    let s12b = tok_to_string(TokCStr(mk_str("hello", 5)))
+    let _ = assert_true(ctx, "tok cstr", streq(s12b, mk_str("TokCStr(c\"hello\")", 17)))
 
     // Item (roundtrip: parse then to_string)
     let items = parse_program_items("data Color { Red, Green }", 25)

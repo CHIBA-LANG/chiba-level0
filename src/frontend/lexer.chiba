@@ -175,6 +175,15 @@ def lx_lex_string(lx: i64): Token = {
     TokStr(buf)
 }
 
+def lx_lex_cstring(lx: i64): Token = {
+    let _ = lx_adv(lx)
+    let _ = lx_adv(lx)
+    let buf = str_new()
+    let buf = lx_str_build(lx, buf)
+    let _ = lx_adv(lx)
+    TokCStr(buf)
+}
+
 // ── Lex identifier / keyword ──────────────────────────────────────────────────
 
 def lx_scan_ident(lx: i64): i64 =
@@ -304,6 +313,10 @@ def lx_next_token(lx: i64): Token = {
                 else { let _ = lx_adv(lx) TokMinus }
             } else {
                 if c == 34 { lx_lex_string(lx) }
+                else if c == 99 {
+                    if lx_peek1(lx) == 34 { lx_lex_cstring(lx) }
+                    else { lx_lex_ident(lx) }
+                }
                 else {
                     if is_alpha(c) != 0 { lx_lex_ident(lx) }
                     else {

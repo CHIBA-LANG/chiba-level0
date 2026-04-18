@@ -9,6 +9,7 @@ data Token {
     // Literals
     TokInt(i64),
     TokStr(Str),
+    TokCStr(Str),
     TokAtom(Str),
     TokIdent(Str),
 
@@ -97,6 +98,7 @@ data Expr {
     EBool(i64),
     EUnit,
     EStr(Str),
+    ECStr(Str),
     ESym(Str),                              // :atom
     EVar(Str),
     EBinOp(BinOp, Expr, Expr),

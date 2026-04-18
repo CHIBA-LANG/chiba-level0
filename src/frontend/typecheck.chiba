@@ -294,6 +294,7 @@ def infer_expr(e: Expr, env: List[TyBinding], m: Module): Option[Ty] =
         EBool(_) => Some(TyBool)
         EUnit   => Some(TyUnit)
         EStr(_) => Some(TyStr)
+        ECStr(_) => Some(TyCStr)
         ESym(_) => Some(TyI64)
 
         EVar(name) => tyenv_get(env, name)
@@ -683,6 +684,7 @@ def tc_check_expr(e: Expr, env: List[TyBinding], m: Module, errs: List[Str]): Li
         EBool(_) => errs
         EUnit    => errs
         EStr(_)  => errs
+        ECStr(_) => errs
         ESym(_)  => errs
         EVar(_)  => errs
 

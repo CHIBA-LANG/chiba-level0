@@ -16,6 +16,13 @@ def test_parser_expr(ctx: i64): i64 = {
     let _ = assert_eq(ctx, "parse int", v1, 42)
 
     // Parse addition
+    let e1b = parse_expr("c\"hello\"", 8)
+    let is_cstr = match e1b { ECStr(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "parse cstr literal", is_cstr, 1)
+    let cstr_len = match e1b { ECStr(s) => s.len  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "parse cstr literal len", cstr_len, 5)
+
+    // Parse addition
     let e2 = parse_expr("1 + 2", 5)
     let is_binop = match e2 { EBinOp(_, _, _) => 1  _ => 0 }
     let _ = assert_eq(ctx, "parse add binop", is_binop, 1)

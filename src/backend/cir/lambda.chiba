@@ -60,6 +60,7 @@ def collect_var_refs_inner(expr: Expr, refs: i64): i64 =
         EBool(_) => 0
         EUnit => 0
         EStr(_) => 0
+        ECStr(_) => 0
         ESym(_) => 0
         ETuple(elems) => collect_var_refs_list(elems, refs)
         EBinOp(_, lhs, rhs) => {

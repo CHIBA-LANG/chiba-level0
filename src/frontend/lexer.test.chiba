@@ -65,6 +65,23 @@ def test_lexer(ctx: i64): i64 = {
     let utf8_is_str = match tok6b { TokStr(_) => 1  _ => 0 }
     let _ = assert_eq(ctx, "lex utf8 string", utf8_is_str, 1)
 
+    // Lex c-string literal
+    let t6c = lex("c\"hello\"", 8)
+    let tok6c = head(t6c)
+    let is_cstr = match tok6c { TokCStr(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex cstring", is_cstr, 1)
+    let cstr_len = match tok6c { TokCStr(s) => s.len  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "lex cstring byte len", cstr_len, 5)
+
+    // Lex UTF-8 c-string literal and preserve byte length
+    let utf8_csrc = "c\"你好\""
+    let t6d = lex(utf8_csrc, strlen(utf8_csrc))
+    let tok6d = head(t6d)
+    let utf8_clen = match tok6d { TokCStr(s) => s.len  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "lex utf8 cstring byte len", utf8_clen, 6)
+    let utf8_is_cstr = match tok6d { TokCStr(_) => 1  _ => 0 }
+    let _ = assert_eq(ctx, "lex utf8 cstring", utf8_is_cstr, 1)
+
     // Lex bitwise operators
     let t7 = lex("& | ^", 5)
     let _ = assert_eq(ctx, "lex bitwise len", length(t7), 4)

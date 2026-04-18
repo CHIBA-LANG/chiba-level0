@@ -1,7 +1,7 @@
 namespace metalstd.str.test
 use metalstd.mem.*
-use metalstd.str.*
 use metalstd.test.*
+use metalstd.str.*
 use metalstd.print.*
 
 def test_str(ctx: i64): i64 = {
@@ -32,6 +32,20 @@ def test_str(ctx: i64): i64 = {
     let b5 = str_new()
     let _ = str_push_bool(b5, 0)
     let _ = assert_eq(ctx, "str bool false len", b5.len, 5)
+
+    let b6 = str_new()
+    let _ = str_push_cstr(b6, "hello")
+    let c6 = str_to_cstr(b6)
+    let _ = assert_eq(ctx, "str_to_cstr len", c6.len, 5)
+    let _ = assert_eq(ctx, "str_to_cstr ptr[len] nul", load8(c6.ptr, c6.len), 0)
+    let _ = assert_eq(ctx, "str_to_cstr keeps logical len", b6.len, 5)
+
+    let b7 = str_new()
+    let _ = str_push_cstr(b7, "world")
+    let c7 = string_to_cstr(b7)
+    let _ = assert_eq(ctx, "string_to_cstr len", c7.len, 5)
+    let _ = assert_eq(ctx, "string_to_cstr ptr[len] nul", load8(c7.ptr, c7.len), 0)
+    let _ = assert_eq(ctx, "string_to_cstr keeps logical len", b7.len, 5)
 
     0
 }
