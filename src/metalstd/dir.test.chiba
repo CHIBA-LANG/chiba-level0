@@ -1,5 +1,6 @@
 namespace metalstd.dir.test
 use metalstd.mem.*
+use metalstd.str.*
 use metalstd.test.*
 use metalstd.dir.*
 
@@ -9,9 +10,9 @@ def test_dir(ctx: i64): i64 = {
     let _ = write_fd(1, "-- metalstd.dir tests --\n", 25)
 
     let _ = assert_true(ctx, "dir has mem.chiba",
-        dir_has_entry_cstr("chiba-level0/src/metalstd", "mem.chiba"))
+        dir_has_entry_cstr(mk_cstr_view("src/metalstd", 12), mk_cstr_view("mem.chiba", 9)))
     let _ = assert_true(ctx, "dir has str.chiba",
-        dir_has_entry_cstr("chiba-level0/src/metalstd", "str.chiba"))
+        dir_has_entry_cstr(mk_cstr_view("src/metalstd", 12), mk_cstr_view("str.chiba", 9)))
 
     0
 }

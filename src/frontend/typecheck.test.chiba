@@ -73,5 +73,21 @@ def test_typecheck(ctx: i64): i64 = {
     // 9. match constructor-bound record field access
     let _ = assert_eq(ctx, "tc match ctor field", tc_ok("type Point { x: i64 }\ndata Opt { None, Some(Point) }\ndef foo(o: Opt): i64 = match o { Some(p) => p.x _ => 0 }", 109), 1)
 
+    // 10. string literal now types as lowercase `str`
+    let src10 = "def foo(): str = \"hello\""
+    let _ = assert_eq(ctx, "tc str literal type", tc_ok(src10, strlen(src10)), 1)
+
+    // 11. lowercase `str` parameter / return type syntax typechecks
+    let src11 = "def id(x: str): str = x"
+    let _ = assert_eq(ctx, "tc str type syntax", tc_ok(src11, strlen(src11)), 1)
+
+    // 12. built-in `cstr` parameter / return type syntax typechecks
+    let src12 = "def id(x: cstr): cstr = x"
+    let _ = assert_eq(ctx, "tc cstr type syntax", tc_ok(src12, strlen(src12)), 1)
+
+    // 13. string literal should not typecheck directly as built-in `cstr`
+    let src13 = "def foo(): cstr = \"hello\""
+    let _ = assert_eq(ctx, "tc cstr literal mismatch", tc_ok(src13, strlen(src13)), 0)
+
     0
 }

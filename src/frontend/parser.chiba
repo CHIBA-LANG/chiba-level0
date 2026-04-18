@@ -199,6 +199,8 @@ def p_parse_named_type(p: i64): Ty = {
             else if streq(s, mk_str("usize", 5))  { TyUsize }
             else if streq(s, mk_str("bool", 4))   { TyBool }
             else if streq(s, mk_str("unit", 4))   { TyUnit }
+            else if streq(s, mk_str("str", 3))    { TyStr }
+            else if streq(s, mk_str("cstr", 4))   { TyCStr }
             else {
                 // Check for type args: Name[T1, T2]
                 let type_args = match p_peek(p) {

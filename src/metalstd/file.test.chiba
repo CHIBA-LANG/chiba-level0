@@ -19,7 +19,7 @@ def file_test_streq_loop(a_ptr: i64, b_ptr: i64, len: i64, i: i64): i64 =
 def test_file(ctx: i64): i64 = {
     let _ = write_fd(1, "-- metalstd.file tests --\n", 26)
 
-    let path = "runtime/chiba_level0_file_test.txt"
+    let path = mk_cstr_view("runtime/chiba_level0_file_test.txt", 34)
     let content = mk_str("hello-file\n", strlen("hello-file\n"))
     let write_res = file_write_file_all(path, content)
     let _ = assert_true(ctx, "file write non-negative", write_res >= 0)

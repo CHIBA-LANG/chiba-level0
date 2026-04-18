@@ -5,6 +5,7 @@ use metalstd.str.*
 use metalstd.print.*
 use metalstd.test.*
 use metalstd.option.*
+use metalstd.process.*
 use metalstd.mem.test.*
 use metalstd.list.test.*
 use metalstd.map.test.*
@@ -64,9 +65,18 @@ def test_union(ctx: i64): i64 = {
     let _ = assert_eq(ctx, "union both fields 2", v3.val_b, 456)
     0
 }
+def ensure_test_runtime_dirs(): i64 = {
+    let _ = proc_run_capture(mk_cstr_view("/bin/mkdir", 10),
+        Cons(mk_cstr_view("mkdir", 5),
+        Cons(mk_cstr_view("-p", 2),
+        Cons(mk_cstr_view("runtime", 7), Nil))))
+    0
+}
+
 def run_all_tests(): i64 = {
     let ctx = test_init()
     let _ = write_fd(1, "=== chiba-level0 tests ===\n", 27)
+    let _ = ensure_test_runtime_dirs()
 
     let _ = test_mem(ctx)
     let _ = test_list(ctx)

@@ -5,6 +5,14 @@ use metalstd.str.*
 use metalstd.file.*
 
 // ── Linux x86-64 process syscalls/helpers ────────────────────────────────
+//
+// All executable paths and argv entries at this boundary are `cstr` views.
+// They must already satisfy the C-string invariant:
+//   - bytes [0, len) contain no NUL
+//   - ptr[len] == 0
+//
+// These helpers intentionally do not construct or validate `cstr`; they only
+// preserve the boundary contract and pass raw pointers into the kernel ABI.
 
 data ProcResult {
     ProcResult(i64, Str)
@@ -25,8 +33,8 @@ def proc_fork(): i64 =
         "syscall"
     }
 
-def proc_execve(path: i64, argv: i64, envp: i64): i64 =
-    asm (59: rax, path: rdi, argv: rsi, envp: rdx) : (rax) => {
+def proc_execve(path: cstr, argv: i64, envp: i64): i64 =
+    asm (59: rax, path.ptr: rdi, argv: rsi, envp: rdx) : (rax) => {
         "syscall"
     }
 
@@ -58,7 +66,9 @@ def proc_shr8(x: i64): i64 =
         "shr rax, 8"
     }
 
-def proc_argv_build(args: List[i64]): i64 = {
+// Build a null-terminated argv vector (`char**`) from borrowed `cstr` views.
+// Each element contributes only its `.ptr`; ownership stays with the caller.
+def proc_argv_build(args: List[cstr]): i64 = {
     let argc = length(args)
     let buf = heap_alloc((argc + 1) * 8)
     let _ = proc_argv_fill(buf, args, 0)
@@ -66,16 +76,19 @@ def proc_argv_build(args: List[i64]): i64 = {
     buf
 }
 
-def proc_argv_fill(buf: i64, args: List[i64], i: i64): i64 =
+// Fill argv slots with the underlying C-string pointers from each `cstr`.
+def proc_argv_fill(buf: i64, args: List[cstr], i: i64): i64 =
     match args {
         Nil => 0
         Cons(arg, rest) => {
-            let _ = store64(buf, i, arg)
+            let _ = store64(buf, i, arg.ptr)
             proc_argv_fill(buf, rest, i + 1)
         }
     }
 
-def proc_run_capture(path: i64, argv_list: List[i64]): ProcResult = {
+// Run a process where both the executable path and argv entries are already
+// expressed as `cstr` boundary values. Stdout is captured into an owned `Str`.
+def proc_run_capture(path: cstr, argv_list: List[cstr]): ProcResult = {
     let pipefds = heap_alloc(8)
     let _ = store64(pipefds, 0, 0)
     let _ = proc_pipe(pipefds)

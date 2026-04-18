@@ -2,14 +2,34 @@ namespace metalstd.str
 use metalstd.mem.*
 
 
-// ── Str — The string type ────────────────────────────────────────────────────
+// ── str / cstr / Str — string views and owned string buffer ─────────────────
 //
-// A Str is a 3-word heap-allocated record:
+// `str` is the lightweight borrowed UTF-8 view type used by the language.
+// `cstr` is a borrowed C-string view used at ABI boundaries.
+// `Str` is the existing owned/mutable string buffer used by the current stdlib.
+//
+// str:
+//   ptr: pointer to byte data
+//   len: number of bytes
+//
+// cstr:
+//   ptr: pointer to byte data
+//   len: number of bytes excluding the trailing NUL
+//   invariant: bytes [0, len) contain no NUL, and load8(ptr, len) == 0
+//
+// Str:
 //   ptr: pointer to byte data
 //   len: number of bytes
 //   cap: capacity (0 for borrowed/literal strings, >0 for owned/mutable)
 
+type cstr { ptr: i64  len: i64 }
 type Str { ptr: i64  len: i64  cap: i64 }
+
+// Create a borrowed built-in str view from a raw pointer and length
+def mk_str_view(p: i64, l: i64): str = p as str
+
+// Create a borrowed built-in cstr view from a raw pointer and length
+def mk_cstr_view(p: i64, l: i64): cstr = cstr { ptr: p, len: l }
 
 // Create a borrowed Str from a raw pointer and length (immutable, cap=0)
 def mk_str(p: i64, l: i64): Str = Str { ptr: p, len: l, cap: 0 }

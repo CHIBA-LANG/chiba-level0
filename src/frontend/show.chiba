@@ -74,6 +74,8 @@ def ty_to_str(s: Str, t: Ty): i64 =
             let _ = str_push_cstr(s, "*")
             ty_to_str(s, inner)
         }
+        TyStr => str_push_cstr(s, "str")
+        TyCStr => str_push_cstr(s, "cstr")
         TyNamed(name, args) => {
             let _ = str_append(s, name)
             if is_nil(args) == 0 {

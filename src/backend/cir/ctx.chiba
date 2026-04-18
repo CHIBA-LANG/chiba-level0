@@ -374,6 +374,12 @@ def field_index(base: Expr, field: Str, env: LowerEnv, module: Module): i64 = {
                         None => 0
                     }
                 }
+                // cstr is a built-in type with known layout: { ptr: i64, len: i64 }
+                TyCStr => {
+                    if streq(field, mk_str("ptr", 3)) != 0 { 0 }
+                    else if streq(field, mk_str("len", 3)) != 0 { 1 }
+                    else { 0 }
+                }
                 _ => 0
             }
         None => 0

@@ -11,6 +11,26 @@ use frontend.resolve.*
 use frontend.typecheck.*
 use project.*
 
+def test_path_is_source_file(ctx: i64): i64 = {
+    let path_buf = str_new()
+    let _ = str_push_cstr(path_buf, "tmp/example.chiba")
+    let _ = str_null_terminate(path_buf)
+    let path_c = mk_cstr_view(path_buf.ptr, path_buf.len)
+    let _ = assert_eq(ctx, "path_is_source_file .chiba", path_is_source_file(path_c), 1)
+
+    let iface_buf = str_new()
+    let _ = str_push_cstr(iface_buf, "tmp/example.cbi")
+    let _ = str_null_terminate(iface_buf)
+    let iface_c = mk_cstr_view(iface_buf.ptr, iface_buf.len)
+    let _ = assert_eq(ctx, "path_is_source_file .cbi", path_is_source_file(iface_c), 1)
+
+    let txt_buf = str_new()
+    let _ = str_push_cstr(txt_buf, "tmp/example.txt")
+    let _ = str_null_terminate(txt_buf)
+    let txt_c = mk_cstr_view(txt_buf.ptr, txt_buf.len)
+    assert_eq(ctx, "path_is_source_file .txt", path_is_source_file(txt_c), 0)
+}
+
 def parse_program_cstr(src: i64): Program = parse_program(src, strlen(src))
 
 def mk_source_file(path: i64, src: i64): SourceFile =
@@ -24,6 +44,7 @@ def resolve_module(r: ResolveResult): Module =
 
 def test_project(ctx: i64): i64 = {
     let _ = write_fd(1, "-- Project tests --\n", 20)
+    let _ = test_path_is_source_file(ctx)
 
     let files1 = Cons(
         mk_source_file("a.chiba", "namespace a\ntype LowerCtx { x: i64 }\ndef mk(x: i64): LowerCtx = LowerCtx { x: x }"),

@@ -248,5 +248,128 @@ def test_parser_item(ctx: i64): i64 = {
     let _ = assert_true(ctx, "parse ns", streq(prog.ns, mk_str("test", 4)))
     let _ = assert_eq(ctx, "parse prog items", length(prog.items), 1)
 
+    // Parse built-in `str` type syntax
+    let items8 = parse_program_items("def s(x: str): str = x", 22)
+    let _ = assert_eq(ctx, "parse str items", length(items8), 1)
+    let str_fun = head(items8)
+    let str_param_is_builtin = match str_fun {
+        FunDef(_, _, _, params, ret, _, _) =>
+            match head(params) {
+                Param(_, TyStr) => 1
+                _ => 0
+            }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse str param", str_param_is_builtin, 1)
+    let str_ret_is_builtin = match str_fun {
+        FunDef(_, _, _, _, TyStr, _, _) => 1
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse str ret", str_ret_is_builtin, 1)
+
+    // Parse built-in `cstr` type syntax
+    let items9 = parse_program_items("def s(x: cstr): cstr = x", 24)
+    let _ = assert_eq(ctx, "parse cstr items", length(items9), 1)
+    let cstr_fun = head(items9)
+    let cstr_param_is_builtin = match cstr_fun {
+        FunDef(_, _, _, params, ret, _, _) =>
+            match head(params) {
+                Param(_, TyCStr) => 1
+                _ => 0
+            }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse cstr param", cstr_param_is_builtin, 1)
+    let cstr_ret_is_builtin = match cstr_fun {
+        FunDef(_, _, _, _, TyCStr, _, _) => 1
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse cstr ret", cstr_ret_is_builtin, 1)
+
+    // Parse `String` type syntax
+    let items10 = parse_program_items("def s(x: String): String = x", 28)
+    let _ = assert_eq(ctx, "parse String items", length(items10), 1)
+    let string_fun = head(items10)
+    let string_param_is_named = match string_fun {
+        FunDef(_, _, _, params, ret, _, _) =>
+            match head(params) {
+                Param(_, TyNamed(name, args)) =>
+                    if streq(name, mk_str("String", 6)) != 0 { is_nil(args) }
+                    else { 0 }
+                _ => 0
+            }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse String param", string_param_is_named, 1)
+    let string_ret_is_named = match string_fun {
+        FunDef(_, _, _, _, TyNamed(name, args), _, _) =>
+            if streq(name, mk_str("String", 6)) != 0 { is_nil(args) }
+            else { 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse String ret", string_ret_is_named, 1)
+
+    // Parse `slice[T]` type syntax
+    let items10 = parse_program_items("def s(x: slice[i64]): slice[i64] = x", 38)
+    let _ = assert_eq(ctx, "parse slice items", length(items10), 1)
+    let slice_fun = head(items10)
+    let slice_param_is_named = match slice_fun {
+        FunDef(_, _, _, params, _, _, _) =>
+            match head(params) {
+                Param(_, TyNamed(name, args)) =>
+                    if streq(name, mk_str("slice", 5)) {
+                        match args {
+                            Cons(TyI64, Nil) => 1
+                            _ => 0
+                        }
+                    } else { 0 }
+                _ => 0
+            }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse slice param", slice_param_is_named, 1)
+    let slice_ret_is_named = match slice_fun {
+        FunDef(_, _, _, _, TyNamed(name, args), _, _) =>
+            if streq(name, mk_str("slice", 5)) {
+                match args {
+                    Cons(TyI64, Nil) => 1
+                    _ => 0
+                }
+            } else { 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse slice ret", slice_ret_is_named, 1)
+
+    // Parse `Vector[T]` type syntax
+    let items11 = parse_program_items("def s(x: Vector[i64]): Vector[i64] = x", 40)
+    let _ = assert_eq(ctx, "parse Vector items", length(items11), 1)
+    let vector_fun = head(items11)
+    let vector_param_is_named = match vector_fun {
+        FunDef(_, _, _, params, _, _, _) =>
+            match head(params) {
+                Param(_, TyNamed(name, args)) =>
+                    if streq(name, mk_str("Vector", 6)) {
+                        match args {
+                            Cons(TyI64, Nil) => 1
+                            _ => 0
+                        }
+                    } else { 0 }
+                _ => 0
+            }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse Vector param", vector_param_is_named, 1)
+    let vector_ret_is_named = match vector_fun {
+        FunDef(_, _, _, _, TyNamed(name, args), _, _) =>
+            if streq(name, mk_str("Vector", 6)) {
+                match args {
+                    Cons(TyI64, Nil) => 1
+                    _ => 0
+                }
+            } else { 0 }
+        _ => 0
+    }
+    let _ = assert_eq(ctx, "parse Vector ret", vector_ret_is_named, 1)
+
     0
 }

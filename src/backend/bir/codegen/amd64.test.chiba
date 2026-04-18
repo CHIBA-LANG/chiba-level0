@@ -15,20 +15,25 @@ def codegen_run_bir(prog: BirProgram, test_name: i64): ProcResult = {
     let asm_text = codegen_amd64(prog)
     let s_path = build_runtime_path(test_name, ".S")
     let out_path = build_runtime_path(test_name, ".out")
-    let rt_path = "chiba-level0/src/backend/bir/chiba_rt.s"
-    let _ = file_write_file_all(s_path.ptr, asm_text)
+    let rt_path = mk_cstr_view("src/backend/bir/chiba_rt.s", 26)
+    let s_path_c = mk_cstr_view(s_path.ptr, s_path.len)
+    let _ = file_write_file_all(s_path_c, asm_text)
     let cmd = str_new()
     let _ = str_push_cstr(cmd, "PATH=/usr/bin:/bin /usr/bin/gcc -nostdlib -static -o ")
     let _ = str_append(cmd, out_path)
     let _ = str_push_cstr(cmd, " ")
     let _ = str_append(cmd, s_path)
     let _ = str_push_cstr(cmd, " -x assembler-with-cpp ")
-    let _ = str_push_cstr(cmd, rt_path)
-    let _ = str_push_cstr(cmd, " -no-pie -g 2>&1 && ")
-    let _ = str_append(cmd, out_path)
+    let _ = str_append_raw(cmd, rt_path.ptr, rt_path.len)
     let _ = str_push_cstr(cmd, " 2>&1")
     let _ = str_null_terminate(cmd)
-    proc_run_capture("/bin/sh", Cons("sh", Cons("-c", Cons(cmd.ptr, Nil))))
+    let cmd_c = mk_cstr_view(cmd.ptr, cmd.len)
+    let compile_res = proc_run_capture(mk_cstr_view("/bin/sh", 7), Cons(mk_cstr_view("sh", 2), Cons(mk_cstr_view("-c", 2), Cons(cmd_c, Nil))))
+    if proc_result_status(compile_res) != 0 { compile_res }
+    else {
+        let out_path_c = mk_cstr_view(out_path.ptr, out_path.len)
+        proc_run_capture(out_path_c, Cons(out_path_c, Nil))
+    }
 }
 
 def build_runtime_path(test_name: i64, suffix: i64): Str = {

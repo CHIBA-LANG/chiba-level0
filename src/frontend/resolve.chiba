@@ -331,11 +331,19 @@ def check_items(m: Module, items: List[Item], errs: List[Str]): List[Str] =
 
 def check_item(m: Module, item: Item, errs: List[Str]): List[Str] =
     match item {
-        FunDef(_, _, _, params, _, body, _) => {
+        FunDef(_, _, type_params, params, ret, body, _) => {
+            let errs2 = check_param_types_with_params(params, type_params, m, errs)
+            let errs3 = check_ty_with_params(ret, type_params, m, errs2)
             let env = params_to_env(params, Nil)
-            check_expr(body, env, m, errs)
+            check_expr(body, env, m, errs3)
         }
-        _ => errs
+        ExternDecl(_, _, type_params, params, ret, _, _) => {
+            let errs2 = check_param_types_with_params(params, type_params, m, errs)
+            check_ty_with_params(ret, type_params, m, errs2)
+        }
+        TypeDef(_, _, type_params, fields) => check_field_defs_with_params(fields, type_params, m, errs)
+        UnionDef(_, _, fields) => check_field_defs(fields, m, errs)
+        DataDef(_, _, type_params, variants) => check_variants(variants, type_params, m, errs)
     }
 
 def params_to_env(params: List[Param], acc: List[Str]): List[Str] =
@@ -344,6 +352,98 @@ def params_to_env(params: List[Param], acc: List[Str]): List[Str] =
         Cons(p, rest) =>
             match p {
                 Param(name, _) => params_to_env(rest, Cons(name, acc))
+            }
+    }
+
+def ty_name_in_scope(name: Str, type_params: List[Str], m: Module): i64 =
+    if streq(name, mk_str("str", 3)) != 0 { 1 }
+    else if streq(name, mk_str("cstr", 4)) != 0 { 1 }
+    else if str_in_list(name, type_params) != 0 { 1 }
+    else if strlist_has(m.types, name) != 0 { 1 }
+    else { strlist_has(m.datas, name) }
+
+def check_ty(ty: Ty, m: Module, errs: List[Str]): List[Str] =
+    check_ty_with_params(ty, Nil, m, errs)
+
+def check_ty_with_params(ty: Ty, type_params: List[Str], m: Module, errs: List[Str]): List[Str] =
+    match ty {
+        TyI32 => errs
+        TyI64 => errs
+        TyU8 => errs
+        TyU32 => errs
+        TyU64 => errs
+        TyUsize => errs
+        TyBool => errs
+        TyUnit => errs
+        TyStr => errs
+        TyCStr => errs
+        TyPtr(inner) => check_ty_with_params(inner, type_params, m, errs)
+        TyTuple(tys) => check_ty_list(tys, type_params, m, errs)
+        TyFun(params, ret) => {
+            let errs2 = check_ty_list(params, type_params, m, errs)
+            check_ty_with_params(ret, type_params, m, errs2)
+        }
+        TyNamed(name, args) => {
+            let errs2 = check_ty_list(args, type_params, m, errs)
+            if ty_name_in_scope(name, type_params, m) != 0 { errs2 }
+            else {
+                let e_msg = str_new()
+                let _ = str_push_cstr(e_msg, "undefined type `")
+                let _ = str_append(e_msg, name)
+                let _ = str_push(e_msg, 96)
+                Cons(e_msg, errs2)
+            }
+        }
+    }
+
+def check_ty_list(tys: List[Ty], type_params: List[Str], m: Module, errs: List[Str]): List[Str] =
+    match tys {
+        Nil => errs
+        Cons(ty, rest) => {
+            let errs2 = check_ty_with_params(ty, type_params, m, errs)
+            check_ty_list(rest, type_params, m, errs2)
+        }
+    }
+
+def check_param_types(params: List[Param], m: Module, errs: List[Str]): List[Str] =
+    check_param_types_with_params(params, Nil, m, errs)
+
+def check_param_types_with_params(params: List[Param], type_params: List[Str], m: Module, errs: List[Str]): List[Str] =
+    match params {
+        Nil => errs
+        Cons(p, rest) =>
+            match p {
+                Param(_, ty) => {
+                    let errs2 = check_ty_with_params(ty, type_params, m, errs)
+                    check_param_types_with_params(rest, type_params, m, errs2)
+                }
+            }
+    }
+
+def check_field_defs(fields: List[FieldDef], m: Module, errs: List[Str]): List[Str] =
+    check_field_defs_with_params(fields, Nil, m, errs)
+
+def check_field_defs_with_params(fields: List[FieldDef], type_params: List[Str], m: Module, errs: List[Str]): List[Str] =
+    match fields {
+        Nil => errs
+        Cons(fd, rest) =>
+            match fd {
+                FieldDef(_, ty) => {
+                    let errs2 = check_ty_with_params(ty, type_params, m, errs)
+                    check_field_defs_with_params(rest, type_params, m, errs2)
+                }
+            }
+    }
+
+def check_variants(variants: List[Variant], type_params: List[Str], m: Module, errs: List[Str]): List[Str] =
+    match variants {
+        Nil => errs
+        Cons(v, rest) =>
+            match v {
+                Variant(_, tys) => {
+                    let errs2 = check_ty_list(tys, type_params, m, errs)
+                    check_variants(rest, type_params, m, errs2)
+                }
             }
     }
 

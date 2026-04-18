@@ -147,6 +147,7 @@ data Pat {
 
 data Ty {
     TyI32, TyI64, TyU8, TyU32, TyU64, TyUsize, TyBool, TyUnit,
+    TyStr, TyCStr,
     TyPtr(Ty),
     TyNamed(Str, List[Ty]),         // name, type_args
     TyFun(List[Ty], Ty),            // params, ret

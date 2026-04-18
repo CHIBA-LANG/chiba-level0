@@ -25,6 +25,10 @@ def test_to_string(ctx: i64): i64 = {
     // Ty
     let s4 = ty_to_string(TyI64)
     let _ = assert_true(ctx, "ty i64", streq(s4, mk_str("i64", 3)))
+    let s4b = ty_to_string(TyStr)
+    let _ = assert_true(ctx, "ty str", streq(s4b, mk_str("str", 3)))
+    let s4c = ty_to_string(TyCStr)
+    let _ = assert_true(ctx, "ty cstr", streq(s4c, mk_str("cstr", 4)))
     let s5 = ty_to_string(TyNamed(mk_str("List", 4), Cons(TyI64, Nil)))
     let _ = assert_true(ctx, "ty List[i64]", streq(s5, mk_str("List[i64]", 9)))
 

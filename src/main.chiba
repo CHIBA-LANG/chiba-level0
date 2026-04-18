@@ -18,17 +18,20 @@ use tests.*
 // ═══════════════════════════════════════════════════════════════════════════════
 def argv_ptr(argv: i64, i: i64): i64 = load64(argv, i)
 
+def argv_cstr(argv: i64, i: i64): i64 =
+    argv_ptr(argv, i)
+
 def argv_str(argv: i64, i: i64): Str = {
-    let ptr = argv_ptr(argv, i)
+    let ptr = argv_cstr(argv, i)
     mk_str(ptr, strlen(ptr))
 }
 
-def parse_project_arg(argc: i64, argv: i64, i: i64): Option[Str] =
+def parse_project_arg(argc: i64, argv: i64, i: i64): Option[i64] =
     if i >= argc { None }
     else {
-        let arg = argv_str(argv, i)
-        if streq(arg, mk_str("--project", 9)) != 0 {
-            if i + 1 < argc { Some(argv_str(argv, i + 1)) }
+        let arg = argv_cstr(argv, i)
+        if str_eq(arg, strlen(arg), "--project", 9) != 0 {
+            if i + 1 < argc { Some(argv_cstr(argv, i + 1)) }
             else { None }
         } else { parse_project_arg(argc, argv, i + 1) }
     }
@@ -56,28 +59,34 @@ def print_errs(prefix: i64, errs: List[Str]): i64 =
         }
     }
 
-def path_join_str(base: Str, child: i64): Str = path_join(base, child)
+def path_join_cstr(base: Str, child: i64): i64 = {
+    let r = path_join(base, mk_cstr_view(child, strlen(child)))
+    // r is a cstr record [tag, ptr, len]; extract the raw C-string pointer
+    load64(r as i64, 1)
+}
 
-def ensure_dir(path: Str): i64 = {
-    let _ = str_null_terminate(path)
-    let res = proc_run_capture("/bin/mkdir", Cons("mkdir", Cons("-p", Cons(path.ptr, Nil))))
+def ensure_dir(path: i64): i64 = {
+    let res = proc_run_capture(mk_cstr_view("/bin/mkdir", 10), Cons(mk_cstr_view("mkdir", 5), Cons(mk_cstr_view("-p", 2), Cons(mk_cstr_view(path, strlen(path)), Nil))))
     if proc_result_status(res) != 0 {
         let _ = print_err_line("[error] mkdir failed: ", proc_result_stdout(res))
         1
     } else { 0 }
 }
 
-def run_gcc(out_path: Str, asm_path: Str, rt_path: Str): i64 = {
+def run_gcc(out_path: i64, asm_path: i64, rt_path: i64): i64 = {
+    let out_len = strlen(out_path)
+    let asm_len = strlen(asm_path)
+    let rt_len = strlen(rt_path)
     let cmd = str_new()
     let _ = str_push_cstr(cmd, "PATH=/usr/bin:/bin /usr/bin/gcc -nostdlib -static -o ")
-    let _ = str_append(cmd, out_path)
+    let _ = str_append_raw(cmd, out_path, out_len)
     let _ = str_push_cstr(cmd, " -no-pie -g ")
-    let _ = str_append(cmd, asm_path)
+    let _ = str_append_raw(cmd, asm_path, asm_len)
     let _ = str_push_cstr(cmd, " -x assembler-with-cpp ")
-    let _ = str_append(cmd, rt_path)
+    let _ = str_append_raw(cmd, rt_path, rt_len)
     let _ = str_push_cstr(cmd, " 2>&1")
     let _ = str_null_terminate(cmd)
-    let res = proc_run_capture("/bin/sh", Cons("sh", Cons("-c", Cons(cmd.ptr, Nil))))
+    let res = proc_run_capture(mk_cstr_view("/bin/sh", 7), Cons(mk_cstr_view("sh", 2), Cons(mk_cstr_view("-c", 2), Cons(mk_cstr_view(cmd.ptr, cmd.len), Nil))))
     if proc_result_status(res) != 0 {
         let _ = print_err_line("[error] gcc failed: ", proc_result_stdout(res))
         1
@@ -124,15 +133,15 @@ def compile_project(project_dir: Str): i64 = {
                         let _ = write_fd(1, "  [4.4] bir -> asm\n", 19)
                         let asm_text = codegen_amd64(bir)
 
-                        let target_dir = path_join_str(project_dir, "target")
-                        let debug_dir = path_join_str(target_dir, "debug")
+                        let target_dir = path_join_cstr(project_dir, "target")
+                        let debug_dir = path_join_cstr(mk_str(target_dir, strlen(target_dir)), "debug")
                         let mk_res = ensure_dir(debug_dir)
                         if mk_res != 0 { 1 }
                         else {
-                            let asm_path = path_join_str(debug_dir, "main.S")
-                            let out_path = path_join_str(debug_dir, "main.o")
-                            let rt_path = path_join_str(project_dir, "src/backend/bir/chiba_rt.s")
-                            let _ = file_write_file_all(asm_path.ptr, asm_text)
+                            let asm_path = path_join_cstr(mk_str(debug_dir, strlen(debug_dir)), "main.S")
+                            let out_path = path_join_cstr(mk_str(debug_dir, strlen(debug_dir)), "main.o")
+                            let rt_path = path_join_cstr(project_dir, "src/backend/bir/chiba_rt.s")
+                            let _ = file_write_file_all(mk_cstr_view(asm_path, strlen(asm_path)), asm_text)
                             let _ = write_fd(1, "[5/5] assembling...\n", 20)
                             let gcc_res = run_gcc(out_path, asm_path, rt_path)
                             if gcc_res != 0 { 1 }
@@ -154,7 +163,7 @@ def main_dispatch(argc: i64, argv: i64): i64 = {
     else {
         let project_dir = parse_project_arg(argc, argv, 1)
         match project_dir {
-            Some(dir) => compile_project(dir)
+            Some(dir) => compile_project(mk_str(dir, strlen(dir)))
             None => {
                 let _ = print_usage()
                 1

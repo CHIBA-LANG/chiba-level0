@@ -3,6 +3,8 @@ use metalstd.mem.*
 use metalstd.str.*
 
 // ── Linux x86-64 file syscalls ───────────────────────────────────────────
+// Path-bearing helpers in this module take `cstr` to make the filesystem
+// boundary explicit: callers must pass a NUL-terminated path view.
 
 def FILE_AT_FDCWD(): i64 = 0 - 100
 
@@ -15,8 +17,8 @@ def FILE_O_DIRECTORY(): i64 = 65536
 def FILE_SEEK_SET(): i64 = 0
 def FILE_SEEK_END(): i64 = 2
 
-def file_openat(dirfd: i64, path: i64, flags: i64, mode: i64): i64 =
-    asm (257: rax, dirfd: rdi, path: rsi, flags: rdx, mode: r10) : (rax) => {
+def file_openat(dirfd: i64, path: cstr, flags: i64, mode: i64): i64 =
+    asm (257: rax, dirfd: rdi, path.ptr: rsi, flags: rdx, mode: r10) : (rax) => {
         "syscall"
     }
 
@@ -69,7 +71,8 @@ def file_read_exact_loop(fd: i64, buf: i64, len: i64, off: i64): i64 =
         else { file_read_exact_loop(fd, buf, len, off + n) }
     }
 
-def file_write_file_all(path: i64, content: Str): i64 = {
+// Write an owned string buffer to a filesystem path carried as `cstr`.
+def file_write_file_all(path: cstr, content: Str): i64 = {
     let fd = file_openat(FILE_AT_FDCWD(), path, FILE_O_WRONLY() + FILE_O_CREAT() + FILE_O_TRUNC(), 420)
     if fd < 0 { fd }
     else {
@@ -79,12 +82,14 @@ def file_write_file_all(path: i64, content: Str): i64 = {
     }
 }
 
-def file_write_file_all_cstr(path: i64, content: i64): i64 = {
-    let s = mk_str(content, strlen(content))
+// Write a borrowed C-string view to a filesystem path carried as `cstr`.
+def file_write_file_all_cstr(path: cstr, content: cstr): i64 = {
+    let s = mk_str(content.ptr, content.len)
     file_write_file_all(path, s)
 }
 
-def file_read_file_all(path: i64): Str = {
+// Read an entire file from a filesystem path carried as `cstr`.
+def file_read_file_all(path: cstr): Str = {
     let fd = file_openat(FILE_AT_FDCWD(), path, FILE_O_RDONLY(), 0)
     if fd < 0 { str_new() }
     else {
@@ -94,7 +99,9 @@ def file_read_file_all(path: i64): Str = {
     }
 }
 
-def file_read_file_all_sized(path: i64): Str = {
+// Read an entire file from a filesystem path carried as `cstr`, preserving
+// the byte length in the returned `Str` while also storing a trailing NUL.
+def file_read_file_all_sized(path: cstr): Str = {
     let fd = file_openat(FILE_AT_FDCWD(), path, FILE_O_RDONLY(), 0)
     if fd < 0 { str_new() }
     else {
