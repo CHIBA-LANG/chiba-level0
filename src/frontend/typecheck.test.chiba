@@ -122,5 +122,23 @@ def test_typecheck(ctx: i64): i64 = {
     let src22 = "def foo(xs: slice[i64]): i64 = xs[0]"
     let _ = assert_eq(ctx, "tc slice index staged", tc_ok(src22, strlen(src22)), 1)
 
+    // 23. Vector[T] field access: .ptr, .len, .cap
+    let src23 = "def foo(v: Vector[i64]): i64 = v.len"
+    let _ = assert_eq(ctx, "tc vector len", tc_ok(src23, strlen(src23)), 1)
+
+    let src24 = "def foo(v: Vector[i64]): i64 = v.cap"
+    let _ = assert_eq(ctx, "tc vector cap", tc_ok(src24, strlen(src24)), 1)
+
+    // 24. Vector[T] indexing
+    let src25 = "def foo(v: Vector[i64]): i64 = v[0]"
+    let _ = assert_eq(ctx, "tc vector index", tc_ok(src25, strlen(src25)), 1)
+
+    // 25. String field access (String ≡ Vector[u8])
+    let src26 = "def foo(s: String): i64 = s.len"
+    let _ = assert_eq(ctx, "tc string len", tc_ok(src26, strlen(src26)), 1)
+
+    let src27 = "def foo(s: String): i64 = s.cap"
+    let _ = assert_eq(ctx, "tc string cap", tc_ok(src27, strlen(src27)), 1)
+
     0
 }

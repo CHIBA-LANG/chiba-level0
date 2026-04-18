@@ -1,2 +1,7 @@
 /target
 /runtime
+/docs
+/CHIBA-SPEC
+/blog
+*.o
+*.S

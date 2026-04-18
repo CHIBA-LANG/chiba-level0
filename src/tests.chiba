@@ -10,6 +10,7 @@ use metalstd.mem.test.*
 use metalstd.list.test.*
 use metalstd.map.test.*
 use metalstd.str.test.*
+use metalstd.vec.test.*
 use metalstd.file.test.*
 use metalstd.dir.test.*
 use metalstd.process.test.*
@@ -82,6 +83,7 @@ def run_all_tests(): i64 = {
     let _ = test_list(ctx)
     let _ = test_map(ctx)
     let _ = test_str(ctx)
+    let _ = test_vec(ctx)
     let _ = test_file(ctx)
     let _ = test_dir(ctx)
     let _ = test_process(ctx)

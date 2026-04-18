@@ -2,6 +2,7 @@ namespace frontend.lexer
 use metalstd.mem.*
 use metalstd.list.*
 use metalstd.str.*
+use metalstd.vec.*
 use frontend.ast.*
 
 // ── Character helpers ─────────────────────────────────────────────────────────
@@ -332,18 +333,18 @@ def lx_next_token(lx: i64): Token = {
     }
 }
 
-// ── Main entry: lex entire source into List[Token] ────────────────────────────
+// ── Main entry: lex entire source into Vec of Token ──────────────────────────
 
-def lx_loop(lx: i64, acc: List[Token]): List[Token] = {
+def lx_loop(lx: i64, acc: Vec): Vec = {
     let tok = lx_next_token(lx)
-    let next = Cons(tok, acc)
+    let _ = vec_push(acc, tok as i64)
     match tok {
-        TokEof => rev(next)
-        _ => lx_loop(lx, next)
+        TokEof => acc
+        _ => lx_loop(lx, acc)
     }
 }
 
-def lex(src: i64, src_len: i64): List[Token] = {
+def lex(src: i64, src_len: i64): Vec = {
     let lx = lx_new(src, src_len)
-    lx_loop(lx, Nil)
+    lx_loop(lx, vec_new())
 }

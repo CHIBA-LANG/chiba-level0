@@ -2,40 +2,42 @@ namespace frontend.parser
 use metalstd.mem.*
 use metalstd.list.*
 use metalstd.str.*
+use metalstd.vec.*
 use frontend.ast.*
 use frontend.lexer.*
 
 // ── Parser state ──────────────────────────────────────────────────────────────
 //
-// Heap layout (2 words): [tokens_list, dummy]
-// We walk the List[Token] imperatively by storing the current list head.
+// Heap layout (2 words): [tokens_vec, pos]
+// We index into the Vec imperatively, advancing pos.
 
-def p_new(toks: List[Token]): i64 = {
+def p_new(toks: Vec): i64 = {
     let p = heap_alloc(16)
     let _ = store64(p, 0, toks as i64)
     let _ = store64(p, 1, 0)
     p
 }
 
-def p_tokens(p: i64): List[Token] = load64(p, 0) as List[Token]
+def p_toks(p: i64): Vec = load64(p, 0) as Vec
+def p_pos(p: i64): i64  = load64(p, 1)
+def p_set_pos(p: i64, pos: i64): i64 = store64(p, 1, pos)
 
-def p_set_tokens(p: i64, toks: List[Token]): i64 =
-    store64(p, 0, toks as i64)
+def p_peek(p: i64): Token = {
+    let pos = p_pos(p)
+    let toks = p_toks(p)
+    if pos < vec_len(toks) { vec_get(toks, pos) as Token }
+    else { TokEof }
+}
 
-def p_peek(p: i64): Token =
-    match p_tokens(p) {
-        Cons(tok, _) => tok
-        Nil => TokEof
-    }
-
-def p_advance(p: i64): Token =
-    match p_tokens(p) {
-        Cons(tok, rest) => {
-            let _ = p_set_tokens(p, rest)
-            tok
-        }
-        Nil => TokEof
-    }
+def p_advance(p: i64): Token = {
+    let pos = p_pos(p)
+    let toks = p_toks(p)
+    if pos < vec_len(toks) {
+        let tok = vec_get(toks, pos) as Token
+        let _ = p_set_pos(p, pos + 1)
+        tok
+    } else { TokEof }
+}
 
 // ── Token predicates using match ──────────────────────────────────────────────
 
@@ -677,7 +679,7 @@ def p_parse_paren_expr(p: i64): Expr = {
             }
         }
         _ => {
-            let saved = p_tokens(p)
+            let saved = p_pos(p)
             let (is_lambda, params) = p_try_parse_lambda_params(p, Nil)
             if is_lambda != 0 {
                 let _ = p_expect_rparen(p)
@@ -686,11 +688,11 @@ def p_parse_paren_expr(p: i64): Expr = {
                     let _ = p_eat_fat_arrow(p)
                     ELambda(params, ret_ty, p_parse_expr(p))
                 } else {
-                    let _ = p_set_tokens(p, saved)
+                    let _ = p_set_pos(p, saved)
                     p_parse_paren_nonlambda(p)
                 }
             } else {
-                let _ = p_set_tokens(p, saved)
+                let _ = p_set_pos(p, saved)
                 p_parse_paren_nonlambda(p)
             }
         }
@@ -799,29 +801,19 @@ def p_parse_shift(p: i64): Expr = {
 }
 
 // Peek at the token AFTER current (non-consuming)
-def p_peek_next(p: i64): Token =
-    match p_tokens(p) {
-        Cons(_, rest) =>
-            match rest {
-                Cons(tok, _) => tok
-                Nil => TokEof
-            }
-        Nil => TokEof
-    }
+def p_peek_next(p: i64): Token = {
+    let pos = p_pos(p) + 1
+    let toks = p_toks(p)
+    if pos < vec_len(toks) { vec_get(toks, pos) as Token }
+    else { TokEof }
+}
 
-def p_peek_n2(p: i64): Token =
-    match p_tokens(p) {
-        Cons(_, rest1) =>
-            match rest1 {
-                Cons(_, rest2) =>
-                    match rest2 {
-                        Cons(tok, _) => tok
-                        Nil => TokEof
-                    }
-                Nil => TokEof
-            }
-        Nil => TokEof
-    }
+def p_peek_n2(p: i64): Token = {
+    let pos = p_pos(p) + 2
+    let toks = p_toks(p)
+    if pos < vec_len(toks) { vec_get(toks, pos) as Token }
+    else { TokEof }
+}
 
 // ── Top-level program parser ──────────────────────────────────────────────────
 
