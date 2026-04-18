@@ -779,6 +779,6 @@ def resolve(prog: Program): ResolveResult = {
 }
 
 def resolve_items(items: List[Item]): ResolveResult = {
-    let prog = Program { ns: mk_str(0, 0), uses: Nil, items: items }
+    let prog = Program { ns: str_empty(), uses: Nil, items: items }
     resolve(prog)
 }

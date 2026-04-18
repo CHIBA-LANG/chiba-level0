@@ -124,7 +124,7 @@ def parse_source_buf(buf: Str, start: i64, acc: List[SourceFile]): List[SourceFi
         let next = if end < buf.len { end + 1 } else { end }
         if path.len == 0 { parse_source_buf(buf, next, acc) }
         else {
-            let path_c = mk_cstr_view(path.ptr, path.len)
+            let path_c = str_to_cstr(path)
             if path_is_source_file(path_c) != 0 {
                 let src = file_read_file_all_sized(path_c)
                 let prog = parse_program(src.ptr, src.len)
@@ -174,7 +174,7 @@ def qname(ns: Str, name: Str): Str = {
 
 def path_join_segments(parts: List[Str]): Str =
     match parts {
-        Nil => mk_str(0, 0)
+        Nil => str_empty()
         Cons(part, rest) => {
             let out = str_new()
             let _ = str_append(out, part)
@@ -194,7 +194,7 @@ def path_join_segments_tail(out: Str, parts: List[Str]): Str =
 
 def path_last(parts: List[Str]): Str =
     match parts {
-        Nil => mk_str(0, 0)
+        Nil => str_empty()
         Cons(part, rest) => {
             if is_nil(rest) != 0 { part }
             else { path_last(rest) }
@@ -769,5 +769,5 @@ def rewrite_file_items(files: List[SourceFile], global: List[(Str, NsModule)]): 
 
 def merge_program(files: List[SourceFile]): Program = {
     let global = build_namespace_modules(files)
-    Program { ns: mk_str(0, 0), uses: Nil, items: rewrite_file_items(files, global) }
+    Program { ns: str_empty(), uses: Nil, items: rewrite_file_items(files, global) }
 }

@@ -34,6 +34,18 @@ def mk_cstr_view(p: i64, l: i64): cstr = cstr { ptr: p, len: l }
 // Create a borrowed Str from a raw pointer and length (immutable, cap=0)
 def mk_str(p: i64, l: i64): Str = Str { ptr: p, len: l, cap: 0 }
 
+// Create an empty sentinel Str (ptr=0, len=0, cap=0)
+def str_empty(): Str = Str { ptr: 0, len: 0, cap: 0 }
+
+// Create a borrowed Str from a NUL-terminated raw C pointer (e.g. argv[i])
+def str_from_cptr(p: i64): Str = mk_str(p, strlen(p))
+
+// Create a cstr view from a NUL-terminated raw C pointer
+def cstr_from_cptr(p: i64): cstr = cstr { ptr: p, len: strlen(p) }
+
+// Create a borrowed Str from a cstr (shares the same pointer, no copy)
+def str_from_cstr(c: cstr): Str = mk_str(c.ptr, c.len)
+
 // Explicitly convert a borrowed Str/String buffer to a cstr view.
 // Ensures there is a trailing NUL while preserving the logical byte length.
 def str_to_cstr(s: Str): cstr = {

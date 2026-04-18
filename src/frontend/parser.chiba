@@ -534,7 +534,7 @@ def p_parse_asm_inputs(p: i64, acc: List[AsmInput]): List[AsmInput] =
             let value = p_parse_expr(p)
             let _ = p_eat_colon(p)
             let reg_tok = p_advance(p)
-            let reg = match reg_tok { TokIdent(s) => s  _ => mk_str(0, 0) }
+            let reg = match reg_tok { TokIdent(s) => s  _ => str_empty() }
             let _ = p_eat_comma(p)
             p_parse_asm_inputs(p, Cons(AsmIn(value, reg), acc))
         }
@@ -842,7 +842,7 @@ def p_parse_item(p: i64): Item = {
         TokKwUnion => p_parse_uniondef(p, is_private)
         _ => {
             let _ = p_advance(p)
-            FunDef(mk_str(0, 0), 0, Nil, Nil, TyUnit, EUnit, Nil)
+            FunDef(str_empty(), 0, Nil, Nil, TyUnit, EUnit, Nil)
         }
     }
 }
@@ -880,7 +880,7 @@ def p_parse_def(p: i64, attrs: List[Str], is_private: i64): Item = {
                 _ => FunDef(name, is_private, tparams, params, ret, p_parse_expr(p), attrs)
             }
         }
-        _ => FunDef(mk_str(0, 0), 0, Nil, Nil, TyUnit, EUnit, Nil)
+        _ => FunDef(str_empty(), 0, Nil, Nil, TyUnit, EUnit, Nil)
     }
 }
 
@@ -909,7 +909,7 @@ def p_parse_typedef(p: i64, is_private: i64): Item = {
             let _ = p_expect_rbrace(p)
             TypeDef(name, is_private, tparams, fields)
         }
-        _ => TypeDef(mk_str(0, 0), 0, Nil, Nil)
+        _ => TypeDef(str_empty(), 0, Nil, Nil)
     }
 }
 
@@ -937,7 +937,7 @@ def p_parse_datadef(p: i64, is_private: i64): Item = {
             let _ = p_expect_rbrace(p)
             DataDef(name, is_private, tparams, variants)
         }
-        _ => DataDef(mk_str(0, 0), 0, Nil, Nil)
+        _ => DataDef(str_empty(), 0, Nil, Nil)
     }
 }
 
@@ -974,7 +974,7 @@ def p_parse_uniondef(p: i64, is_private: i64): Item = {
             let _ = p_expect_rbrace(p)
             UnionDef(name, is_private, fields)
         }
-        _ => UnionDef(mk_str(0, 0), 0, Nil)
+        _ => UnionDef(str_empty(), 0, Nil)
     }
 }
 
@@ -988,7 +988,7 @@ def p_parse_namespace(p: i64): Str =
             let _ = p_parse_dotted_name_loop(p, s)
             s
         }
-        _ => mk_str(0, 0)
+        _ => str_empty()
     }
 
 def p_parse_dotted_name_loop(p: i64, s: Str): i64 =
