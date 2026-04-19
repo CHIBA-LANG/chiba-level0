@@ -712,6 +712,10 @@ def rewrite_expr(view: NameView, env: List[Str], ty_env: List[Str], expr: Expr):
         EShift(tag, k, body) => EShift(rewrite_expr(view, env, ty_env, tag), k, rewrite_expr(view, Cons(k, env), ty_env, body))
         EAsm(inputs, outputs, instrs) => EAsm(rewrite_asm_inputs(view, env, ty_env, inputs), outputs, instrs)
         EUnsafe(inner) => EUnsafe(rewrite_expr(view, env, ty_env, inner))
+        EFor(cond, body) => EFor(rewrite_expr(view, env, ty_env, cond), rewrite_expr(view, env, ty_env, body))
+        EForInf(body) => EForInf(rewrite_expr(view, env, ty_env, body))
+        EBreak => EBreak
+        EContinue => EContinue
         _ => expr
     }
 

@@ -55,7 +55,10 @@ def match_keyword(s: Str): Token =
     else if streq(s, mk_str("as", 2))        { TokKwAs }
     else if streq(s, mk_str("use", 3))       { TokKwUse }
     else if streq(s, mk_str("private", 7))   { TokKwPrivate }
-    else if streq(s, mk_str("asm", 3))       { TokKwAsm }
+else if streq(s, mk_str("asm", 3))    { TokKwAsm }
+    else if streq(s, mk_str("for", 3))      { TokKwFor }
+    else if streq(s, mk_str("break", 5))    { TokKwBreak }
+    else if streq(s, mk_str("continue", 8)) { TokKwContinue }
     else { TokIdent(s) }
 
 // ── Lexer state ───────────────────────────────────────────────────────────────

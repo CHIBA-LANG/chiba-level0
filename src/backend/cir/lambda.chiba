@@ -117,6 +117,13 @@ def collect_var_refs_inner(expr: Expr, refs: i64): i64 =
             remove_params_from_refs(params, refs)
         }
         EAsm(inputs, _, _) => collect_asm_inputs_refs(inputs, refs)
+        EFor(cond, body) => {
+            let _ = collect_var_refs_inner(cond, refs)
+            collect_var_refs_inner(body, refs)
+        }
+        EForInf(body) => collect_var_refs_inner(body, refs)
+        EBreak => 0
+        EContinue => 0
     }
 
 def collect_var_refs_list(exprs: List[Expr], refs: i64): i64 =

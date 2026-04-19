@@ -642,6 +642,9 @@ def p_parse_primary(p: i64): Expr =
         TokKwMatch => p_parse_match_expr(p)
         TokKwAsm => p_parse_asm_expr(p)
         TokKwUnsafe => { let _ = p_advance(p) EUnsafe(p_parse_block(p)) }
+        TokKwFor => p_parse_for_expr(p)
+        TokKwBreak => { let _ = p_advance(p) EBreak }
+        TokKwContinue => { let _ = p_advance(p) EContinue }
         TokKwReset => p_parse_reset(p)
         TokKwShift => p_parse_shift(p)
         TokIdent(s) => {
@@ -739,6 +742,17 @@ def p_parse_match_expr(p: i64): Expr = {
     let arms = p_parse_match_arms(p, Nil)
     let _ = p_expect_rbrace(p)
     EMatch(scrut, arms)
+}
+
+// `for { body }` or `for cond { body }`
+def p_parse_for_expr(p: i64): Expr = {
+    let _ = p_advance(p)
+    if p_check_lbrace(p) != 0 {
+        EForInf(p_parse_block(p))
+    } else {
+        let cond = p_parse_expr(p)
+        EFor(cond, p_parse_block(p))
+    }
 }
 
 def p_can_start_pat(p: i64): i64 =

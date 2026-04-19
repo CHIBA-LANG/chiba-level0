@@ -567,6 +567,16 @@ def check_expr(e: Expr, env: List[Str], m: Module, errs: List[Str]): List[Str] =
         EAsm(inputs, _, _) => check_asm_inputs(inputs, env, m, errs)
 
         EUnsafe(inner) => check_expr(inner, env, m, errs)
+
+        EFor(cond, body) => {
+            let e2 = check_expr(cond, env, m, errs)
+            check_expr(body, env, m, e2)
+        }
+
+        EForInf(body) => check_expr(body, env, m, errs)
+
+        EBreak => errs
+        EContinue => errs
     }
 
 def check_expr_list(es: List[Expr], env: List[Str], m: Module, errs: List[Str]): List[Str] =

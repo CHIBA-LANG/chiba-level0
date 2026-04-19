@@ -444,6 +444,22 @@ def lower_expr(expr: Expr, k: (Val) => CpsExpr,
         ELambda(params, _, body) =>
             lower_lambda(params, body, k, env, module, ctx)
 
+        EFor(cond, body) =>
+            lower_for_cond(cond, body, k, env, module, ctx)
+
+        EForInf(body) =>
+            lower_for_inf(body, k, env, module, ctx)
+
+        EBreak => {
+            let break_cont = strlist_get_unwrap(env.vars, mk_str_cstr("__for_break"))
+            mk_app_cont(break_cont, Cons(VUnit, Nil))
+        }
+
+        EContinue => {
+            let continue_cont = strlist_get_unwrap(env.vars, mk_str_cstr("__for_continue"))
+            mk_app_cont(continue_cont, Cons(VUnit, Nil))
+        }
+
         EAsm(inputs, outputs, instrs) =>
             lower_asm_inputs(inputs, outputs, instrs, Nil, k, env, module, ctx)
     }
@@ -619,6 +635,86 @@ def lower_asm_inputs(inputs: List[AsmInput], outputs: List[AsmOutput],
                     }, env, module, ctx)
             }
     }
+
+// ── For loop lowering ──────────────────────────────────────────────────────────
+//
+//  for { body }     (EForInf) → j_loop runs body, then recurs with VUnit
+//  for cond { body } (EFor)   → j_loop receives bool, switch: true→run body+re-eval cond+recur, false→break
+//  break             → jumps to j_break (materialized outer k)
+//  continue in for{} → jumps to j_loop(VUnit)
+//  continue in for cond{} → re-evaluate cond, then jump to j_loop(new_cond)
+
+def lower_for_inf(body: Expr,
+                  k: (Val) => CpsExpr,
+                  env: LowerEnv, module: Module,
+                  ctx: LowerCtx): CpsExpr = {
+    let mjk = materialize(k, ctx)
+    let (j_break, j_break_def) = mjk
+
+    let j_loop = fresh_cont(ctx)
+    let loop_unit_v = fresh_var(ctx)
+
+    let loop_env = env_add_var(env, mk_str_cstr("__for_break"), j_break)
+    let loop_env2 = env_add_var(loop_env, mk_str_cstr("__for_continue"), j_loop)
+
+    let body_ir = lower_expr(body, (val: Val): CpsExpr => {
+        mk_app_cont(j_loop, Cons(VUnit, Nil))
+    }, loop_env2, module, ctx)
+
+    let j_loop_def = ContDef { params: Cons(loop_unit_v, Nil), body: body_ir }
+
+    mk_let_cont(
+        Cons(pair(j_break, j_break_def), Cons(pair(j_loop, j_loop_def), Nil)),
+        mk_app_cont(j_loop, Cons(VUnit, Nil)))
+}
+
+def lower_for_cond(cond_expr: Expr, body: Expr,
+                   k: (Val) => CpsExpr,
+                   env: LowerEnv, module: Module,
+                   ctx: LowerCtx): CpsExpr = {
+    let mjk = materialize(k, ctx)
+    let (j_break, j_break_def) = mjk
+
+    let j_loop = fresh_cont(ctx)
+    let j_continue = fresh_cont(ctx)
+    let cond_v = fresh_var(ctx)
+
+    let loop_env = env_add_var(env, mk_str_cstr("__for_break"), j_break)
+    let loop_env2 = env_add_var(loop_env, mk_str_cstr("__for_continue"), j_continue)
+
+    let then_cont = fresh_cont(ctx)
+    let else_cont = fresh_cont(ctx)
+
+    let body_ir = lower_expr(body, (val: Val): CpsExpr => {
+        lower_expr(cond_expr, (new_cond: Val): CpsExpr => {
+            mk_app_cont(j_loop, Cons(new_cond, Nil))
+        }, loop_env2, module, ctx)
+    }, loop_env2, module, ctx)
+
+    let j_continue_def = ContDef { params: Nil, body: {
+        lower_expr(cond_expr, (new_cond: Val): CpsExpr => {
+            mk_app_cont(j_loop, Cons(new_cond, Nil))
+        }, loop_env2, module, ctx)
+    } }
+
+    let then_def = ContDef { params: Nil, body: body_ir }
+    let else_def = ContDef { params: Nil, body: mk_app_cont(j_break, Cons(VUnit, Nil)) }
+
+    let j_loop_body = ContDef { params: Cons(cond_v, Nil), body:
+        mk_let_cont(
+            Cons(pair(j_continue, j_continue_def),
+            Cons(pair(then_cont, then_def), Cons(pair(else_cont, else_def), Nil))),
+            mk_switch(VVar(cond_v),
+                Cons(pair(1, then_cont), Cons(pair(0, else_cont), Nil)),
+                None))
+    }
+
+    lower_expr(cond_expr, (initial_cond: Val): CpsExpr => {
+        mk_let_cont(
+            Cons(pair(j_break, j_break_def), Cons(pair(j_loop, j_loop_body), Nil)),
+            mk_app_cont(j_loop, Cons(initial_cond, Nil)))
+    }, env, module, ctx)
+}
 
 def asm_outputs_to_strs(outputs: List[AsmOutput]): List[Str] =
     match outputs {

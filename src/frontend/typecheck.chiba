@@ -508,6 +508,14 @@ def infer_expr(e: Expr, env: List[TyBinding], m: Module): Option[Ty] =
 
         EUnsafe(inner) => infer_expr(inner, env, m)
 
+        EFor(cond, body) => Some(TyUnit)
+
+        EForInf(body) => Some(TyUnit)
+
+        EBreak => Some(TyUnit)
+
+        EContinue => Some(TyUnit)
+
         _ => None
     }
 
@@ -875,6 +883,16 @@ def tc_check_expr(e: Expr, env: List[TyBinding], m: Module, errs: List[Str]): Li
 
         EAsm(inputs, _, _) => tc_check_asm_inputs(inputs, env, m, errs)
         EUnsafe(inner) => tc_check_expr(inner, env, m, errs)
+
+        EFor(cond, body) => {
+            let e2 = tc_check_expr(cond, env, m, errs)
+            tc_check_expr(body, env, m, e2)
+        }
+
+        EForInf(body) => tc_check_expr(body, env, m, errs)
+
+        EBreak => errs
+        EContinue => errs
     }
 
 def tc_check_expr_list(es: List[Expr], env: List[TyBinding], m: Module, errs: List[Str]): List[Str] =

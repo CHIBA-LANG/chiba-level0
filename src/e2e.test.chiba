@@ -121,5 +121,17 @@ def test_e2e(ctx: i64): i64 = {
         "namespace e2e\ndef answer(): i64 = true\n#[entry]\ndef main(argc: i64, argv: i64): i64 = answer()",
         "1\n")
 
+    let _ = expect_e2e(ctx, "e2e for break",
+        "namespace e2e\ndef run(): i64 = { for { break } 0 }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "0\n")
+
+    let _ = expect_e2e(ctx, "e2e for true break",
+        "namespace e2e\ndef run(): i64 = { for true { break } 42 }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "42\n")
+
+    let _ = expect_e2e(ctx, "e2e for cond break",
+        "namespace e2e\ndef run(): i64 = { for 1 != 0 { break } 42 }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "42\n")
+
     0
 }
