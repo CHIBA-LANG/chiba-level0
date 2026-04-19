@@ -26,33 +26,13 @@ jobs:
         env:
           RELEASE_REPO: ${{ github.repository }}
         run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import sys
-          import urllib.request
-
-          repo = os.environ.get("RELEASE_REPO", "CHIBA-LANG/chiba-level0")
-          api = f"https://api.github.com/repos/{repo}/releases/latest"
-
-          req = urllib.request.Request(api, headers={"User-Agent": "chiba-ci"})
-          with urllib.request.urlopen(req) as resp:
-            data = json.load(resp)
-
-          assets = data.get("assets", [])
-          target = None
-          for asset in assets:
-            if asset.get("name") == "main.o":
-              target = asset.get("browser_download_url")
-              break
-
-          if not target:
-            print(f"main.o not found in latest release assets of {repo}", file=sys.stderr)
-            sys.exit(1)
-
-          print(f"downloading {target}")
-          urllib.request.urlretrieve(target, "./main.o")
-          PY
+          URL="https://github.com/${RELEASE_REPO}/releases/download/latest/main.o"
+          FALLBACK_URL="https://github.com/CHIBA-LANG/chiba-level0/releases/download/latest/main.o"
+          echo "downloading ${URL}"
+          if ! curl -fL "$URL" -o ./main.o; then
+            echo "primary download failed, fallback to ${FALLBACK_URL}"
+            curl -fL "$FALLBACK_URL" -o ./main.o
+          fi
           chmod +x ./main.o
 
       - name: Ensure executable bootstrap binary
