@@ -27,6 +27,7 @@ use backend.pass.usage.test.*
 use backend.pass.escape.test.*
 use backend.pass.closure.test.*
 use project.test.*
+use e2e.test.*
 
 data Pair {
     MkPair(i64, i64)
@@ -103,6 +104,7 @@ def run_all_tests(): i64 = {
     let _ = test_escape(ctx)
     let _ = test_closure(ctx)
     let _ = test_project(ctx)
+    let _ = test_e2e(ctx)
 
     let failures = test_summary(ctx)
     if failures > 0 { 1 } else { 0 }

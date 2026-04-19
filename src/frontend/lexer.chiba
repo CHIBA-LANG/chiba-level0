@@ -129,13 +129,43 @@ def lx_hex_loop(lx: i64, acc: i64): i64 =
         lx_hex_loop(lx, acc * 16 + d)
     } else { acc }
 
+def is_oct_digit(c: i64): i64 =
+    if c >= 48 { if c <= 55 { 1 } else { 0 } } else { 0 }
+
+def lx_oct_loop(lx: i64, acc: i64): i64 =
+    if is_oct_digit(lx_cur(lx)) != 0 {
+        let d = lx_cur(lx) - 48
+        let _ = lx_adv(lx)
+        lx_oct_loop(lx, acc * 8 + d)
+    } else { acc }
+
+def is_bin_digit(c: i64): i64 =
+    if c == 48 { 1 } else if c == 49 { 1 } else { 0 }
+
+def lx_bin_loop(lx: i64, acc: i64): i64 =
+    if is_bin_digit(lx_cur(lx)) != 0 {
+        let d = lx_cur(lx) - 48
+        let _ = lx_adv(lx)
+        lx_bin_loop(lx, acc * 2 + d)
+    } else { acc }
+
 def lx_lex_int(lx: i64): Token = {
     let neg = if lx_cur(lx) == 45 { let _ = lx_adv(lx) 1 } else { 0 }
     let is_hex_lit = if lx_cur(lx) == 48 { if lx_peek1(lx) == 120 { 1 } else { 0 } } else { 0 }
+    let is_oct_lit = if lx_cur(lx) == 48 { if lx_peek1(lx) == 111 { 1 } else { 0 } } else { 0 }
+    let is_bin_lit = if lx_cur(lx) == 48 { if lx_peek1(lx) == 98 { 1 } else { 0 } } else { 0 }
     let raw = if is_hex_lit != 0 {
         let _ = lx_adv(lx)
         let _ = lx_adv(lx)
         lx_hex_loop(lx, 0)
+    } else if is_oct_lit != 0 {
+        let _ = lx_adv(lx)
+        let _ = lx_adv(lx)
+        lx_oct_loop(lx, 0)
+    } else if is_bin_lit != 0 {
+        let _ = lx_adv(lx)
+        let _ = lx_adv(lx)
+        lx_bin_loop(lx, 0)
     } else {
         lx_dec_loop(lx, 0)
     }

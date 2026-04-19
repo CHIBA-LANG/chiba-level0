@@ -110,5 +110,23 @@ def test_lexer(ctx: i64): i64 = {
     let is_pipepipe = match vec_get(t10, 1) as Token { TokPipePipe => 1  _ => 0 }
     let _ = assert_eq(ctx, "lex logical or token", is_pipepipe, 1)
 
+    // Hex literal 0xFF → 255
+    let t11 = lex("0xFF", 4)
+    let tok11 = vec_get(t11, 0) as Token
+    let v11 = match tok11 { TokInt(v) => v  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "lex hex val", v11, 255)
+
+    // Octal literal 0o77 → 63
+    let t12 = lex("0o77", 4)
+    let tok12 = vec_get(t12, 0) as Token
+    let v12 = match tok12 { TokInt(v) => v  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "lex oct val", v12, 63)
+
+    // Binary literal 0b1010 → 10
+    let t13 = lex("0b1010", 6)
+    let tok13 = vec_get(t13, 0) as Token
+    let v13 = match tok13 { TokInt(v) => v  _ => 0 - 1 }
+    let _ = assert_eq(ctx, "lex bin val", v13, 10)
+
     0
 }
