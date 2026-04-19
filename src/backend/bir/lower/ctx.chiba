@@ -280,11 +280,6 @@ def lower_map_var(fctx: BirFunCtx, ctx: BirLowerCtx, cps_var: i64): i64 =
 	}
 
 def val_to_vreg(ctx: BirLowerCtx, fctx: BirFunCtx, val: Val): i64 =
-	if (val as i64) < 65536 {
-		let dst = lower_fresh_vreg(ctx)
-		let _ = fun_ctx_emit(fctx, ILoadUnit(dst))
-		dst
-	} else {
 	match val {
 		VInt(n) => {
 			let dst = lower_fresh_vreg(ctx)
@@ -320,7 +315,6 @@ def val_to_vreg(ctx: BirLowerCtx, fctx: BirFunCtx, val: Val): i64 =
 			let _ = fun_ctx_emit(fctx, ILoadStrPtr(dst, idx))
 			dst
 		}
-	}
 	}
 
 def vals_to_vregs(ctx: BirLowerCtx, fctx: BirFunCtx, vals: List[Val]): List[i64] =

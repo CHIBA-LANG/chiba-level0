@@ -72,21 +72,17 @@ def lower_reset(tag_expr: Expr, body: Expr,
                 env: LowerEnv, module: Module,
                 ctx: LowerCtx): CpsExpr =
     lower_expr(tag_expr, (tag_val: Val): CpsExpr => {
-        // Materialize exit and handler as real ContIds
         let mk_exit = materialize(k, ctx)
         let (exit_k, exit_def) = mk_exit
-        let mk_handler = materialize(k, ctx)
-        let (handler_k, handler_def) = mk_handler
+        let handler_k = exit_k
 
-        // Record this reset so inner shifts can find exit_cont
         let tag_literal = match tag_expr {
             EInt(n) => n
             ESym(s) => sym_hash(s)
-            _ => -1     // -1 = no literal tag (dynamic)
+            _ => -1
         }
         let _ = ctx_push_reset(ctx, tag_literal, exit_k)
 
-        // Body meta-k: forward result to exit_cont
         let exit_meta = (val: Val): CpsExpr => mk_app_cont(exit_k, Cons(val, Nil))
         let body_ir = lower_expr(body, exit_meta, env, module, ctx)
 
@@ -99,8 +95,7 @@ def lower_reset(tag_expr: Expr, body: Expr,
 
         mk_let_cont(
             Cons(pair(exit_k, exit_def),
-            Cons(pair(handler_k, handler_def),
-            Cons(pair(body_k, body_def), Nil))),
+            Cons(pair(body_k, body_def), Nil)),
             prompt)
     }, env, module, ctx)
 

@@ -1281,10 +1281,36 @@ def tc_item(item: Item, m: Module, errs: List[Str]): List[Str] =
     match item {
         FunDef(name, _, _, params, ret, body, _) => {
             let env = extend_env_params(params, Nil)
+            let n_errs_before = length(errs)
             let e2 = tc_check_expr(body, env, m, errs)
-            tc_check_return_type_msg(name.ptr, ret, body, env, m, e2)
+            let e3 = tc_check_return_type_msg(name.ptr, ret, body, env, m, e2)
+            tag_new_errors(e3, n_errs_before, name)
         }
         _ => errs
+    }
+
+def tag_new_errors(errs: List[Str], threshold: i64, fn_name: Str): List[Str] =
+    tag_new_errors_loop(errs, length(errs), threshold, fn_name)
+
+def tag_new_errors_loop(errs: List[Str], idx: i64, threshold: i64, fn_name: Str): List[Str] =
+    if idx <= threshold { errs }
+    else {
+        let rest = tag_new_errors_loop(errs, idx - 1, threshold, fn_name)
+        let e = nth(errs, idx - 1)
+        let tagged = str_new()
+        let _ = str_push_cstr(tagged, "in ")
+        let _ = str_append(tagged, fn_name)
+        let _ = str_push_cstr(tagged, ": ")
+        let _ = str_append(tagged, e)
+        update_nth(rest, idx - 1, tagged)
+    }
+
+def update_nth(xs: List[Str], i: i64, val: Str): List[Str] =
+    match xs {
+        Nil => Nil
+        Cons(x, rest) =>
+            if i == 0 { Cons(val, rest) }
+            else { Cons(x, update_nth(rest, i - 1, val)) }
     }
 
 def typecheck_program(prog: Program, m: Module): List[Str] =

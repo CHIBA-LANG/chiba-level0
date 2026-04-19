@@ -276,6 +276,7 @@ def lx_lex_punct(lx: i64, c: i64): Token = {
     else if c == 37  { TokPercent }
     else if c == 44  { TokComma }
     else if c == 46  { TokDot }
+    else if c == 59  { TokSemicolon }
     else if c == 40  { TokLParen }
     else if c == 41  { TokRParen }
     else if c == 123 { TokLBrace }

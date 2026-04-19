@@ -74,6 +74,8 @@ data Token {
     TokLBracket,
     TokRBracket,
 
+    TokSemicolon,
+
     // Special
     TokEof
 }
@@ -223,4 +225,4 @@ data Variant {
 
 // ── Program ─────────────────────────────────────────────────────────────────
 
-type Program { ns: Str  uses: List[UseDecl]  items: List[Item] }
+type Program { ns: Str  uses: List[UseDecl]  items: List[Item]  source_files: List[Str] }

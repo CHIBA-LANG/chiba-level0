@@ -773,5 +773,12 @@ def rewrite_file_items(files: List[SourceFile], global: List[(Str, NsModule)]): 
 
 def merge_program(files: List[SourceFile]): Program = {
     let global = build_namespace_modules(files)
-    Program { ns: str_empty(), uses: Nil, items: rewrite_file_items(files, global) }
+    let sf = collect_source_file_paths(files)
+    Program { ns: str_empty(), uses: Nil, items: rewrite_file_items(files, global), source_files: sf }
 }
+
+def collect_source_file_paths(files: List[SourceFile]): List[Str] =
+    match files {
+        Nil => Nil
+        Cons(sf, rest) => Cons(source_file_path(sf), collect_source_file_paths(rest))
+    }

@@ -475,16 +475,10 @@ def lower_stmts(stmts: List[Stmt], ret: Expr,
         Cons(stmt, rest) =>
             match stmt {
                 SLet(pat, ann, rhs) =>
-                    {
-                    if (rhs as i64) < 65536 {
-                        lower_stmts(rest, ret, k, env, module, ctx)
-                    } else {
-                        lower_expr(rhs, (rhs_val: Val): CpsExpr => {
-                            lower_let_pat(pat, ann, rhs, rhs_val,
-                                          rest, ret, k, env, module, ctx)
-                        }, env, module, ctx)
-                    }
-                    }
+                    lower_expr(rhs, (rhs_val: Val): CpsExpr => {
+                        lower_let_pat(pat, ann, rhs, rhs_val,
+                                      rest, ret, k, env, module, ctx)
+                    }, env, module, ctx)
                 SExpr(e) =>
                     // Evaluate for side effect, then continue
                     lower_expr(e, (_val: Val): CpsExpr => {
@@ -685,17 +679,15 @@ def lower_for_cond(cond_expr: Expr, body: Expr,
     let then_cont = fresh_cont(ctx)
     let else_cont = fresh_cont(ctx)
 
-    let body_ir = lower_expr(body, (val: Val): CpsExpr => {
-        lower_expr(cond_expr, (new_cond: Val): CpsExpr => {
-            mk_app_cont(j_loop, Cons(new_cond, Nil))
-        }, loop_env2, module, ctx)
+    let body_ir = lower_expr(body, (_val: Val): CpsExpr => {
+        mk_app_cont(j_continue, Nil)
     }, loop_env2, module, ctx)
 
-    let j_continue_def = ContDef { params: Nil, body: {
-        lower_expr(cond_expr, (new_cond: Val): CpsExpr => {
-            mk_app_cont(j_loop, Cons(new_cond, Nil))
-        }, loop_env2, module, ctx)
-    } }
+    let cond_ir = lower_expr(cond_expr, (new_cond: Val): CpsExpr => {
+        mk_app_cont(j_loop, Cons(new_cond, Nil))
+    }, loop_env2, module, ctx)
+
+    let j_continue_def = ContDef { params: Nil, body: cond_ir }
 
     let then_def = ContDef { params: Nil, body: body_ir }
     let else_def = ContDef { params: Nil, body: mk_app_cont(j_break, Cons(VUnit, Nil)) }

@@ -324,6 +324,10 @@ def p_parse_block_body(p: i64, stmts: List[Stmt]): (List[Stmt], Expr) =
                     mk_block_result(rev(stmts), e)
                 }
                 TokEof => mk_block_result(rev(stmts), e)
+                TokSemicolon => {
+                    let _ = p_advance(p)
+                    p_parse_block_body(p, Cons(SExpr(e), stmts))
+                }
                 TokPipe => {
                     let _ = p_advance(p)
                     let updates = p_parse_field_init_list(p, Nil)
@@ -1083,7 +1087,7 @@ def parse_program(src: i64, src_len: i64): Program = {
     let ns = p_parse_namespace(p)
     let uses = p_parse_use_decls(p, Nil)
     let items = p_parse_items(p, Nil)
-    Program { ns: ns, uses: uses, items: items }
+    Program { ns: ns, uses: uses, items: items, source_files: Nil }
 }
 
 def parse_program_items(src: i64, src_len: i64): List[Item] = {
