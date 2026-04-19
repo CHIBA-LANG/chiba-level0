@@ -28,16 +28,24 @@ def utf8_next_offset(ptr: i64, offset: i64): i64 =
     offset + utf8_char_len_from_first_byte(load8(ptr, offset))
 
 def utf8_prev_offset(ptr: i64, offset: i64): i64 = {
-    let i = offset - 1
-    let b = load8(ptr, i)
-    if (b & 192) == 128 {
-        let i2 = i - 1
-        let b2 = load8(ptr, i2)
-        if (b2 & 192) == 128 {
-            let i3 = i2 - 1
-            let b3 = load8(ptr, i3)
-            if (b3 & 192) == 128 { i3 }
+    if offset <= 0 { 0 }
+    else {
+        let i = offset - 1
+        let b = load8(ptr, i)
+        if (b & 192) == 128 {
+            let i2 = i - 1
+            let b2 = load8(ptr, i2)
+            if (b2 & 192) == 128 {
+                let i3 = i2 - 1
+                let b3 = load8(ptr, i3)
+                if (b3 & 192) == 128 {
+                    let i4 = i3 - 1
+                    if i4 < 0 { 0 }
+                    else { i4 }
+                }
+                else { i3 }
+            }
             else { i2 }
         } else { i }
-    } else { i }
+    }
 }

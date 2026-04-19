@@ -27,6 +27,11 @@ type AltRest {
     ps: ParseState
 }
 
+type ClassCharsRes {
+    chars: List[i64]
+    ps: ParseState
+}
+
 def mk_pr(ast: RegexAST, ps: ParseState): ParseResult =
     ParseResult { ast: ast, ps: ps }
 
@@ -35,6 +40,9 @@ def mk_nr(val: i64, ps: ParseState): NumberResult =
 
 def mk_alt(list: List[RegexAST], ps: ParseState): AltRest =
     AltRest { list: list, ps: ps }
+
+def mk_ccr(chars: List[i64], ps: ParseState): ClassCharsRes =
+    ClassCharsRes { chars: chars, ps: ps }
 
 def ps_new(ptr: i64, len: i64): ParseState =
     ParseState { pattern_ptr: ptr, pattern_len: len, pos: 0, group_count: 0 }
@@ -104,19 +112,19 @@ def parse_class(ps: ParseState): ParseResult = {
     let ps2 = ps_advance(ps)
     let neg_flag = if ps2.pos < ps2.pattern_len && ps_peek(ps2) == 94 { 1 } else { 0 }
     let ps3 = if neg_flag != 0 { ps_advance(ps2) } else { ps2 }
-    let pr = parse_class_chars(ps3, Nil)
-    mk_pr(RClass(pr.ast, neg_flag), pr.ps)
+    let cr = parse_class_chars(ps3, Nil)
+    mk_pr(RClass(rev(cr.chars), neg_flag), cr.ps)
 }
 
-def parse_class_chars(ps: ParseState, acc: List[i64]): ParseResult =
-    if ps.pos >= ps.pattern_len { mk_pr(REmpty, ps) }
+def parse_class_chars(ps: ParseState, acc: List[i64]): ClassCharsRes =
+    if ps.pos >= ps.pattern_len { mk_ccr(acc, ps) }
     else {
         let c = ps_peek(ps)
-        if c == 93 { mk_pr(REmpty, ps_advance(ps)) }
+        if c == 93 { mk_ccr(acc, ps_advance(ps)) }
         else {
             let ps2 = ps_advance(ps)
             if c == 92 {
-                if ps2.pos >= ps2.pattern_len { mk_pr(REmpty, ps2) }
+                if ps2.pos >= ps2.pattern_len { mk_ccr(acc, ps2) }
                 else {
                     let ec = ps_peek(ps2)
                     let ps3 = ps_advance(ps2)
@@ -247,11 +255,20 @@ def parse_atom(ps: ParseState): ParseResult =
             94 => mk_pr(RAnchor(ANCHOR_CIRC()), ps_advance(ps))
             36 => mk_pr(RAnchor(ANCHOR_DOLLAR()), ps_advance(ps))
             46 => parse_quantifier(RAny, ps_advance(ps))
-            40 => parse_group(ps)
+            40 => {
+                let pr = parse_group(ps)
+                parse_quantifier(pr.ast, pr.ps)
+            }
             41 => mk_pr(REmpty, ps)
-            91 => parse_class(ps)
+            91 => {
+                let pr = parse_class(ps)
+                parse_quantifier(pr.ast, pr.ps)
+            }
             124 => mk_pr(REmpty, ps)
-            92 => parse_escape(ps)
+            92 => {
+                let pr = parse_escape(ps)
+                parse_quantifier(pr.ast, pr.ps)
+            }
             _ => if is_meta_char(c) != 0 { mk_pr(REmpty, ps) }
                  else { parse_quantifier(RChar(c), ps_advance(ps)) }
         }
@@ -271,7 +288,13 @@ def parse_sequence(ps: ParseState, acc: List[RegexAST]): ParseResult =
             let pr = parse_atom(ps)
             if ast_is_empty(pr.ast) != 0 {
                 if c == 41 || c == 124 { mk_pr(RSeq_or_single(rev(acc)), pr.ps) }
-                else { parse_sequence(pr.ps, acc) }
+                else {
+                    if pr.ps.pos <= ps.pos {
+                        parse_sequence(ps_advance(ps), acc)
+                    } else {
+                        parse_sequence(pr.ps, acc)
+                    }
+                }
             } else { parse_sequence(pr.ps, Cons(pr.ast, acc)) }
         }
     }
