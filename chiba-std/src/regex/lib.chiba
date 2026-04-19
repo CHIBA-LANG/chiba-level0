@@ -1,0 +1,6 @@
+#![Metal]
+
+// perl compatible regular expressions
+// for chiba standard library
+
+namespace std.regex

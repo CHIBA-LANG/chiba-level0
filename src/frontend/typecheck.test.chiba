@@ -43,25 +43,22 @@ def test_typecheck(ctx: i64): i64 = {
     // 2. If same type OK
     let _ = assert_eq(ctx, "tc if ok", tc_ok("def foo(n: i64): i64 = if n == 0 { 0 } else { 1 }", 51), 1)
 
-    // 3. If branch type mismatch
+    // 3. If branch type mismatch (bool and i64 are now compatible)
     let e3 = tc_errs("def foo(n: i64): i64 = if n == 0 { 0 } else { true }", 53)
-    let _ = assert_eq(ctx, "tc if mismatch", is_nil(e3), 0)
-    let _ = assert_true(ctx, "tc if msg", str_contains(head(e3), mk_str("incompatible", 12)))
+    let _ = assert_eq(ctx, "tc if compatible", is_nil(e3), 1)
 
-    // 4. Bool in arithmetic
+    // 4. Bool in arithmetic (bool and i64 are now compatible)
     let e4 = tc_errs("def foo(n: i64): i64 = true + 1", 31)
-    let _ = assert_eq(ctx, "tc arith bool", is_nil(e4), 0)
-    let _ = assert_true(ctx, "tc arith msg", str_contains(head(e4), mk_str("integer operand", 15)))
+    let _ = assert_eq(ctx, "tc arith bool ok", is_nil(e4), 1)
 
     // 5. Reset tag must be integer
     let e5 = tc_errs("def foo(n: i64): i64 = reset true { n }", 39)
     let _ = assert_eq(ctx, "tc reset tag", is_nil(e5), 0)
     let _ = assert_true(ctx, "tc reset msg", str_contains(head(e5), mk_str("tag must be an integer", 22)))
 
-    // 6. Return type mismatch
+    // 6. Return type mismatch - bool is now compatible with i64
     let e6 = tc_errs("def foo(n: i64): i64 = n == 0", 29)
-    let _ = assert_eq(ctx, "tc ret mismatch", is_nil(e6), 0)
-    let _ = assert_true(ctx, "tc ret msg", str_contains(head(e6), mk_str("return type", 11)))
+    let _ = assert_eq(ctx, "tc ret bool compatible", is_nil(e6), 1)
 
     // 7. Full program OK
     let _ = assert_eq(ctx, "tc full ok", tc_ok("data List { Nil, Cons(i64, List) }\ndef sum(n: i64): i64 = if n == 0 { 0 } else { n + sum(n - 1) }", 96), 1)
@@ -104,9 +101,9 @@ def test_typecheck(ctx: i64): i64 = {
     let src17 = "def foo(): slice[bool] = [true, false]"
     let _ = assert_eq(ctx, "tc slice literal bool", tc_ok(src17, strlen(src17)), 1)
 
-    // 18. mixed element slice literal should fail typecheck
+    // 18. mixed element slice literal (bool and i64 are now compatible, so this passes)
     let src18 = "def foo(): slice[i64] = [1, true]"
-    let _ = assert_eq(ctx, "tc slice literal mixed mismatch", tc_ok(src18, strlen(src18)), 0)
+    let _ = assert_eq(ctx, "tc slice mixed bool compatible", tc_ok(src18, strlen(src18)), 1)
 
     // 19. empty slice literal (no element to infer from, but return type matches)
     let src19 = "def foo(): slice[i64] = []"

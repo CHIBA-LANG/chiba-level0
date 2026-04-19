@@ -144,6 +144,12 @@ def is_ptr(t: Ty): i64 =
         _ => 0
     }
 
+def is_ty_bool(t: Ty): i64 =
+    match t {
+        TyBool => 1
+        _ => 0
+    }
+
 // ── Type tag (for fast comparison) ────────────────────────────────────────────
 
 def ty_tag(t: Ty): i64 =
@@ -213,13 +219,20 @@ def types_compatible(a: Ty, b: Ty): i64 = {
                         else {
                             if is_int_type(a) != 0 {
                                 if is_int_type(b) != 0 { 1 }
+                                else if is_ty_bool(b) != 0 { 1 }
                                 else {
                                     if is_ptr(b) != 0 { 1 } else { 0 }
                                 }
                             }
+                            else if is_ty_bool(a) != 0 {
+                                if is_int_type(b) != 0 { 1 }
+                                else if is_ty_bool(b) != 0 { 1 }
+                                else { 0 }
+                            }
                             else {
                                 if is_ptr(a) != 0 {
                                     if is_ptr(b) != 0 { 1 }
+                                    else if is_ty_bool(b) != 0 { 1 }
                                     else {
                                         if is_int_type(b) != 0 { 1 } else { 0 }
                                     }
@@ -1023,6 +1036,7 @@ def tc_check_operand_int(side: i64, e: Expr, env: List[TyBinding],
     match t {
         Some(ty) =>
             if is_int_type(ty) != 0 { errs }
+            else if is_ty_bool(ty) != 0 { errs }
             else {
                 if is_named(ty) != 0 { errs }
                 else {
@@ -1046,6 +1060,7 @@ def tc_check_operand_bool(e: Expr, env: List[TyBinding],
     let t = infer_expr(e, env, m)
     match t {
         Some(TyBool) => errs
+        Some(TyI64) => errs
         Some(_) => {
             let e_msg = str_new()
             let _ = str_push_cstr(e_msg, "operator requires bool operand")
@@ -1063,6 +1078,7 @@ def tc_check_unop(op: UnOp, inner: Expr, env: List[TyBinding],
             match t {
                 Some(ty) =>
                     if is_int_type(ty) != 0 { errs }
+                    else if is_ty_bool(ty) != 0 { errs }
                     else {
                         if is_named(ty) != 0 { errs }
                         else {
@@ -1078,9 +1094,10 @@ def tc_check_unop(op: UnOp, inner: Expr, env: List[TyBinding],
             let t = infer_expr(inner, env, m)
             match t {
                 Some(TyBool) => errs
+                Some(TyI64) => errs
                 Some(_) => {
                     let e_msg = str_new()
-                    let _ = str_push_cstr(e_msg, "unary `!` requires bool")
+                    let _ = str_push_cstr(e_msg, "unary `!` requires bool or i64")
                     Cons(e_msg, errs)
                 }
                 None => errs
