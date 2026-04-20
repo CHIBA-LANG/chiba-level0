@@ -127,5 +127,41 @@ def test_e2e(ctx: i64): i64 = {
         "namespace e2e\ndef run(): i64 = { for 1 != 0 { break } 42 }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
         "42\n")
 
+    // ── Semicolon as statement separator ────────────────────────────────────
+
+    let _ = expect_e2e(ctx, "e2e semicolon let",
+        "namespace e2e\ndef run(): i64 = { let x = 10; let y = 32; x + y }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "42\n")
+
+    let _ = expect_e2e(ctx, "e2e semicolon expr",
+        "namespace e2e\ndef run(): i64 = { let x = 1; x + 41 }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "42\n")
+
+    let _ = expect_e2e(ctx, "e2e semicolon toplevel",
+        "namespace e2e; def answer(): i64 = 42; #[entry]; def main(argc: i64, argv: i64): i64 = answer()",
+        "42\n")
+
+    // ── Tuple creation and destructuring ────────────────────────────────────
+
+    let _ = expect_e2e(ctx, "e2e tuple fst",
+        "namespace e2e\ndef mk(): (i64, i64) = (10, 32)\ndef run(): i64 = { let (a, b) = mk(); a }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "10\n")
+
+    let _ = expect_e2e(ctx, "e2e tuple snd",
+        "namespace e2e\ndef mk(): (i64, i64) = (10, 32)\ndef run(): i64 = { let (a, b) = mk(); b }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "32\n")
+
+    let _ = expect_e2e(ctx, "e2e tuple sum",
+        "namespace e2e\ndef mk(): (i64, i64) = (10, 32)\ndef run(): i64 = { let (a, b) = mk(); a + b }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "42\n")
+
+    let _ = expect_e2e(ctx, "e2e tuple inline",
+        "namespace e2e\ndef run(): i64 = { let t = (7, 35); let (a, b) = t; a + b }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "42\n")
+
+    let _ = expect_e2e(ctx, "e2e tuple 3",
+        "namespace e2e\ndef mk(): (i64, i64, i64) = (10, 20, 12)\ndef run(): i64 = { let (a, b, c) = mk(); a + b + c }\n#[entry]\ndef main(argc: i64, argv: i64): i64 = run()",
+        "42\n")
+
     0
 }

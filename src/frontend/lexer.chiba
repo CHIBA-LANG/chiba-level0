@@ -32,7 +32,7 @@ def hex_val(c: i64): i64 =
     else { 0 }
 
 def is_ws(c: i64): i64 =
-    if c == 32 { 1 } else if c == 9 { 1 } else if c == 10 { 1 } else if c == 13 { 1 } else { 0 }
+    if c == 32 { 1 } else if c == 9 { 1 } else if c == 10 { 1 } else if c == 13 { 1 } else if c == 59 { 1 } else { 0 }
 
 // ── Keyword matching ──────────────────────────────────────────────────────────
 

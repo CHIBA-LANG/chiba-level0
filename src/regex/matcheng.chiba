@@ -212,3 +212,22 @@ def regex_match(re: RegexCompiled, subject_ptr: i64, subject_len: i64): i64 = {
     let _ = ov_fill(ov, ov_size)
     try_match_at(code_ptr, code_len, subject_ptr, subject_len, n_groups, ov, fs, fs_cap, 0)
 }
+
+// Try matching at exactly `start` position (anchored).
+// Returns end offset on success, or -1 on failure.
+def regex_match_at(re: RegexCompiled, sp: i64, sl: i64, start: i64): i64 = {
+    let cp = re.code.ptr
+    let cl = vec_len(re.code)
+    let ng = re.n_groups
+    let ov_size = (ng + 1) * 2
+    let ov = heap_alloc(ov_size * 8)
+    let fs_cap = 256
+    let fs = heap_alloc(fs_cap * 8)
+    let _ = ov_fill(ov, ov_size)
+    let _ = store64(ov, 0, start)
+    let _ = store64(ov, 1, 0 - 1)
+    let fp = fs_cap
+    let r = match_step(cp, cl, sp, sl, ng, ov, fs, fs_cap, fp, start, 0)
+    if r == R_MATCH() { load64(ov, 1) }
+    else { 0 - 1 }
+}
