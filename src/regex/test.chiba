@@ -122,9 +122,46 @@ def test_regex_utf8(ctx: i64): i64 = {
     0
 }
 
+def test_regex_match_utf8(ctx: i64): i64 = {
+    let _ = write_fd(1, "-- regex match utf8 tests --\n", 29)
+
+    // UTF-8 literal matching
+    let _ = assert_eq(ctx, "regex utf8 literal cn", regex_is_match_cstr("中", "abc中def"), 1)
+    let _ = assert_eq(ctx, "regex utf8 literal miss", regex_is_match_cstr("中", "abcdef"), 0)
+    let _ = assert_eq(ctx, "regex utf8 e-acute", regex_is_match_cstr("é", "café"), 1)
+
+    // dot matches full codepoint
+    let _ = assert_eq(ctx, "regex utf8 dot cn", regex_is_match_cstr(".", "中"), 1)
+    let _ = assert_eq(ctx, "regex utf8 dot 2ch", regex_is_match_cstr("..", "aé"), 1)
+    let _ = assert_eq(ctx, "regex utf8 dot 3ch", regex_is_match_cstr("...", "a中b"), 1)
+
+    // char class ranges
+    let _ = assert_eq(ctx, "regex range a-z hit", regex_is_match_cstr("[a-z]", "x"), 1)
+    let _ = assert_eq(ctx, "regex range a-z miss", regex_is_match_cstr("[a-z]", "X"), 0)
+    let _ = assert_eq(ctx, "regex range 0-9 hit", regex_is_match_cstr("[0-9]", "5"), 1)
+    let _ = assert_eq(ctx, "regex range 0-9 miss", regex_is_match_cstr("[0-9]", "a"), 0)
+    let _ = assert_eq(ctx, "regex range A-Z hit", regex_is_match_cstr("[A-Z]", "M"), 1)
+    let _ = assert_eq(ctx, "regex range multi", regex_is_match_cstr("[a-zA-Z0-9]", "Z"), 1)
+
+    // negated class with codepoint
+    let _ = assert_eq(ctx, "regex nclass utf8 hit", regex_is_match_cstr("[^a-z]", "中"), 1)
+    let _ = assert_eq(ctx, "regex nclass utf8 miss", regex_is_match_cstr("[^a-z]", "x"), 0)
+
+    // quantifier on utf8 chars
+    let _ = assert_eq(ctx, "regex utf8 plus", regex_is_match_cstr("中+", "中中中"), 1)
+    let _ = assert_eq(ctx, "regex utf8 star", regex_is_match_cstr("中*x", "中中x"), 1)
+
+    // mixed ascii and utf8
+    let _ = assert_eq(ctx, "regex utf8 mixed", regex_is_match_cstr("a.b", "a中b"), 1)
+    let _ = assert_eq(ctx, "regex utf8 mixed miss", regex_is_match_cstr("a.b", "ab"), 0)
+
+    0
+}
+
 def test_regex(ctx: i64): i64 = {
     let _ = test_regex_parse(ctx)
     let _ = test_regex_match(ctx)
     let _ = test_regex_utf8(ctx)
+    let _ = test_regex_match_utf8(ctx)
     0
 }

@@ -26,8 +26,8 @@ jobs:
         env:
           RELEASE_REPO: ${{ github.repository }}
         run: |
-          URL="https://github.com/${RELEASE_REPO}/releases/download/latest/main.o"
-          FALLBACK_URL="https://github.com/CHIBA-LANG/chiba-level0/releases/download/latest/main.o"
+          URL="https://github.com/${RELEASE_REPO}/releases/download/v0.6.13/main.o"
+          FALLBACK_URL="https://github.com/CHIBA-LANG/chiba-level0/releases/download/v0.6.13/main.o"
           echo "downloading ${URL}"
           if ! curl -fL "$URL" -o ./main.o; then
             echo "primary download failed, fallback to ${FALLBACK_URL}"
