@@ -86,27 +86,49 @@ def proc_argv_fill(buf: i64, args: List[cstr], i: i64): i64 =
         }
     }
 
+def proc_default_envp(): i64 = {
+    let envp = heap_alloc(16)
+    let _ = store64(envp, 0, c"PATH=/usr/bin:/bin".ptr)
+    let _ = store64(envp, 1, 0)
+    envp
+}
+
 // Run a process where both the executable path and argv entries are already
 // expressed as `cstr` boundary values. Stdout is captured into an owned `Str`.
 def proc_run_capture(path: cstr, argv_list: List[cstr]): ProcResult = {
+    proc_run_capture_input(path, argv_list, str_empty())
+}
+
+def proc_run_capture_input(path: cstr, argv_list: List[cstr], stdin_data: Str): ProcResult = {
     let pipefds = heap_alloc(8)
     let _ = store64(pipefds, 0, 0)
     let _ = proc_pipe(pipefds)
     let read_fd = proc_load32le(pipefds, 0)
     let write_fd_num = proc_load32le(pipefds, 4)
+    let stdin_pipefds = heap_alloc(8)
+    let _ = store64(stdin_pipefds, 0, 0)
+    let _ = proc_pipe(stdin_pipefds)
+    let stdin_read_fd = proc_load32le(stdin_pipefds, 0)
+    let stdin_write_fd = proc_load32le(stdin_pipefds, 4)
     let pid = proc_fork()
     if pid == 0 {
+        let _ = proc_dup2(stdin_read_fd, 0)
         let _ = proc_dup2(write_fd_num, 1)
+        let _ = proc_dup2(write_fd_num, 2)
         let _ = file_close(read_fd)
         let _ = file_close(write_fd_num)
+        let _ = file_close(stdin_read_fd)
+        let _ = file_close(stdin_write_fd)
         let argv = proc_argv_build(argv_list)
-        let envp = heap_alloc(8)
-        let _ = store64(envp, 0, 0)
+        let envp = proc_default_envp()
         let _ = proc_execve(path, argv, envp)
         proc__exit(127)
         ProcResult(127, str_new())
     } else {
         let _ = file_close(write_fd_num)
+        let _ = file_close(stdin_read_fd)
+        let _ = file_write_all_fd(stdin_write_fd, stdin_data.ptr, stdin_data.len)
+        let _ = file_close(stdin_write_fd)
         let out = file_read_fd_all(read_fd)
         let _ = file_close(read_fd)
         let status_ptr = heap_alloc(8)

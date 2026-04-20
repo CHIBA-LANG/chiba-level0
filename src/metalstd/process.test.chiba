@@ -29,5 +29,15 @@ def test_process(ctx: i64): i64 = {
     let _ = assert_eq(ctx, "process exit status", proc_result_status(res), 0)
     let _ = assert_true(ctx, "process stdout", proc_test_streq(out, expected))
 
+    let stdin_expected = mk_str("chiba-stdin\n", strlen("chiba-stdin\n"))
+    let stdin_res = proc_run_capture_input(
+        c"/bin/cat",
+        Cons(c"cat", Nil),
+        stdin_expected)
+    let stdin_out = proc_result_stdout(stdin_res)
+
+    let _ = assert_eq(ctx, "process stdin exit status", proc_result_status(stdin_res), 0)
+    let _ = assert_true(ctx, "process stdin stdout", proc_test_streq(stdin_out, stdin_expected))
+
     0
 }

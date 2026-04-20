@@ -40,13 +40,6 @@ def compile_and_run(test_name: i64, src: i64): ProcResult = {
                 let _ = bir_validate_program(bir)
                 let asm_text = codegen_amd64(bir)
 
-                let s_path = str_new()
-                let _ = str_push_cstr(s_path, "runtime/")
-                let _ = append_e2e_path_name(s_path, test_name, 0)
-                let _ = str_push_cstr(s_path, ".S")
-                let _ = str_null_terminate(s_path)
-                let s_path_c = mk_cstr_view(s_path.ptr, s_path.len)
-
                 let out_path = str_new()
                 let _ = str_push_cstr(out_path, "runtime/")
                 let _ = append_e2e_path_name(out_path, test_name, 0)
@@ -54,17 +47,18 @@ def compile_and_run(test_name: i64, src: i64): ProcResult = {
                 let _ = str_null_terminate(out_path)
                 let out_path_c = mk_cstr_view(out_path.ptr, out_path.len)
 
-                let _ = file_write_file_all(s_path_c, asm_text)
-
-                let cmd = str_new()
-                let _ = str_push_cstr(cmd, "PATH=/usr/bin:/bin /usr/bin/gcc -nostdlib -static -no-pie -o ")
-                let _ = str_append_raw(cmd, out_path_c.ptr, out_path_c.len)
-                let _ = str_push_cstr(cmd, " ")
-                let _ = str_append_raw(cmd, s_path_c.ptr, s_path_c.len)
-                let _ = str_push_cstr(cmd, " -x assembler-with-cpp src/backend/bir/chiba_rt.s 2>&1")
-                let _ = str_null_terminate(cmd)
-                let cmd_c = mk_cstr_view(cmd.ptr, cmd.len)
-                let compile_res = proc_run_capture(c"/bin/sh", Cons(c"sh", Cons(c"-c", Cons(cmd_c, Nil))))
+                let compile_res = proc_run_capture_input(
+                    c"/usr/bin/gcc",
+                    Cons(c"gcc",
+                    Cons(c"-nostdlib",
+                    Cons(c"-static",
+                    Cons(c"-no-pie",
+                    Cons(c"-o",
+                    Cons(out_path_c,
+                    Cons(c"-x",
+                    Cons(c"assembler-with-cpp",
+                    Cons(c"-", Nil))))))))),
+                    asm_text)
                 if proc_result_status(compile_res) != 0 { compile_res }
                 else {
                     proc_run_capture(out_path_c, Cons(out_path_c, Nil))

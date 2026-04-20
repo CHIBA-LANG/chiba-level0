@@ -38,6 +38,7 @@ def PROMPT_SIZE(): i64 = 32
 
 def codegen_amd64(prog: BirProgram): Str = {
     let out = str_new()
+    let _ = emit_runtime_support(out)
     let _ = emit_file_header(out)
     let _ = write_fd(2, "  [codegen] emitting functions...\n", 33)
     let _ = emit_functions(out, prog.funs)
@@ -53,8 +54,26 @@ def codegen_amd64(prog: BirProgram): Str = {
 
 // ── File structure ────────────────────────────────────────────────────────
 
+def emit_runtime_support(out: Str): i64 = {
+    let _ = str_push_cstr(out, ".intel_syntax noprefix\n\n#define SYS_write   1\n#define SYS_mmap    9\n#define SYS_munmap  11\n#define SYS_exit    60\n\n#define PROT_READ       1\n#define PROT_WRITE      2\n#define PROT_RW         3\n#define MAP_PRIVATE     0x02\n#define MAP_ANONYMOUS   0x20\n#define MAP_PRIV_ANON   0x22\n\n#define CTX_HEAP_BASE     0\n#define CTX_HEAP_PTR      8\n")
+    let _ = str_push_cstr(out, "#define CTX_HEAP_LIMIT   16\n#define CTX_CUR_FRAG     24\n#define CTX_CUR_FRAME    32\n#define CTX_RET0         40\n#define CTX_RET1         48\n#define CTX_PROMPT_TOP   56\n#define CTX_FOREIGN      64\n#define CTX_SIZE         88\n\n#define FRAG_PREV         0\n#define FRAG_BASE         8\n#define FRAG_TOP         16\n#define FRAG_LIMIT       24\n#define FRAG_HEADER_SIZE 32\n\n#define HEAP_SIZE         (1024 * 1024 * 1024)\n")
+    let _ = str_push_cstr(out, "#define FRAG_BODY_SIZE    (64 * 1024 * 1024)\n#define FRAG_TOTAL_SIZE   (FRAG_BODY_SIZE + FRAG_HEADER_SIZE)\n\n#define STDOUT 1\n\n    .text\n    .align 16\nitoa_i64:\n    lea rdi, [rsp + 23]\n    mov byte ptr [rdi], 10\n    dec rdi\n    xor r8d, r8d\n    test rax, rax\n    jns .Litoa_positive\n    neg rax\n    mov r8d, 1\n")
+    let _ = str_push_cstr(out, ".Litoa_positive:\n    mov rcx, 10\n.Litoa_loop:\n    xor edx, edx\n    div rcx\n    add dl, '0'\n    mov [rdi], dl\n    dec rdi\n    test rax, rax\n    jnz .Litoa_loop\n\n    test r8d, r8d\n    jz .Litoa_done\n    mov byte ptr [rdi], '-'\n    dec rdi\n.Litoa_done:\n")
+    let _ = str_push_cstr(out, "    inc rdi\n    lea rdx, [rsp + 24]\n    sub rdx, rdi\n    mov rsi, rdi\n    ret\n\n    .globl chiba_grow_fragment\n    .type chiba_grow_fragment, @function\n    .align 16\nchiba_grow_fragment:\n    mov rax, [r15 + CTX_CUR_FRAG]\n    mov [rax + FRAG_TOP], r14\n\n    xor edi, edi\n    mov esi, FRAG_TOTAL_SIZE\n    mov edx, PROT_RW\n")
+    let _ = str_push_cstr(out, "    mov r10d, MAP_PRIV_ANON\n    mov r8, -1\n    xor r9d, r9d\n    mov eax, SYS_mmap\n    syscall\n    test rax, rax\n    js .Lfail_exit\n\n    mov rcx, [r15 + CTX_CUR_FRAG]\n    mov [rax + FRAG_PREV], rcx\n    lea rdx, [rax + FRAG_HEADER_SIZE]\n    mov [rax + FRAG_BASE], rdx\n    mov [rax + FRAG_TOP], rdx\n    lea rcx, [rax + FRAG_TOTAL_SIZE]\n    mov [rax + FRAG_LIMIT], rcx\n    mov [r15 + CTX_CUR_FRAG], rax\n")
+    let _ = str_push_cstr(out, "    mov r14, rdx\n    ret\n\n    .globl chiba_rewind_fragment\n    .type chiba_rewind_fragment, @function\n    .align 16\nchiba_rewind_fragment:\n.Lrewind_frag_loop:\n    mov rax, [r15 + CTX_CUR_FRAG]\n    cmp r14, [rax + FRAG_BASE]\n    jb .Lrewind_frag_prev\n    cmp r14, [rax + FRAG_LIMIT]\n    jbe .Lrewind_frag_found\n.Lrewind_frag_prev:\n    mov rcx, [rax + FRAG_PREV]\n    test rcx, rcx\n")
+    let _ = str_push_cstr(out, "    jz .Lfail_exit\n    mov [r15 + CTX_CUR_FRAG], rcx\n    jmp .Lrewind_frag_loop\n.Lrewind_frag_found:\n    mov [rax + FRAG_TOP], r14\n    ret\n\n    .globl chiba_grow_heap\n    .type chiba_grow_heap, @function\n    .align 16\nchiba_grow_heap:\n    xor edi, edi\n    mov esi, HEAP_SIZE\n    mov edx, PROT_RW\n    mov r10d, MAP_PRIV_ANON\n    mov r8, -1\n")
+    let _ = str_push_cstr(out, "    xor r9d, r9d\n    mov eax, SYS_mmap\n    syscall\n    test rax, rax\n    js .Lfail_exit\n    mov [r15 + CTX_HEAP_PTR], rax\n    lea rcx, [rax + HEAP_SIZE]\n    mov [r15 + CTX_HEAP_LIMIT], rcx\n    ret\n\n    .globl _start\n    .type _start, @function\n    .align 16\n_start:\n    mov rax, [rsp]\n    mov [rip + chiba_argc], rax\n")
+    let _ = str_push_cstr(out, "    lea rax, [rsp + 8]\n    mov [rip + chiba_argv], rax\n\n    xor edi, edi\n    mov esi, HEAP_SIZE\n    mov edx, PROT_RW\n    mov r10d, MAP_PRIV_ANON\n    mov r8, -1\n    xor r9d, r9d\n    mov eax, SYS_mmap\n    syscall\n    test rax, rax\n    js .Lfail_exit\n    mov r12, rax\n\n    xor edi, edi\n")
+    let _ = str_push_cstr(out, "    mov esi, FRAG_TOTAL_SIZE\n    mov edx, PROT_RW\n    mov r10d, MAP_PRIV_ANON\n    mov r8, -1\n    xor r9d, r9d\n    mov eax, SYS_mmap\n    syscall\n    test rax, rax\n    js .Lfail_exit\n    mov r13, rax\n\n    mov qword ptr [r13 + FRAG_PREV], 0\n    lea rcx, [r13 + FRAG_HEADER_SIZE]\n    mov [r13 + FRAG_BASE], rcx\n    mov [r13 + FRAG_TOP], rcx\n    lea rdx, [r13 + FRAG_TOTAL_SIZE]\n")
+    let _ = str_push_cstr(out, "    mov [r13 + FRAG_LIMIT], rdx\n\n    sub rsp, CTX_SIZE\n    mov rdi, rsp\n    xor eax, eax\n    mov ecx, CTX_SIZE\n.Lzero_ctx:\n    mov byte ptr [rdi], al\n    inc rdi\n    dec ecx\n    jnz .Lzero_ctx\n\n    mov [rsp + CTX_HEAP_BASE], r12\n    mov [rsp + CTX_HEAP_PTR], r12\n    lea rax, [r12 + HEAP_SIZE]\n    mov [rsp + CTX_HEAP_LIMIT], rax\n")
+    let _ = str_push_cstr(out, "    mov [rsp + CTX_CUR_FRAG], r13\n\n    mov rdi, rsp\n    call chiba_entry\n    mov rbx, rax\n\n    sub rsp, 24\n    mov rax, rbx\n    call itoa_i64\n    mov edi, STDOUT\n    mov eax, SYS_write\n    syscall\n    add rsp, 24\n\n    mov rdi, r12\n    mov esi, HEAP_SIZE\n")
+    let _ = str_push_cstr(out, "    mov eax, SYS_munmap\n    syscall\n\n    mov rdi, r13\n    mov esi, FRAG_TOTAL_SIZE\n    mov eax, SYS_munmap\n    syscall\n\n    xor edi, edi\n    mov eax, SYS_exit\n    syscall\n\n.Lfail_exit:\n    mov edi, 1\n    mov eax, SYS_exit\n    syscall\n")
+    let _ = str_push_cstr(out, "\n    .bss\n    .align 8\n    .globl chiba_argc\nchiba_argc:\n    .quad 0\n\n    .globl chiba_argv\nchiba_argv:\n    .quad 0\n\n\n")
+    0
+}
+
 def emit_file_header(out: Str): i64 = {
-    let _ = str_push_cstr(out, ".intel_syntax noprefix\n")
     let _ = str_push_cstr(out, "# Auto-generated by Chiba BIR L0 codegen\n")
     let _ = str_push_cstr(out, "# Target: x86-64, Cbx ABI\n\n")
     let _ = str_push_cstr(out, "    .text\n")
