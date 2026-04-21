@@ -97,6 +97,8 @@ def parse_escape_kind(c: i64): i64 =
         87 => ESCAPE_NOT_WORDCHAR()
         115 => ESCAPE_WHITESPACE()
         83 => ESCAPE_NOT_WHITESPACE()
+        105 => ESCAPE_XID_START()
+        106 => ESCAPE_XID_CONTINUE()
         _ => 0
     }
 
@@ -124,6 +126,13 @@ def parse_class(ps: ParseState): ParseResult = {
     mk_pr(RClass(rev(cr.chars), neg_flag), cr.ps)
 }
 
+def resolve_class_escape(c: i64): i64 =
+    if c == 110 { 10 }       // \n → newline
+    else if c == 116 { 9 }   // \t → tab
+    else if c == 114 { 13 }  // \r → CR
+    else if c == 48 { 0 }    // \0 → NUL
+    else { c }                // anything else → literal
+
 def parse_one_class_char(ps: ParseState): ClassItemRes = {
     let c = ps_peek(ps)
     if c == 92 {
@@ -132,7 +141,7 @@ def parse_one_class_char(ps: ParseState): ClassItemRes = {
         else {
             let ec = ps_peek(ps2)
             let ps3 = ps_advance(ps2)
-            ClassItemRes { ch: ec, ps: ps3 }
+            ClassItemRes { ch: resolve_class_escape(ec), ps: ps3 }
         }
     } else {
         ClassItemRes { ch: c, ps: ps_advance(ps) }

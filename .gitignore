@@ -5,3 +5,5 @@
 /blog
 *.o
 *.S
+/tmp
+/working

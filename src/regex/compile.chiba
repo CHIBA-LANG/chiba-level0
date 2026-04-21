@@ -5,6 +5,7 @@ use metalstd.str.*
 use metalstd.vec.*
 use metalstd.option.*
 use std.regex.ast.*
+use std.regex.identdata.*
 
 def OP_END(): i64 = 0
 def OP_CHAR(): i64 = 1
@@ -17,16 +18,9 @@ def OP_WORDCHAR(): i64 = 7
 def OP_NOT_WORDCHAR(): i64 = 8
 def OP_WHITESPACE(): i64 = 9
 def OP_NOT_WHITESPACE(): i64 = 10
-def OP_STAR(): i64 = 11
-def OP_STAR_LAZY(): i64 = 12
-def OP_PLUS(): i64 = 13
-def OP_PLUS_LAZY(): i64 = 14
-def OP_QUESTION(): i64 = 15
-def OP_QUESTION_LAZY(): i64 = 16
-def OP_ALT(): i64 = 18
-def OP_KET(): i64 = 19
-def OP_CBRA(): i64 = 21
-def OP_ASSERT(): i64 = 22
+def OP_JMP(): i64 = 11
+def OP_SPLIT(): i64 = 12
+def OP_ANCHOR(): i64 = 13
 
 type RegexCompiled {
     code: Vec
@@ -75,17 +69,12 @@ def compile_ast(ctx: CompileCtx, ast: RegexAST): CompileCtx =
         }
         RSeq(items) => compile_seq(ctx, items)
         RAlt(items) => compile_alt(ctx, items)
-        RGroup(child, gid) => {
-            let _ = emit3(ctx, OP_CBRA(), gid, 0)
-            let ctx2 = compile_ast(ctx, child)
-            let _ = emit2(ctx2, OP_KET(), gid)
-            ctx2
-        }
+        RGroup(child, _) => compile_ast(ctx, child)
         RQuant(child, min, max, greedy) => compile_quant(ctx, child, min, max, greedy)
         RClass(chars, neg) => compile_class(ctx, chars, neg)
         REscape(kind) => compile_escape(ctx, kind)
         RAnchor(kind) => {
-            let _ = emit2(ctx, OP_CHAR(), kind)
+            let _ = emit2(ctx, OP_ANCHOR(), kind)
             ctx
         }
         RAssert(child, kind) => compile_assert(ctx, child, kind)
@@ -105,13 +94,19 @@ def compile_alt(ctx: CompileCtx, items: List[RegexAST]): CompileCtx =
         Nil => ctx
         Cons(item, Nil) => compile_ast(ctx, item)
         Cons(item, rest) => {
-            let branch_start = current_offset(ctx)
-            let _ = emit2(ctx, OP_ALT(), 0)
+            let split_pos = current_offset(ctx)
+            let _ = emit3(ctx, OP_SPLIT(), 0, 0)
+            let left_start = current_offset(ctx)
+            let _ = patch(ctx, split_pos + 1, left_start)
             let ctx2 = compile_ast(ctx, item)
-            let _ = emit(ctx2, OP_KET())
-            let next_alt = current_offset(ctx2)
-            let _ = patch(ctx2, branch_start + 1, next_alt)
-            compile_alt(ctx2, rest)
+            let jmp_pos = current_offset(ctx2)
+            let _ = emit2(ctx2, OP_JMP(), 0)
+            let right_start = current_offset(ctx2)
+            let _ = patch(ctx2, split_pos + 2, right_start)
+            let ctx3 = compile_alt(ctx2, rest)
+            let end_pos = current_offset(ctx3)
+            let _ = patch(ctx3, jmp_pos + 1, end_pos)
+            ctx3
         }
     }
 
@@ -122,26 +117,64 @@ def patch(ctx: CompileCtx, offset: i64, val: i64): i64 =
     vec_set(ctx.code, offset, val)
 
 def compile_quant(ctx: CompileCtx, child: RegexAST, min: i64, max: i64, greedy: i64): CompileCtx = {
-    let ctx2 = compile_ast(ctx, child)
     if min == 0 && max == 0 - 1 && greedy == QUANT_GREEDY() {
-        let _ = emit(ctx2, OP_STAR())
+        let split_pos = current_offset(ctx)
+        let _ = emit3(ctx, OP_SPLIT(), 0, 0)
+        let child_start = current_offset(ctx)
+        let _ = patch(ctx, split_pos + 1, child_start)
+        let ctx2 = compile_ast(ctx, child)
+        let _ = emit2(ctx2, OP_JMP(), split_pos)
+        let exit_pos = current_offset(ctx2)
+        let _ = patch(ctx2, split_pos + 2, exit_pos)
         ctx2
     } else if min == 0 && max == 0 - 1 && greedy == QUANT_LAZY() {
-        let _ = emit(ctx2, OP_STAR_LAZY())
+        let split_pos = current_offset(ctx)
+        let _ = emit3(ctx, OP_SPLIT(), 0, 0)
+        let child_start = current_offset(ctx)
+        let _ = patch(ctx, split_pos + 2, child_start)
+        let ctx2 = compile_ast(ctx, child)
+        let _ = emit2(ctx2, OP_JMP(), split_pos)
+        let exit_pos = current_offset(ctx2)
+        let _ = patch(ctx2, split_pos + 1, exit_pos)
         ctx2
     } else if min == 1 && max == 0 - 1 && greedy == QUANT_GREEDY() {
-        let _ = emit(ctx2, OP_PLUS())
+        let child_start = current_offset(ctx)
+        let ctx2 = compile_ast(ctx, child)
+        let split_pos = current_offset(ctx2)
+        let _ = emit3(ctx2, OP_SPLIT(), child_start, 0)
+        let exit_pos = current_offset(ctx2)
+        let _ = patch(ctx2, split_pos + 2, exit_pos)
         ctx2
     } else if min == 1 && max == 0 - 1 && greedy == QUANT_LAZY() {
-        let _ = emit(ctx2, OP_PLUS_LAZY())
+        let child_start = current_offset(ctx)
+        let ctx2 = compile_ast(ctx, child)
+        let split_pos = current_offset(ctx2)
+        let _ = emit3(ctx2, OP_SPLIT(), 0, child_start)
+        let exit_pos = current_offset(ctx2)
+        let _ = patch(ctx2, split_pos + 1, exit_pos)
         ctx2
     } else if min == 0 && max == 1 && greedy == QUANT_GREEDY() {
-        let _ = emit(ctx2, OP_QUESTION())
+        let split_pos = current_offset(ctx)
+        let _ = emit3(ctx, OP_SPLIT(), 0, 0)
+        let child_start = current_offset(ctx)
+        let _ = patch(ctx, split_pos + 1, child_start)
+        let ctx2 = compile_ast(ctx, child)
+        let exit_pos = current_offset(ctx2)
+        let _ = patch(ctx2, split_pos + 2, exit_pos)
         ctx2
     } else if min == 0 && max == 1 && greedy == QUANT_LAZY() {
-        let _ = emit(ctx2, OP_QUESTION_LAZY())
+        let split_pos = current_offset(ctx)
+        let _ = emit3(ctx, OP_SPLIT(), 0, 0)
+        let child_start = current_offset(ctx)
+        let _ = patch(ctx, split_pos + 2, child_start)
+        let ctx2 = compile_ast(ctx, child)
+        let exit_pos = current_offset(ctx2)
+        let _ = patch(ctx2, split_pos + 1, exit_pos)
         ctx2
-    } else { ctx2 }
+    } else {
+        let ctx2 = compile_ast(ctx, child)
+        ctx2
+    }
 }
 
 def compile_class(ctx: CompileCtx, chars: List[i64], neg: i64): CompileCtx = {
@@ -182,11 +215,24 @@ def compile_escape(ctx: CompileCtx, kind: i64): CompileCtx =
     } else if kind == ESCAPE_NOT_WHITESPACE() {
         let _ = emit(ctx, OP_NOT_WHITESPACE())
         ctx
+    } else if kind == ESCAPE_XID_START() {
+        compile_xid_class(ctx, ident_start_range_words(), 0)
+    } else if kind == ESCAPE_XID_CONTINUE() {
+        compile_xid_class(ctx, ident_continue_range_words(), 1)
     } else { ctx }
 
+def compile_xid_class(ctx: CompileCtx, n_words: i64, which: i64): CompileCtx = {
+    let _ = emit3(ctx, OP_CLASS(), n_words, 0)
+    if which == 0 {
+        let _ = emit_ident_start_ranges(ctx.code)
+        ctx
+    } else {
+        let _ = emit_ident_continue_ranges(ctx.code)
+        ctx
+    }
+}
+
 def compile_assert(ctx: CompileCtx, child: RegexAST, kind: i64): CompileCtx = {
-    let _ = emit2(ctx, OP_ASSERT(), kind)
-    let ctx2 = compile_ast(ctx, child)
-    let _ = emit(ctx2, OP_KET())
-    ctx2
+    let _ = kind
+    compile_ast(ctx, child)
 }
