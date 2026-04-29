@@ -7,3 +7,4 @@
 *.S
 /tmp
 /working
+.DS_Store

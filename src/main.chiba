@@ -13,9 +13,15 @@ use backend.pass.closure.*
 use backend.bir.ir.*
 use backend.bir.lower.*
 use backend.bir.codegen.amd64.*
+use backend.bir.codegen.c.*
 use project.*
 use tests.*
 // ═══════════════════════════════════════════════════════════════════════════════
+data CompileBackend {
+    BackendAmd64Asm,
+    BackendC
+}
+
 def argv_ptr(argv: i64, i: i64): i64 = load64(argv, i)
 
 def argv_cstr(argv: i64, i: i64): i64 =
@@ -35,8 +41,25 @@ def parse_project_arg(argc: i64, argv: i64, i: i64): Option[i64] =
         } else { parse_project_arg(argc, argv, i + 1) }
     }
 
+def parse_backend_arg(argc: i64, argv: i64, i: i64): CompileBackend =
+    if i >= argc { BackendAmd64Asm }
+    else {
+        let arg = argv_cstr(argv, i)
+        let arg_s = str_from_cptr(arg)
+        if streq(arg_s, mk_str("--backend", 9)) != 0 {
+            if i + 1 < argc { parse_backend_name(argv_cstr(argv, i + 1)) }
+            else { BackendAmd64Asm }
+        } else { parse_backend_arg(argc, argv, i + 1) }
+    }
+
+def parse_backend_name(name: i64): CompileBackend = {
+    let s = str_from_cptr(name)
+    if streq(s, mk_str("c", 1)) != 0 { BackendC }
+    else { BackendAmd64Asm }
+}
+
 def print_usage(): i64 = {
-    let _ = write_fd(1, "Usage: chiba-level0 [--project <dir>]\n", 39)
+    let _ = write_fd(1, "Usage: chiba-level0 [--project <dir>] [--backend amd64|c]\n", 64)
     let _ = write_fd(1, "  With no args: run self-host tests\n", 37)
     let _ = write_fd(1, "  With --project: compile <dir>/src to target/debug/main.o\n", 62)
     0
@@ -74,7 +97,7 @@ def ensure_dir(path: cstr): i64 = {
     } else { 0 }
 }
 
-def run_gcc(out_path: cstr, asm_text: Str): i64 = {
+def run_gcc_asm(out_path: cstr, asm_text: Str): i64 = {
     let res = proc_run_capture_input(
         c"/usr/bin/gcc",
         Cons(c"gcc",
@@ -94,7 +117,33 @@ def run_gcc(out_path: cstr, asm_text: Str): i64 = {
     } else { 0 }
 }
 
-def compile_project(project_dir: Str): i64 = {
+def run_gcc_c(include_dir: cstr, src_path: cstr, out_path: cstr): i64 = {
+    let res = proc_run_capture(
+        c"/usr/bin/gcc",
+        Cons(c"gcc",
+        Cons(c"-std=gnu11",
+        Cons(c"-O2",
+        Cons(c"-I",
+        Cons(include_dir,
+        Cons(c"-c",
+        Cons(src_path,
+        Cons(c"-o",
+        Cons(out_path, Nil))))))))))
+    if proc_result_status(res) != 0 {
+        let _ = print_err_line(c"[error] gcc failed: ", proc_result_stdout(res))
+        1
+    } else { 0 }
+}
+
+def write_generated_file(path: cstr, text: Str): i64 = {
+    let res = file_write_file_all(path, text)
+    if res < 0 {
+        let _ = print_err_line(c"[error] write failed: ", str_from_cstr(path))
+        1
+    } else { 0 }
+}
+
+def compile_project(project_dir: Str, backend: CompileBackend): i64 = {
     let _ = write_fd(1, "[1/5] scanning project...\n", 26)
     let scan = scan_and_parse(project_dir)
     match scan {
@@ -131,21 +180,42 @@ def compile_project(project_dir: Str): i64 = {
                             let _ = print_err_line(c"[error] invalid bir refs: ", bir_ir_mk_str_cstr("see [bir-validate] diagnostics above"))
                             1
                         } else {
-                        let _ = write_fd(1, "  [4.4] bir -> asm\n", 19)
-                        let asm_text = codegen_amd64(bir)
-
                         let target_dir = path_join_cstr(project_dir, c"target")
                         let debug_dir = path_join_cstr(str_from_cstr(target_dir), c"debug")
                         let mk_res = ensure_dir(debug_dir)
                         if mk_res != 0 { 1 }
                         else {
-                            let out_path = path_join_cstr(str_from_cstr(debug_dir), c"main.o")
-                            let _ = write_fd(1, "[5/5] assembling...\n", 20)
-                            let gcc_res = run_gcc(out_path, asm_text)
-                            if gcc_res != 0 { 1 }
-                            else {
-                                let _ = write_fd(1, "[ok] wrote target/debug/main.o\n", 33)
-                                0
+                            match backend {
+                                BackendAmd64Asm => {
+                                    let _ = write_fd(1, "  [4.4] bir -> asm\n", 19)
+                                    let asm_text = codegen_amd64(bir)
+                                    let out_path = path_join_cstr(str_from_cstr(debug_dir), c"main.o")
+                                    let _ = write_fd(1, "[5/5] assembling...\n", 20)
+                                    let gcc_res = run_gcc_asm(out_path, asm_text)
+                                    if gcc_res != 0 { 1 }
+                                    else {
+                                        let _ = write_fd(1, "[ok] wrote target/debug/main.o\n", 33)
+                                        0
+                                    }
+                                }
+                                BackendC => {
+                                    let _ = write_fd(1, "  [4.4] bir -> c\n", 17)
+                                    let c_text = codegen_c(bir)
+                                    let c_path = path_join_cstr(str_from_cstr(debug_dir), c"main.c")
+                                    let o_path = path_join_cstr(str_from_cstr(debug_dir), c"main.o")
+                                    let include_dir = path_join_cstr(project_dir, c"cruntime")
+                                    let write_res = write_generated_file(c_path, c_text)
+                                    if write_res != 0 { 1 }
+                                    else {
+                                        let _ = write_fd(1, "[5/5] compiling c backend...\n", 30)
+                                        let gcc_res = run_gcc_c(include_dir, c_path, o_path)
+                                        if gcc_res != 0 { 1 }
+                                        else {
+                                            let _ = write_fd(1, "[ok] wrote target/debug/main.c and main.o\n", 44)
+                                            0
+                                        }
+                                    }
+                                }
                             }
                         }
                         }
@@ -160,8 +230,9 @@ def main_dispatch(argc: i64, argv: i64): i64 = {
     if argc <= 1 { run_all_tests() }
     else {
         let project_dir = parse_project_arg(argc, argv, 1)
+        let backend = parse_backend_arg(argc, argv, 1)
         match project_dir {
-            Some(dir) => compile_project(str_from_cptr(dir))
+            Some(dir) => compile_project(str_from_cptr(dir), backend)
             None => {
                 let _ = print_usage()
                 1

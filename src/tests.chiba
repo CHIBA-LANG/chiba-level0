@@ -23,6 +23,7 @@ use backend.cir.ir.test.*
 use backend.bir.ir.test.*
 use backend.bir.lower.test.*
 use backend.bir.codegen.amd64.test.*
+use backend.bir.codegen.c.test.*
 use backend.pass.usage.test.*
 use backend.pass.escape.test.*
 use backend.pass.closure.test.*
@@ -101,6 +102,7 @@ def run_all_tests(): i64 = {
     let _ = test_bir_ir(ctx)
     let _ = test_bir_lower(ctx)
     let _ = test_bir_codegen_amd64(ctx)
+    let _ = test_bir_codegen_c(ctx)
     let _ = test_usage(ctx)
     let _ = test_escape(ctx)
     let _ = test_closure(ctx)
