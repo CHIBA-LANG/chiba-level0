@@ -27,6 +27,43 @@ typedef struct ChibaStep {
   int64_t ret_count;
 } ChibaStep;
 
+typedef struct ChibaFrameDesc {
+  int64_t kind;
+  const char *name;
+  int64_t resume_block;
+  int64_t resume_fun;
+} ChibaFrameDesc;
+
+typedef struct ChibaFrame ChibaFrame;
+typedef struct ChibaPrompt ChibaPrompt;
+typedef struct ChibaContinuation ChibaContinuation;
+
+struct ChibaFrame {
+  const ChibaFrameDesc *desc;
+  int64_t kind;
+  int64_t resume_block;
+  int64_t resume_fun;
+  ChibaValue *slots;
+  int64_t slot_count;
+  ChibaFrame *parent;
+  ChibaPrompt *prompt;
+};
+
+struct ChibaPrompt {
+  int64_t tag;
+  ChibaFrame *frame_boundary;
+  ChibaPrompt *parent;
+};
+
+struct ChibaContinuation {
+  ChibaFrame *frames;
+  ChibaPrompt *prompt;
+  int64_t frame_count;
+  int64_t resume_fun;
+  int64_t resume_block;
+  int64_t multi_shot;
+};
+
 typedef struct ChibaContext {
   ChibaValue ret0;
   ChibaValue ret1;
@@ -100,6 +137,181 @@ static inline ChibaStep chiba_step_restore(ChibaValue value) {
 static inline ChibaStep chiba_step_halt(ChibaValue value) {
   ChibaStep step = {CHIBA_STEP_HALT, value, 0, NULL, 0, 1};
   return step;
+}
+
+static inline const ChibaFrameDesc *
+chiba_frame_desc_lookup(const ChibaFrameDesc *descs, int64_t count,
+                        int64_t kind) {
+  for (int64_t i = 0; i < count; i++) {
+    if (descs[i].kind == kind) {
+      return &descs[i];
+    }
+  }
+  return NULL;
+}
+
+static inline void *chiba_runtime_calloc(size_t count, size_t size,
+                                         const char *kind) {
+  void *ptr = calloc(count, size);
+  if (ptr == NULL) {
+    fprintf(stderr, "[chiba-c] out of memory allocating %s\n", kind);
+    abort();
+  }
+  return ptr;
+}
+
+static inline ChibaFrame *chiba_frame_new(const ChibaFrameDesc *desc,
+                                          int64_t slot_count,
+                                          ChibaFrame *parent,
+                                          ChibaPrompt *prompt) {
+  ChibaFrame *frame =
+      (ChibaFrame *)chiba_runtime_calloc(1, sizeof(ChibaFrame), "frame");
+  frame->desc = desc;
+  frame->kind = desc == NULL ? 0 : desc->kind;
+  frame->resume_block = desc == NULL ? 0 : desc->resume_block;
+  frame->resume_fun = desc == NULL ? 0 : desc->resume_fun;
+  frame->slot_count = slot_count < 0 ? 0 : slot_count;
+  frame->parent = parent;
+  frame->prompt = prompt;
+  if (frame->slot_count > 0) {
+    frame->slots = (ChibaValue *)chiba_runtime_calloc(
+        (size_t)frame->slot_count, sizeof(ChibaValue), "frame slots");
+  }
+  return frame;
+}
+
+static inline ChibaPrompt *
+chiba_prompt_new(int64_t tag, ChibaFrame *frame_boundary, ChibaPrompt *parent) {
+  ChibaPrompt *prompt =
+      (ChibaPrompt *)chiba_runtime_calloc(1, sizeof(ChibaPrompt), "prompt");
+  prompt->tag = tag;
+  prompt->frame_boundary = frame_boundary;
+  prompt->parent = parent;
+  return prompt;
+}
+
+static inline ChibaFrame *
+chiba_context_push_frame(ChibaContext *ctx, const ChibaFrameDesc *descs,
+                         int64_t desc_count, int64_t kind, int64_t slot_count) {
+  const ChibaFrameDesc *desc = chiba_frame_desc_lookup(descs, desc_count, kind);
+  ChibaFrame *frame =
+      chiba_frame_new(desc, slot_count, (ChibaFrame *)ctx->frame_stack,
+                      (ChibaPrompt *)ctx->prompt_stack);
+  ctx->frame_stack = frame;
+  return frame;
+}
+
+static inline ChibaPrompt *chiba_context_push_prompt(ChibaContext *ctx,
+                                                     int64_t tag) {
+  ChibaPrompt *prompt = chiba_prompt_new(tag, (ChibaFrame *)ctx->frame_stack,
+                                         (ChibaPrompt *)ctx->prompt_stack);
+  ctx->prompt_stack = prompt;
+  return prompt;
+}
+
+static inline ChibaFrame *chiba_frame_clone_one(const ChibaFrame *src) {
+  if (src == NULL) {
+    return NULL;
+  }
+  ChibaFrame *copy =
+      chiba_frame_new(src->desc, src->slot_count, NULL, src->prompt);
+  copy->kind = src->kind;
+  copy->resume_block = src->resume_block;
+  copy->resume_fun = src->resume_fun;
+  for (int64_t i = 0; i < src->slot_count; i++) {
+    copy->slots[i] = src->slots[i];
+  }
+  return copy;
+}
+
+static inline ChibaFrame *chiba_frame_clone_chain(const ChibaFrame *src) {
+  if (src == NULL) {
+    return NULL;
+  }
+  ChibaFrame *copy = chiba_frame_clone_one(src);
+  copy->parent = chiba_frame_clone_chain(src->parent);
+  return copy;
+}
+
+static inline ChibaFrame *chiba_frame_clone_until(const ChibaFrame *src,
+                                                  const ChibaFrame *boundary) {
+  if (src == NULL || src == boundary) {
+    return NULL;
+  }
+  ChibaFrame *copy = chiba_frame_clone_one(src);
+  copy->parent = chiba_frame_clone_until(src->parent, boundary);
+  return copy;
+}
+
+static inline int64_t chiba_frame_chain_count(const ChibaFrame *frame) {
+  int64_t count = 0;
+  while (frame != NULL) {
+    count++;
+    frame = frame->parent;
+  }
+  return count;
+}
+
+static inline ChibaContinuation *
+chiba_continuation_capture_snapshot(ChibaFrame *frames, ChibaPrompt *prompt) {
+  ChibaContinuation *cont = (ChibaContinuation *)chiba_runtime_calloc(
+      1, sizeof(ChibaContinuation), "continuation");
+  cont->frames = chiba_frame_clone_chain(frames);
+  cont->prompt = prompt;
+  cont->frame_count = chiba_frame_chain_count(cont->frames);
+  cont->resume_fun = 0;
+  cont->resume_block = 0;
+  cont->multi_shot = 1;
+  return cont;
+}
+
+static inline ChibaContinuation *
+chiba_context_capture_continuation(ChibaContext *ctx, int64_t tag,
+                                   int64_t resume_fun, int64_t resume_block) {
+  ChibaPrompt *prev = NULL;
+  ChibaPrompt *prompt = (ChibaPrompt *)ctx->prompt_stack;
+  while (prompt != NULL && prompt->tag != tag) {
+    prev = prompt;
+    prompt = prompt->parent;
+  }
+  if (prompt == NULL) {
+    fprintf(stderr, "[chiba-c] missing prompt tag=%lld\n", (long long)tag);
+    abort();
+  }
+  if (prev == NULL) {
+    ctx->prompt_stack = prompt->parent;
+  } else {
+    prev->parent = prompt->parent;
+  }
+  ChibaContinuation *cont = (ChibaContinuation *)chiba_runtime_calloc(
+      1, sizeof(ChibaContinuation), "continuation");
+  cont->frames = chiba_frame_clone_until((ChibaFrame *)ctx->frame_stack,
+                                         prompt->frame_boundary);
+  cont->prompt = prompt;
+  cont->frame_count = chiba_frame_chain_count(cont->frames);
+  cont->resume_fun = resume_fun;
+  cont->resume_block = resume_block;
+  cont->multi_shot = 1;
+  return cont;
+}
+
+static inline ChibaFrame *
+chiba_continuation_clone_frames(const ChibaContinuation *cont) {
+  if (cont == NULL) {
+    return NULL;
+  }
+  return chiba_frame_clone_chain(cont->frames);
+}
+
+static inline const ChibaContinuation *
+chiba_context_restore_continuation(ChibaContext *ctx,
+                                   const ChibaContinuation *cont) {
+  if (cont == NULL) {
+    fprintf(stderr, "[chiba-c] restore null continuation\n");
+    abort();
+  }
+  ctx->frame_stack = chiba_continuation_clone_frames(cont);
+  return cont;
 }
 
 static inline ChibaValue chiba_runtime_asm_context_value(void) {

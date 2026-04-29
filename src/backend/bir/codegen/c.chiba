@@ -9,6 +9,7 @@ def codegen_c(prog: BirProgram): Str = {
     let out = str_new()
     let _ = emit_prelude(out)
     let _ = emit_string_literals(out, prog.strings, 0)
+    let _ = emit_frame_desc_table(out, prog.frame_descs)
     let _ = emit_forward_decls(out, prog.funs)
     let _ = emit_functions(out, prog.funs)
     let _ = emit_entry(out, prog.entry_fun)
@@ -45,6 +46,38 @@ def emit_string_literal_bytes(out: Str, s: Str, i: i64): i64 = {
     }
 }
 
+def emit_frame_desc_table(out: Str, descs: List[FrameDesc]): i64 = {
+    let count = length(descs)
+    let _ = if count == 0 {
+        str_push_cstr(out, "static const ChibaFrameDesc chiba_frame_descs[1] = {{0, 0, 0, 0}};\n")
+    } else {
+        let _ = str_push_cstr(out, "static const ChibaFrameDesc chiba_frame_descs[] = {\n")
+        let _ = emit_frame_desc_entries(out, descs)
+        str_push_cstr(out, "};\n")
+    }
+    let _ = str_push_cstr(out, "static const int64_t chiba_frame_desc_count = ")
+    let _ = str_append_i64(out, count)
+    let _ = str_push_cstr(out, ";\n\n")
+    0
+}
+
+def emit_frame_desc_entries(out: Str, descs: List[FrameDesc]): i64 =
+    match descs {
+        Nil => 0
+        Cons(desc, rest) => {
+            let _ = str_push_cstr(out, "    {")
+            let _ = str_append_i64(out, desc.kind)
+            let _ = str_push_cstr(out, ", \"")
+            let _ = emit_c_string_bytes(out, desc.name, 0)
+            let _ = str_push_cstr(out, "\", ")
+            let _ = str_append_i64(out, desc.resume_block)
+            let _ = str_push_cstr(out, ", ")
+            let _ = str_append_i64(out, desc.resume_fun)
+            let _ = str_push_cstr(out, "},\n")
+            emit_frame_desc_entries(out, rest)
+        }
+    }
+
 def emit_forward_decls(out: Str, funs: List[BirFun]): i64 =
     match funs {
         Nil => {
@@ -72,6 +105,7 @@ def emit_functions(out: Str, funs: List[BirFun]): i64 =
 def emit_function(out: Str, fun: BirFun): i64 = {
     let slots = if fun.num_vregs >= 0 { fun.num_vregs + 1 } else { 1 }
     let entry_block = first_block_id(fun.blocks)
+    let needs_resume = fun_needs_resume(fun)
     let _ = str_push_cstr(out, "static ChibaValue ")
     let _ = emit_fun_name(out, fun.id)
     let _ = str_push_cstr(out, "(ChibaValue *args, int64_t argc) {\n")
@@ -85,22 +119,128 @@ def emit_function(out: Str, fun: BirFun): i64 = {
     let _ = str_append_i64(out, slots)
     let _ = str_push_cstr(out, "];\n")
     let _ = str_push_cstr(out, "    ChibaValue call_result = 0;\n")
+    let _ = if needs_resume != 0 {
+        let _ = str_push_cstr(out, "    ChibaContext chiba_ctx;\n")
+        let _ = str_push_cstr(out, "    const ChibaFrameDesc *frame_desc = 0;\n")
+        let _ = str_push_cstr(out, "    const ChibaContinuation *restore_cont = 0;\n")
+        let _ = str_push_cstr(out, "    ChibaFrame *current_frame = 0;\n")
+        let _ = str_push_cstr(out, "    int64_t current_frame_kind = -1;\n")
+        let _ = str_push_cstr(out, "    int64_t resume_from_call = 0;\n")
+        let _ = str_push_cstr(out, "    int64_t pc = ")
+        let _ = str_append_i64(out, entry_block)
+        str_push_cstr(out, ";\n")
+    } else { 0 }
     let _ = str_push_cstr(out, "    memset(v, 0, sizeof(v));\n")
     let _ = str_push_cstr(out, "    memset(jump_tmp, 0, sizeof(jump_tmp));\n")
     let _ = str_push_cstr(out, "    memset(call_args, 0, sizeof(call_args));\n")
+    let _ = if needs_resume != 0 { str_push_cstr(out, "    memset(&chiba_ctx, 0, sizeof(chiba_ctx));\n") } else { 0 }
     let _ = emit_param_binds(out, fun.params, fun.base_vreg, 0)
-    let _ = str_push_cstr(out, "    goto ")
-    let _ = emit_block_name(out, fun.id, entry_block)
-    let _ = str_push_cstr(out, ";\n")
+    let _ = if needs_resume != 0 {
+        let _ = str_push_cstr(out, "    goto dispatch;\n")
+        emit_dispatch(out, fun)
+    } else {
+        let _ = str_push_cstr(out, "    goto ")
+        let _ = emit_block_name(out, fun.id, entry_block)
+        str_push_cstr(out, ";\n")
+    }
     let _ = emit_blocks(out, fun, fun.blocks)
     let _ = str_push_cstr(out, "}\n")
     0
 }
 
+def emit_dispatch(out: Str, fun: BirFun): i64 = {
+    let _ = str_push_cstr(out, "dispatch:\n")
+    let _ = str_push_cstr(out, "    if (resume_from_call) {\n")
+    let _ = str_push_cstr(out, "        switch (pc) {\n")
+    let _ = emit_resume_param_cases(out, fun, fun.blocks)
+    let _ = str_push_cstr(out, "        default: break;\n")
+    let _ = str_push_cstr(out, "        }\n")
+    let _ = str_push_cstr(out, "        resume_from_call = 0;\n")
+    let _ = str_push_cstr(out, "    }\n")
+    let _ = str_push_cstr(out, "    switch (pc) {\n")
+    let _ = emit_dispatch_cases(out, fun, fun.blocks)
+    let _ = str_push_cstr(out, "    default: return chiba_runtime_unimplemented(\"dispatch\", \"bad-pc\");\n")
+    let _ = str_push_cstr(out, "    }\n")
+    0
+}
+
+def emit_dispatch_cases(out: Str, fun: BirFun, blocks: List[Block]): i64 =
+    match blocks {
+        Nil => 0
+        Cons(block, rest) => {
+            let _ = str_push_cstr(out, "    case ")
+            let _ = str_append_i64(out, block.id)
+            let _ = str_push_cstr(out, ": goto ")
+            let _ = emit_block_name(out, fun.id, block.id)
+            let _ = str_push_cstr(out, ";\n")
+            emit_dispatch_cases(out, fun, rest)
+        }
+    }
+
+def emit_resume_param_cases(out: Str, fun: BirFun, blocks: List[Block]): i64 =
+    match blocks {
+        Nil => 0
+        Cons(block, rest) => {
+            let _ = emit_resume_param_case(out, fun, block)
+            emit_resume_param_cases(out, fun, rest)
+        }
+    }
+
+def emit_resume_param_case(out: Str, fun: BirFun, block: Block): i64 =
+    match block.params {
+        Nil => 0
+        Cons(param, _) => {
+            let _ = str_push_cstr(out, "        case ")
+            let _ = str_append_i64(out, block.id)
+            let _ = str_push_cstr(out, ": ")
+            let _ = emit_vref(out, param, fun.base_vreg)
+            let _ = str_push_cstr(out, " = chiba_ctx.ret[0]; break;\n")
+            0
+        }
+    }
+
 def first_block_id(blocks: List[Block]): i64 =
     match blocks {
         Nil => 0
         Cons(block, _) => block.id
+    }
+
+def fun_needs_resume(fun: BirFun): i64 =
+    if blocks_need_resume(fun.blocks) != 0 { 1 }
+    else { terms_need_resume(fun.blocks) }
+
+def blocks_need_resume(blocks: List[Block]): i64 =
+    match blocks {
+        Nil => 0
+        Cons(block, rest) =>
+            if insts_need_resume(block.insts) != 0 { 1 }
+            else { blocks_need_resume(rest) }
+    }
+
+def insts_need_resume(insts: List[Inst]): i64 =
+    match insts {
+        Nil => 0
+        Cons(inst, rest) =>
+            if inst_needs_resume(inst) != 0 { 1 }
+            else { insts_need_resume(rest) }
+    }
+
+def inst_needs_resume(inst: Inst): i64 =
+    match inst {
+        IPushFrame(_, _, _) => 1
+        IPushPrompt(_) => 1
+        ICaptureCont(_, _, _, _) => 1
+        _ => 0
+    }
+
+def terms_need_resume(blocks: List[Block]): i64 =
+    match blocks {
+        Nil => 0
+        Cons(block, rest) =>
+            match block.term {
+                TRestoreCont(_, _) => 1
+                _ => terms_need_resume(rest)
+            }
     }
 
 def emit_param_binds(out: Str, params: List[i64], base_vreg: i64, i: i64): i64 =
@@ -172,9 +312,9 @@ def emit_inst(out: Str, fun: BirFun, inst: Inst): i64 =
         IHeapLoad(dst, ptr, offset) => emit_heap_load(out, dst, ptr, offset, fun.base_vreg)
         IHeapStore(ptr, offset, val) => emit_heap_store(out, ptr, offset, val, fun.base_vreg)
         IBumpAlloc(dst, size) => emit_call_1(out, dst, "chiba_bump_alloc", size, fun.base_vreg)
-        IPushFrame(dst, _, _) => emit_noop_inst_with_dst(out, dst, fun.base_vreg)
-        IPushPrompt(_) => emit_unsupported_inst(out, "IPushPrompt")
-        ICaptureCont(dst, _, _, _) => emit_unsupported_inst_with_dst(out, dst, "ICaptureCont", fun.base_vreg)
+        IPushFrame(dst, kind, fields) => emit_push_frame(out, dst, kind, fields, fun.base_vreg)
+        IPushPrompt(tag) => emit_push_prompt(out, tag, fun.base_vreg)
+        ICaptureCont(dst, tag, resume_block, _) => emit_capture_cont(out, fun, dst, tag, resume_block)
         ICCall(dst, sym, args) => emit_ccall(out, dst, sym, args, fun.base_vreg)
         IInlineAsm(dst, in_regs, out_regs, instrs) => emit_inline_asm(out, dst, in_regs, out_regs, instrs, fun.base_vreg)
     }
@@ -493,6 +633,53 @@ def emit_noop_inst_with_dst(out: Str, dst: i64, base_vreg: i64): i64 = {
     0
 }
 
+def emit_push_frame(out: Str, dst: i64, kind: i64, fields: List[i64], base_vreg: i64): i64 = {
+    let _ = str_push_cstr(out, "    current_frame_kind = ")
+    let _ = str_append_i64(out, kind)
+    let _ = str_push_cstr(out, ";\n")
+    let _ = str_push_cstr(out, "    current_frame = chiba_context_push_frame(&chiba_ctx, chiba_frame_descs, chiba_frame_desc_count, current_frame_kind, ")
+    let _ = str_append_i64(out, length(fields))
+    let _ = str_push_cstr(out, ");\n")
+    let _ = emit_push_frame_slots(out, fields, base_vreg, 0)
+    let _ = str_push_cstr(out, "    ")
+    let _ = emit_vref(out, dst, base_vreg)
+    let _ = str_push_cstr(out, " = chiba_ptr_to_value(current_frame);\n")
+    0
+}
+
+def emit_push_frame_slots(out: Str, fields: List[i64], base_vreg: i64, i: i64): i64 =
+    match fields {
+        Nil => 0
+        Cons(field, rest) => {
+            let _ = str_push_cstr(out, "    current_frame->slots[")
+            let _ = str_append_i64(out, i)
+            let _ = str_push_cstr(out, "] = ")
+            let _ = emit_vref(out, field, base_vreg)
+            let _ = str_push_cstr(out, ";\n")
+            emit_push_frame_slots(out, rest, base_vreg, i + 1)
+        }
+    }
+
+def emit_push_prompt(out: Str, tag: i64, base_vreg: i64): i64 = {
+    let _ = str_push_cstr(out, "    (void) chiba_context_push_prompt(&chiba_ctx, ")
+    let _ = emit_vref(out, tag, base_vreg)
+    let _ = str_push_cstr(out, ");\n")
+    0
+}
+
+def emit_capture_cont(out: Str, fun: BirFun, dst: i64, tag: i64, resume_block: i64): i64 = {
+    let _ = str_push_cstr(out, "    ")
+    let _ = emit_vref(out, dst, fun.base_vreg)
+    let _ = str_push_cstr(out, " = chiba_ptr_to_value(chiba_context_capture_continuation(&chiba_ctx, ")
+    let _ = str_append_i64(out, tag)
+    let _ = str_push_cstr(out, ", ")
+    let _ = str_append_i64(out, fun.id)
+    let _ = str_push_cstr(out, ", ")
+    let _ = str_append_i64(out, resume_block)
+    let _ = str_push_cstr(out, "));\n")
+    0
+}
+
 def emit_term(out: Str, fun: BirFun, term: Terminator): i64 =
     match term {
         TJump(target, args) => emit_jump(out, fun, target, args)
@@ -501,8 +688,25 @@ def emit_term(out: Str, fun: BirFun, term: Terminator): i64 =
         TReturn(vals) => emit_return(out, vals, fun.base_vreg)
         TSwitch(scrut, branches, default) => emit_switch(out, fun, scrut, branches, default)
         THalt(val) => emit_halt(out, val, fun.base_vreg)
-        TRestoreCont(_, _) => emit_unsupported_term(out, "TRestoreCont")
+        TRestoreCont(cont, arg) => emit_restore_cont(out, fun, cont, arg)
     }
+
+def emit_restore_cont(out: Str, fun: BirFun, cont: i64, arg: i64): i64 = {
+    let _ = str_push_cstr(out, "    chiba_ctx.ret[0] = ")
+    let _ = emit_vref(out, arg, fun.base_vreg)
+    let _ = str_push_cstr(out, ";\n")
+    let _ = str_push_cstr(out, "    chiba_ctx.ret_count = 1;\n")
+    let _ = str_push_cstr(out, "    restore_cont = chiba_context_restore_continuation(&chiba_ctx, (const ChibaContinuation *)chiba_value_to_ptr(")
+    let _ = emit_vref(out, cont, fun.base_vreg)
+    let _ = str_push_cstr(out, "));\n")
+    let _ = str_push_cstr(out, "    if (restore_cont->resume_fun != ")
+    let _ = str_append_i64(out, fun.id)
+    let _ = str_push_cstr(out, ") { return chiba_runtime_unimplemented(\"restore\", \"cross-function\"); }\n")
+    let _ = str_push_cstr(out, "    resume_from_call = 1;\n")
+    let _ = str_push_cstr(out, "    pc = restore_cont->resume_block;\n")
+    let _ = str_push_cstr(out, "    goto dispatch;\n")
+    0
+}
 
 def emit_call_like(out: Str, fun: BirFun, func: i64, args: List[i64]): i64 = {
     let _ = emit_call_args(out, args, fun.base_vreg, 0)
@@ -511,7 +715,27 @@ def emit_call_like(out: Str, fun: BirFun, func: i64, args: List[i64]): i64 = {
     let _ = str_push_cstr(out, ")(call_args, ")
     let _ = str_append_i64(out, length(args))
     let _ = str_push_cstr(out, ");\n")
+    let _ = if fun_needs_resume(fun) != 0 { emit_call_resume(out, fun) } else { 0 }
     let _ = str_push_cstr(out, "    return call_result;\n")
+    0
+}
+
+def emit_call_resume(out: Str, fun: BirFun): i64 = {
+    let _ = str_push_cstr(out, "    chiba_ctx.ret[0] = call_result;\n")
+    let _ = str_push_cstr(out, "    chiba_ctx.ret_count = 1;\n")
+    let _ = str_push_cstr(out, "    if (chiba_ctx.frame_stack != 0) {\n")
+    let _ = str_push_cstr(out, "        current_frame = (ChibaFrame *)chiba_ctx.frame_stack;\n")
+    let _ = str_push_cstr(out, "        frame_desc = current_frame->desc;\n")
+    let _ = str_push_cstr(out, "        if (frame_desc != 0 && frame_desc->resume_fun == ")
+    let _ = str_append_i64(out, fun.id)
+    let _ = str_push_cstr(out, ") {\n")
+    let _ = str_push_cstr(out, "            chiba_ctx.frame_stack = current_frame->parent;\n")
+    let _ = str_push_cstr(out, "            current_frame_kind = -1;\n")
+    let _ = str_push_cstr(out, "            resume_from_call = 1;\n")
+    let _ = str_push_cstr(out, "            pc = frame_desc->resume_block;\n")
+    let _ = str_push_cstr(out, "            goto dispatch;\n")
+    let _ = str_push_cstr(out, "        }\n")
+    let _ = str_push_cstr(out, "    }\n")
     0
 }
 

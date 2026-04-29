@@ -1,6 +1,7 @@
 namespace backend.bir.codegen.c.test
 use metalstd.list.*
 use metalstd.mem.*
+use metalstd.option.*
 use metalstd.process.*
 use metalstd.str.*
 use metalstd.test.*
@@ -38,6 +39,21 @@ def c_test_compile(c_text: Str, out_path: cstr): ProcResult =
         Cons(c"-",
         Cons(c"-o",
         Cons(out_path, Nil))))))))))),
+        c_text)
+
+def c_test_build_exe(c_text: Str, out_path: cstr): ProcResult =
+    proc_run_capture_input(
+        c"/usr/bin/gcc",
+        Cons(c"gcc",
+        Cons(c"-std=gnu11",
+        Cons(c"-O2",
+        Cons(c"-I",
+        Cons(c"cruntime",
+        Cons(c"-x",
+        Cons(c"c",
+        Cons(c"-",
+        Cons(c"-o",
+        Cons(out_path, Nil)))))))))),
         c_text)
 
 def test_bir_codegen_c(ctx: i64): i64 = {
@@ -134,7 +150,217 @@ def test_bir_codegen_c(ctx: i64): i64 = {
     let call_res = c_test_compile(call_c_text, c"runtime/chiba_c_call_shape.o")
     let _ = assert_eq(ctx, "c codegen call shape gcc status", proc_result_status(call_res), 0)
     let _ = assert_true(ctx, "c codegen call emits call_result", c_test_str_contains(call_c_text, mk_str("call_result = chiba_value_to_fun", 32)))
+    let _ = assert_true(ctx, "c codegen emits compact frame table", c_test_str_contains(call_c_text, mk_str("static const ChibaFrameDesc chiba_frame_descs[]", 47)))
+    let _ = assert_true(ctx, "c codegen emits frame count", c_test_str_contains(call_c_text, mk_str("chiba_frame_desc_count = 1", 26)))
+    let _ = assert_true(ctx, "c codegen frame table stores kind", c_test_str_contains(call_c_text, mk_str("{99, \"regress_no_inline_frame_dispatch\", 0, 3}", 46)))
     let _ = assert_true(ctx, "c codegen avoids frame dispatch expansion", c_test_str_contains(call_c_text, mk_str("pending_frame_kind", 18)) == 0)
+    let _ = assert_true(ctx, "c codegen no-frame call skips frame lookup", c_test_str_contains(call_c_text, mk_str("chiba_frame_desc_lookup(", 24)) == 0)
+    let _ = assert_true(ctx, "c codegen no-frame call skips dispatcher", c_test_str_contains(call_c_text, mk_str("dispatch:", 9)) == 0)
+
+    let resume_prog = BirProgram {
+        funs: Cons(BirFun {
+            id: 5,
+            name: bir_ir_mk_str_cstr("resume_caller"),
+            params: Nil,
+            blocks: Cons(Block {
+                id: 0,
+                params: Nil,
+                insts: Cons(ILoadFunPtr(0, 6), Cons(IPushFrame(1, 101, Nil), Nil)),
+                term: TCall(0, Nil)
+            }, Cons(Block {
+                id: 10,
+                params: Cons(2, Nil),
+                insts: Nil,
+                term: THalt(2)
+            }, Nil)),
+            base_vreg: 0,
+            num_vregs: 3
+        }, Cons(BirFun {
+            id: 6,
+            name: bir_ir_mk_str_cstr("resume_callee"),
+            params: Nil,
+            blocks: Cons(Block {
+                id: 0,
+                params: Nil,
+                insts: Cons(ILoadImm(3, 7), Nil),
+                term: TReturn(Cons(3, Nil))
+            }, Nil),
+            base_vreg: 3,
+            num_vregs: 1
+        }, Nil)),
+        entry_fun: 5,
+        frame_descs: Cons(FrameDesc {
+            kind: 101,
+            name: bir_ir_mk_str_cstr("resume_smoke"),
+            resume_block: 10,
+            resume_fun: 5
+        }, Nil),
+        strings: Nil
+    }
+
+    let resume_c_text = codegen_c(resume_prog)
+    let resume_build = c_test_build_exe(resume_c_text, c"runtime/chiba_c_resume_smoke")
+    let _ = assert_eq(ctx, "c codegen resume smoke gcc status", proc_result_status(resume_build), 0)
+    let resume_run = proc_run_capture(c"runtime/chiba_c_resume_smoke", Cons(c"runtime/chiba_c_resume_smoke", Nil))
+    let _ = assert_eq(ctx, "c codegen resume smoke exit status", proc_result_status(resume_run), 7)
+    let _ = assert_true(ctx, "c codegen resume stores ret0", c_test_str_contains(resume_c_text, mk_str("chiba_ctx.ret[0] = call_result", 30)))
+    let _ = assert_true(ctx, "c codegen push frame allocates heap frame", c_test_str_contains(resume_c_text, mk_str("chiba_context_push_frame(&chiba_ctx", 35)))
+    let _ = assert_true(ctx, "c codegen resume pops frame stack", c_test_str_contains(resume_c_text, mk_str("chiba_ctx.frame_stack = current_frame->parent", 45)))
+    let _ = assert_true(ctx, "c codegen resume uses frame pc", c_test_str_contains(resume_c_text, mk_str("pc = frame_desc->resume_block", 29)))
+    let _ = assert_true(ctx, "c codegen resume binds ret0 param", c_test_str_contains(resume_c_text, mk_str("case 10: v[2] = chiba_ctx.ret[0]", 32)))
+
+    let prompt_prog = BirProgram {
+        funs: Cons(BirFun {
+            id: 7,
+            name: bir_ir_mk_str_cstr("prompt_main"),
+            params: Nil,
+            blocks: Cons(Block {
+                id: 0,
+                params: Nil,
+                insts: Cons(ILoadImm(0, 202), Cons(IPushPrompt(0), Cons(ILoadImm(1, 0), Nil))),
+                term: THalt(1)
+            }, Nil),
+            base_vreg: 0,
+            num_vregs: 2
+        }, Nil),
+        entry_fun: 7,
+        frame_descs: Nil,
+        strings: Nil
+    }
+
+    let prompt_c_text = codegen_c(prompt_prog)
+    let prompt_build = c_test_build_exe(prompt_c_text, c"runtime/chiba_c_prompt_smoke")
+    let _ = assert_eq(ctx, "c codegen prompt smoke gcc status", proc_result_status(prompt_build), 0)
+    let prompt_run = proc_run_capture(c"runtime/chiba_c_prompt_smoke", Cons(c"runtime/chiba_c_prompt_smoke", Nil))
+    let _ = assert_eq(ctx, "c codegen prompt smoke exit status", proc_result_status(prompt_run), 0)
+    let _ = assert_true(ctx, "c codegen prompt pushes heap prompt", c_test_str_contains(prompt_c_text, mk_str("chiba_context_push_prompt(&chiba_ctx", 36)))
+    let _ = assert_true(ctx, "c codegen prompt is not unsupported", c_test_str_contains(prompt_c_text, mk_str("IPushPrompt", 11)) == 0)
+
+    let capture_prog = BirProgram {
+        funs: Cons(BirFun {
+            id: 8,
+            name: bir_ir_mk_str_cstr("capture_main"),
+            params: Nil,
+            blocks: Cons(Block {
+                id: 0,
+                params: Nil,
+                insts: Cons(ILoadImm(0, 303), Cons(IPushPrompt(0), Cons(IPushFrame(1, 404, Nil), Cons(ICaptureCont(2, 303, 10, 20), Cons(ILoadImm(3, 0), Nil))))),
+                term: THalt(3)
+            }, Cons(Block {
+                id: 10,
+                params: Cons(4, Nil),
+                insts: Nil,
+                term: THalt(4)
+            }, Cons(Block {
+                id: 20,
+                params: Cons(5, Nil),
+                insts: Nil,
+                term: THalt(5)
+            }, Nil))),
+            base_vreg: 0,
+            num_vregs: 6
+        }, Nil),
+        entry_fun: 8,
+        frame_descs: Cons(FrameDesc {
+            kind: 404,
+            name: bir_ir_mk_str_cstr("capture_frame"),
+            resume_block: 20,
+            resume_fun: 8
+        }, Nil),
+        strings: Nil
+    }
+
+    let capture_c_text = codegen_c(capture_prog)
+    let capture_build = c_test_build_exe(capture_c_text, c"runtime/chiba_c_capture_smoke")
+    let _ = assert_eq(ctx, "c codegen capture smoke gcc status", proc_result_status(capture_build), 0)
+    let capture_run = proc_run_capture(c"runtime/chiba_c_capture_smoke", Cons(c"runtime/chiba_c_capture_smoke", Nil))
+    let _ = assert_eq(ctx, "c codegen capture smoke exit status", proc_result_status(capture_run), 0)
+    let _ = assert_true(ctx, "c codegen capture uses runtime helper", c_test_str_contains(capture_c_text, mk_str("chiba_context_capture_continuation(&chiba_ctx", 45)))
+    let _ = assert_true(ctx, "c codegen capture is not unsupported", c_test_str_contains(capture_c_text, mk_str("ICaptureCont", 12)) == 0)
+
+    let restore_prog = BirProgram {
+        funs: Cons(BirFun {
+            id: 9,
+            name: bir_ir_mk_str_cstr("restore_main"),
+            params: Nil,
+            blocks: Cons(Block {
+                id: 0,
+                params: Nil,
+                insts: Cons(ILoadImm(0, 505), Cons(IPushPrompt(0), Cons(ICaptureCont(1, 505, 10, 20), Cons(ILoadImm(2, 42), Nil)))),
+                term: TRestoreCont(1, 2)
+            }, Cons(Block {
+                id: 10,
+                params: Cons(3, Nil),
+                insts: Nil,
+                term: THalt(3)
+            }, Cons(Block {
+                id: 20,
+                params: Cons(4, Nil),
+                insts: Nil,
+                term: THalt(4)
+            }, Nil))),
+            base_vreg: 0,
+            num_vregs: 5
+        }, Nil),
+        entry_fun: 9,
+        frame_descs: Nil,
+        strings: Nil
+    }
+
+    let restore_c_text = codegen_c(restore_prog)
+    let restore_build = c_test_build_exe(restore_c_text, c"runtime/chiba_c_restore_smoke")
+    let _ = assert_eq(ctx, "c codegen restore smoke gcc status", proc_result_status(restore_build), 0)
+    let restore_run = proc_run_capture(c"runtime/chiba_c_restore_smoke", Cons(c"runtime/chiba_c_restore_smoke", Nil))
+    let _ = assert_eq(ctx, "c codegen restore smoke exit status", proc_result_status(restore_run), 42)
+    let _ = assert_true(ctx, "c codegen restore uses runtime helper", c_test_str_contains(restore_c_text, mk_str("chiba_context_restore_continuation(&chiba_ctx", 45)))
+    let _ = assert_true(ctx, "c codegen restore reuses ret slot", c_test_str_contains(restore_c_text, mk_str("chiba_ctx.ret[0] = v[2]", 23)))
+    let _ = assert_true(ctx, "c codegen restore is not unsupported", c_test_str_contains(restore_c_text, mk_str("TRestoreCont", 12)) == 0)
+
+    let multishot_prog = BirProgram {
+        funs: Cons(BirFun {
+            id: 10,
+            name: bir_ir_mk_str_cstr("multishot_main"),
+            params: Nil,
+            blocks: Cons(Block {
+                id: 0,
+                params: Nil,
+                insts: Cons(ILoadImm(0, 606), Cons(IPushPrompt(0), Cons(IPushFrame(1, 707, Nil), Cons(ICaptureCont(2, 606, 10, 30), Cons(ILoadImm(3, 40), Cons(ILoadImm(4, 41), Nil)))))),
+                term: TRestoreCont(2, 3)
+            }, Cons(Block {
+                id: 10,
+                params: Cons(5, Nil),
+                insts: Nil,
+                term: TSwitch(5, Cons((40, 20, Nil), Nil), Some((30, Cons(5, Nil))))
+            }, Cons(Block {
+                id: 20,
+                params: Nil,
+                insts: Nil,
+                term: TRestoreCont(2, 4)
+            }, Cons(Block {
+                id: 30,
+                params: Cons(6, Nil),
+                insts: Nil,
+                term: THalt(6)
+            }, Nil)))),
+            base_vreg: 0,
+            num_vregs: 7
+        }, Nil),
+        entry_fun: 10,
+        frame_descs: Cons(FrameDesc {
+            kind: 707,
+            name: bir_ir_mk_str_cstr("multishot_frame"),
+            resume_block: 30,
+            resume_fun: 10
+        }, Nil),
+        strings: Nil
+    }
+
+    let multishot_c_text = codegen_c(multishot_prog)
+    let multishot_build = c_test_build_exe(multishot_c_text, c"runtime/chiba_c_multishot_smoke")
+    let _ = assert_eq(ctx, "c codegen multishot smoke gcc status", proc_result_status(multishot_build), 0)
+    let multishot_run = proc_run_capture(c"runtime/chiba_c_multishot_smoke", Cons(c"runtime/chiba_c_multishot_smoke", Nil))
+    let _ = assert_eq(ctx, "c codegen multishot smoke exit status", proc_result_status(multishot_run), 41)
+    let _ = assert_true(ctx, "c codegen multishot clones on restore", c_test_str_contains(multishot_c_text, mk_str("chiba_context_restore_continuation(&chiba_ctx", 45)))
 
     let runtime_c = str_new()
     let _ = str_push_cstr(runtime_c, "#include <chiba_runtime.h>\n")
@@ -153,6 +379,39 @@ def test_bir_codegen_c(ctx: i64): i64 = {
     let _ = str_push_cstr(runtime_c, "    ChibaStep restore_step = chiba_step_restore(ctx->ret[0]);\n")
     let _ = str_push_cstr(runtime_c, "    ChibaStep halt_step = chiba_step_halt(ctx->ret[0]);\n")
     let _ = str_push_cstr(runtime_c, "    return call_step.kind == CHIBA_STEP_CALL && tail_step.kind == CHIBA_STEP_TAILCALL && ret_step.kind == CHIBA_STEP_RETURN && restore_step.kind == CHIBA_STEP_RESTORE && halt_step.kind == CHIBA_STEP_HALT ? call_step : halt_step;\n")
+    let _ = str_push_cstr(runtime_c, "}\n")
+    let _ = str_push_cstr(runtime_c, "int probe_frame_desc_lookup(void) {\n")
+    let _ = str_push_cstr(runtime_c, "    static const ChibaFrameDesc descs[] = {{9, \"resume\", 2, 1}};\n")
+    let _ = str_push_cstr(runtime_c, "    const ChibaFrameDesc *hit = chiba_frame_desc_lookup(descs, 1, 9);\n")
+    let _ = str_push_cstr(runtime_c, "    const ChibaFrameDesc *miss = chiba_frame_desc_lookup(descs, 1, 10);\n")
+    let _ = str_push_cstr(runtime_c, "    return hit != 0 && hit->resume_block == 2 && hit->resume_fun == 1 && miss == 0;\n")
+    let _ = str_push_cstr(runtime_c, "}\n")
+    let _ = str_push_cstr(runtime_c, "int probe_multishot_continuation_model(void) {\n")
+    let _ = str_push_cstr(runtime_c, "    static const ChibaFrameDesc desc = {11, \"k\", 4, 3};\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaPrompt *prompt = chiba_prompt_new(77, 0, 0);\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaFrame *frame = chiba_frame_new(&desc, 2, 0, prompt);\n")
+    let _ = str_push_cstr(runtime_c, "    prompt->frame_boundary = frame;\n")
+    let _ = str_push_cstr(runtime_c, "    frame->slots[0] = 10;\n")
+    let _ = str_push_cstr(runtime_c, "    frame->slots[1] = 20;\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaContinuation *cont = chiba_continuation_capture_snapshot(frame, prompt);\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaFrame *first = chiba_continuation_clone_frames(cont);\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaFrame *second = chiba_continuation_clone_frames(cont);\n")
+    let _ = str_push_cstr(runtime_c, "    first->slots[0] = 99;\n")
+    let _ = str_push_cstr(runtime_c, "    return cont->multi_shot == 1 && cont->frame_count == 1 && first != second && second->slots[0] == 10 && second->resume_block == 4 && second->resume_fun == 3;\n")
+    let _ = str_push_cstr(runtime_c, "}\n")
+    let _ = str_push_cstr(runtime_c, "int probe_prompt_bounded_capture(void) {\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaContext ctx;\n")
+    let _ = str_push_cstr(runtime_c, "    memset(&ctx, 0, sizeof(ctx));\n")
+    let _ = str_push_cstr(runtime_c, "    static const ChibaFrameDesc outer_desc = {21, \"outer\", 2, 1};\n")
+    let _ = str_push_cstr(runtime_c, "    static const ChibaFrameDesc inner_desc = {22, \"inner\", 3, 1};\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaFrame *outer = chiba_context_push_frame(&ctx, &outer_desc, 1, 21, 1);\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaPrompt *prompt = chiba_context_push_prompt(&ctx, 55);\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaFrame *inner = chiba_context_push_frame(&ctx, &inner_desc, 1, 22, 1);\n")
+    let _ = str_push_cstr(runtime_c, "    outer->slots[0] = 7;\n")
+    let _ = str_push_cstr(runtime_c, "    inner->slots[0] = 8;\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaContinuation *cont = chiba_context_capture_continuation(&ctx, 55, 1, 99);\n")
+    let _ = str_push_cstr(runtime_c, "    ChibaFrame *clone = chiba_continuation_clone_frames(cont);\n")
+    let _ = str_push_cstr(runtime_c, "    return prompt->frame_boundary == outer && ctx.prompt_stack == 0 && cont->frame_count == 1 && clone->kind == 22 && clone->parent == 0 && cont->resume_block == 99 && cont->multi_shot == 1;\n")
     let _ = str_push_cstr(runtime_c, "}\n")
     let runtime_res = c_test_compile(runtime_c, c"runtime/chiba_c_runtime_protocol.o")
     let _ = assert_eq(ctx, "c runtime ChibaStep protocol gcc status", proc_result_status(runtime_res), 0)
