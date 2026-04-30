@@ -1,0 +1,9 @@
+namespace metalstd.libc.io
+
+// libc I/O boundary used by the portable C backend.
+
+#[compile_if(backend = "c")]
+def libc_write(fd: i64, ptr: i64, len: i64): i64 = extern "c" "write"
+
+#[compile_if(backend = "c")]
+def libc_exit(code: i64): i64 = extern "c" "chiba_libc_exit_value"

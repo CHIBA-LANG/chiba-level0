@@ -199,5 +199,20 @@ def test_project(ctx: i64): i64 = {
     let cf_filter6 = compile_filter_source_files(cfg_c, Cons(mk_source_file("bad_any.chiba", cf_src6), Nil))
     let _ = assert_eq(ctx, "compile_if empty any err", compile_filter_ok(cf_filter6), 0)
 
+    // metalstd facade shape: backend-specific same-name implementations stay behind one public API
+    let mf_sys = mk_source_file("sys_file.chiba", "namespace metalstd.sys.linux_amd64.file\ndef sys_file_openat(): i64 = 10")
+    let mf_libc = mk_source_file("libc_file.chiba", "namespace metalstd.libc.file\ndef libc_openat(): i64 = 20")
+    let mf_facade = mk_source_file("file.chiba", "namespace metalstd.file\nuse metalstd.sys.linux_amd64.file.*\nuse metalstd.libc.file.*\n#[compile_if(backend = \"chiba\")]\ndef file_openat(): i64 = sys_file_openat()\n#[compile_if(backend = \"c\")]\ndef file_openat(): i64 = libc_openat()")
+    let mf_app = mk_source_file("app.chiba", "namespace app\nuse metalstd.file.*\ndef run(): i64 = file_openat()")
+    let mf_files = Cons(mf_sys, Cons(mf_libc, Cons(mf_facade, Cons(mf_app, Nil))))
+    let mf_chiba_filter = compile_filter_source_files(cfg_chiba, mf_files)
+    let _ = assert_eq(ctx, "metalstd facade chiba filter", compile_filter_ok(mf_chiba_filter), 1)
+    let mf_chiba_merged = merge_program(compile_filter_files(mf_chiba_filter))
+    let _ = assert_eq(ctx, "metalstd facade chiba resolve", resolve_ok(resolve(mf_chiba_merged)), 1)
+    let mf_c_filter = compile_filter_source_files(cfg_c, mf_files)
+    let _ = assert_eq(ctx, "metalstd facade c filter", compile_filter_ok(mf_c_filter), 1)
+    let mf_c_merged = merge_program(compile_filter_files(mf_c_filter))
+    let _ = assert_eq(ctx, "metalstd facade c resolve", resolve_ok(resolve(mf_c_merged)), 1)
+
     0
 }

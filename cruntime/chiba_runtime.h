@@ -79,7 +79,6 @@ typedef struct ChibaContext {
 
 typedef struct ChibaTagged {
   int64_t tag;
-  int64_t len;
   ChibaValue fields[];
 } ChibaTagged;
 
@@ -351,7 +350,6 @@ static inline ChibaTagged *chiba_make_tagged(int64_t tag, int64_t len) {
     abort();
   }
   obj->tag = tag;
-  obj->len = len;
   return obj;
 }
 
@@ -368,9 +366,6 @@ static inline ChibaValue chiba_get_field(ChibaValue value, int64_t idx) {
   if (obj == NULL) {
     return chiba_runtime_unimplemented("tagged", "null-object");
   }
-  if (idx < 0 || idx >= obj->len) {
-    return chiba_runtime_bounds("field", idx, obj->len);
-  }
   return obj->fields[idx];
 }
 
@@ -379,10 +374,6 @@ static inline void chiba_set_field(ChibaValue value, int64_t idx,
   ChibaTagged *obj = (ChibaTagged *)chiba_value_to_ptr(value);
   if (obj == NULL) {
     (void)chiba_runtime_unimplemented("tagged", "null-object");
-    return;
-  }
-  if (idx < 0 || idx >= obj->len) {
-    (void)chiba_runtime_bounds("field", idx, obj->len);
     return;
   }
   obj->fields[idx] = field;
@@ -414,6 +405,51 @@ static inline void chiba_heap_store(ChibaValue base, int64_t offset,
     return;
   }
   ptr[offset] = value;
+}
+
+static inline ChibaValue chiba_heap_store_value(ChibaValue base,
+                                                int64_t offset,
+                                                ChibaValue value) {
+  chiba_heap_store(base, offset, value);
+  return 0;
+}
+
+static inline ChibaValue chiba_heap_load8(ChibaValue base, int64_t offset) {
+  uint8_t *ptr = (uint8_t *)chiba_value_to_ptr(base);
+  if (ptr == NULL) {
+    return chiba_runtime_unimplemented("heap", "null-load8-base");
+  }
+  return (ChibaValue)ptr[offset];
+}
+
+static inline ChibaValue chiba_heap_store8_value(ChibaValue base,
+                                                 int64_t offset,
+                                                 ChibaValue value) {
+  uint8_t *ptr = (uint8_t *)chiba_value_to_ptr(base);
+  if (ptr == NULL) {
+    return chiba_runtime_unimplemented("heap", "null-store8-base");
+  }
+  ptr[offset] = (uint8_t)value;
+  return 0;
+}
+
+static inline ChibaValue chiba_libc_exit_value(int64_t code) {
+  exit((int)code);
+  return 0;
+}
+
+static inline ChibaValue chiba_libc_wait4_value(
+    ChibaValue pid,
+    ChibaValue status_ptr,
+    ChibaValue options,
+    ChibaValue rusage
+) {
+    return (ChibaValue)wait4(
+        (pid_t)pid,
+        (int *)(intptr_t)status_ptr,
+        (int)options,
+        (struct rusage *)(intptr_t)rusage
+    );
 }
 
 #endif

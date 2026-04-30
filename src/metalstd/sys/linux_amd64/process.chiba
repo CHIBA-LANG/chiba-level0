@@ -1,0 +1,39 @@
+namespace metalstd.sys.linux_amd64.process
+
+// Linux amd64 raw process syscalls.
+
+#[compile_if(backend = "chiba")]
+def sys_proc_fork(): i64 =
+    asm (57: rax) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_proc_execve(path: cstr, argv: i64, envp: i64): i64 =
+    asm (59: rax, path.ptr: rdi, argv: rsi, envp: rdx) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_proc_wait4(pid: i64, status_ptr: i64, options: i64, rusage: i64): i64 =
+    asm (61: rax, pid: rdi, status_ptr: rsi, options: rdx, rusage: r10) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_proc_pipe(pipefd_ptr: i64): i64 =
+    asm (22: rax, pipefd_ptr: rdi) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_proc_dup2(oldfd: i64, newfd: i64): i64 =
+    asm (33: rax, oldfd: rdi, newfd: rsi) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_proc_exit(code: i64): i64 =
+    asm (60: rax, code: rdi) : (rax) => {
+        "syscall"
+    }

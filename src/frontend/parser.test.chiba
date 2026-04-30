@@ -250,7 +250,7 @@ def test_parser_item(ctx: i64): i64 = {
     let items4 = parse_program_items("def malloc(size: usize): *u8 = extern \"c\" \"malloc\"", 50)
     let _ = assert_eq(ctx, "parse extern items", length(items4), 1)
     let ext = head(items4)
-    let is_extern = match ext { ExternDecl(_, _, _, _, _, _, _) => 1  _ => 0 }
+    let is_extern = match ext { ExternDecl(_, _, _, _, _, _, _, _) => 1  _ => 0 }
     let _ = assert_eq(ctx, "parse extern", is_extern, 1)
 
     // Parse union definition

@@ -885,7 +885,7 @@ def p_parse_def(p: i64, attrs: List[Str], is_private: i64): Item = {
                     let convention = match conv_tok { TokStr(s) => s  TokCStr(s) => s  _ => mk_str("c", 1) }
                     let sym_tok = p_advance(p)
                     let sym = match sym_tok { TokStr(s) => s  TokCStr(s) => s  _ => name }
-                    ExternDecl(name, is_private, tparams, params, ret, convention, sym)
+                    ExternDecl(name, is_private, tparams, params, ret, convention, sym, attrs)
                 }
                 _ => FunDef(name, is_private, tparams, params, ret, p_parse_expr(p), attrs)
             }

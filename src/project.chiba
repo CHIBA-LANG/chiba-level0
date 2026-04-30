@@ -298,6 +298,13 @@ def compile_filter_items_loop(cfg: CompileConfig, items: List[Item], kept: List[
                         CompileIfDrop => compile_filter_items_loop(cfg, rest, kept, errs)
                     }
                 }
+                ExternDecl(_, _, _, _, _, _, _, attrs) => {
+                    match compile_if_eval_attrs(cfg, attrs, 1) {
+                        CompileIfEvalErr(e) => compile_filter_items_loop(cfg, rest, kept, Cons(e, errs))
+                        CompileIfKeep => compile_filter_items_loop(cfg, rest, Cons(item, kept), errs)
+                        CompileIfDrop => compile_filter_items_loop(cfg, rest, kept, errs)
+                    }
+                }
                 _ => compile_filter_items_loop(cfg, rest, Cons(item, kept), errs)
             }
     }
@@ -610,7 +617,7 @@ def module_add_variants(m: NsModule, data_name: Str, variants: List[Variant], ns
 def collect_item_exports(m: NsModule, ns: Str, item: Item): NsModule =
     match item {
         FunDef(name, is_private, _, _, _, _, _) => module_add_fun(m, name, ns, is_private)
-        ExternDecl(name, is_private, _, _, _, _, _) => module_add_fun(m, name, ns, is_private)
+        ExternDecl(name, is_private, _, _, _, _, _, _) => module_add_fun(m, name, ns, is_private)
         TypeDef(name, is_private, _, _) => module_add_type(m, name, ns, is_private)
         UnionDef(name, is_private, _) => module_add_type(m, name, ns, is_private)
         DataDef(name, is_private, _, variants) => {
@@ -1047,11 +1054,11 @@ def rewrite_item(item: Item, ns: Str, view: NameView): Item =
                    rewrite_expr(view, params_names(params), ty_env, body),
                    attrs)
         }
-        ExternDecl(name, is_private, ty_params, params, ret, convention, sym) =>
+        ExternDecl(name, is_private, ty_params, params, ret, convention, sym, attrs) =>
             ExternDecl(qname(ns, name), is_private, ty_params,
                        rewrite_params(view, ty_params, params),
                        rewrite_ty(view, ty_params, ret),
-                       convention, sym)
+                       convention, sym, attrs)
         TypeDef(name, is_private, ty_params, fields) =>
             TypeDef(qname(ns, name), is_private, ty_params,
                     rewrite_field_defs(view, ty_params, fields))

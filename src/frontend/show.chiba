@@ -496,7 +496,8 @@ def item_to_str(s: Str, it: Item): i64 =
             let _ = str_push_cstr(s, " = ")
             expr_to_str(s, body)
         }
-        ExternDecl(name, is_private, tparams, params, ret, convention, sym) => {
+        ExternDecl(name, is_private, tparams, params, ret, convention, sym, attrs) => {
+            let _ = attr_list_to_str(s, attrs)
             let _ = if is_private != 0 { str_push_cstr(s, "private ") } else { 0 }
             let _ = str_push_cstr(s, "def ")
             let _ = str_append(s, name)

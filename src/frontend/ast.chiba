@@ -201,8 +201,8 @@ data UseDecl {
 data Item {
     FunDef(Str, i64, List[Str], List[Param], Ty, Expr, List[Str]),
         // name, is_private, type_params, params, ret_type, body, attrs
-    ExternDecl(Str, i64, List[Str], List[Param], Ty, Str, Str),
-        // name, is_private, type_params, params, ret_type, convention, sym
+    ExternDecl(Str, i64, List[Str], List[Param], Ty, Str, Str, List[Str]),
+        // name, is_private, type_params, params, ret_type, convention, sym, attrs
     TypeDef(Str, i64, List[Str], List[FieldDef]),
         // name, is_private, type_params, fields
     UnionDef(Str, i64, List[FieldDef]),

@@ -88,7 +88,7 @@ def resolve_pass1_item(m: Module, item: Item, errs: List[Str]): (Module, List[St
                 r
             }
         }
-        ExternDecl(name, is_private, _, params, ret, _, _) => {
+        ExternDecl(name, is_private, _, params, ret, _, _, _) => {
             if strlist_has(m.funs, name) != 0 {
                 let e = str_new()
                 let _ = str_push_cstr(e, "duplicate function `")
@@ -338,7 +338,7 @@ def check_item(m: Module, item: Item, errs: List[Str]): List[Str] =
             let env = params_to_env(params, Nil)
             check_expr(body, env, m, errs3)
         }
-        ExternDecl(_, _, type_params, params, ret, _, _) => {
+        ExternDecl(_, _, type_params, params, ret, _, _, _) => {
             let errs2 = check_param_types_with_params(params, type_params, m, errs)
             check_ty_with_params(ret, type_params, m, errs2)
         }

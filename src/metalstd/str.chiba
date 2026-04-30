@@ -147,14 +147,10 @@ def str_fill(s: Str, ch: i64, count: i64): i64 =
 // ── Bitwise helpers (for hex formatting) ──────────────────────────────────────
 
 def bit_shr(n: i64, shf: i64): i64 =
-    asm (n: rax, shf: rcx) : (rax) => {
-        "shr rax, cl"
-    }
+    n >> shf
 
 def bit_and(a: i64, b: i64): i64 =
-    asm (a: rax, b: rcx) : (rax) => {
-        "and rax, rcx"
-    }
+    a & b
 
 // ── Decimal formatting ───────────────────────────────────────────────────────
 

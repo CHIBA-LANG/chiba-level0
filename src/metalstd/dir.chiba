@@ -1,15 +1,20 @@
 namespace metalstd.dir
 use metalstd.mem.*
 use metalstd.file.*
+use metalstd.sys.linux_amd64.dir.*
+use metalstd.libc.dir.*
 
 // ── Linux x86-64 directory syscalls/helpers ──────────────────────────────
 // `path` and `wanted` are C-ABI boundary values represented as `cstr` views.
 // `wanted` is compared against NUL-terminated entry names returned by getdents.
 
+#[compile_if(backend = "chiba")]
 def dir_getdents64(fd: i64, buf: i64, size: i64): i64 =
-    asm (217: rax, fd: rdi, buf: rsi, size: rdx) : (rax) => {
-        "syscall"
-    }
+    sys_dir_getdents64(fd, buf, size)
+
+#[compile_if(backend = "c")]
+def dir_getdents64(fd: i64, buf: i64, size: i64): i64 =
+    libc_dir_getdents64(fd, buf, size)
 
 def dir_load16le(ptr: i64, off: i64): i64 =
     load8(ptr, off) + load8(ptr, off + 1) * 256

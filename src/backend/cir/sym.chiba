@@ -2,22 +2,16 @@ namespace backend.cir.sym
 use metalstd.mem.*
 use metalstd.str.*
 
-// ── Bitwise helpers (via inline asm) ──────────────────────────────────────────
+// ── Bitwise helpers ───────────────────────────────────────────────────────────
 
 def bit_xor(a: i64, b: i64): i64 =
-    asm (a: rax, b: rcx) : (rax) => {
-        "xor rax, rcx"
-    }
+    a ^ b
 
 def bit_shl(n: i64, shf: i64): i64 =
-    asm (n: rax, shf: rcx) : (rax) => {
-        "shl rax, cl"
-    }
+    n << shf
 
 def bit_or(a: i64, b: i64): i64 =
-    asm (a: rax, b: rcx) : (rax) => {
-        "or rax, rcx"
-    }
+    a | b
 
 // ── MurmurHash64A ────────────────────────────────────────────────────────────
 //

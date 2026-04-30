@@ -1,0 +1,27 @@
+namespace metalstd.sys.linux_amd64.file
+
+// Linux amd64 raw file syscalls.
+
+#[compile_if(backend = "chiba")]
+def sys_file_openat(dirfd: i64, path: cstr, flags: i64, mode: i64): i64 =
+    asm (257: rax, dirfd: rdi, path.ptr: rsi, flags: rdx, mode: r10) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_file_close(fd: i64): i64 =
+    asm (3: rax, fd: rdi) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_file_read(fd: i64, buf: i64, count: i64): i64 =
+    asm (0: rax, fd: rdi, buf: rsi, count: rdx) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_file_lseek(fd: i64, offset: i64, whence: i64): i64 =
+    asm (8: rax, fd: rdi, offset: rsi, whence: rdx) : (rax) => {
+        "syscall"
+    }

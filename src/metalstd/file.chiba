@@ -1,6 +1,8 @@
 namespace metalstd.file
 use metalstd.mem.*
 use metalstd.str.*
+use metalstd.sys.linux_amd64.file.*
+use metalstd.libc.file.*
 
 // ── Linux x86-64 file syscalls ───────────────────────────────────────────
 // Path-bearing helpers in this module take `cstr` to make the filesystem
@@ -17,25 +19,37 @@ def FILE_O_DIRECTORY(): i64 = 65536
 def FILE_SEEK_SET(): i64 = 0
 def FILE_SEEK_END(): i64 = 2
 
+#[compile_if(backend = "chiba")]
 def file_openat(dirfd: i64, path: cstr, flags: i64, mode: i64): i64 =
-    asm (257: rax, dirfd: rdi, path.ptr: rsi, flags: rdx, mode: r10) : (rax) => {
-        "syscall"
-    }
+    sys_file_openat(dirfd, path, flags, mode)
 
+#[compile_if(backend = "c")]
+def file_openat(dirfd: i64, path: cstr, flags: i64, mode: i64): i64 =
+    libc_openat(dirfd, path, flags, mode)
+
+#[compile_if(backend = "chiba")]
 def file_close(fd: i64): i64 =
-    asm (3: rax, fd: rdi) : (rax) => {
-        "syscall"
-    }
+    sys_file_close(fd)
 
+#[compile_if(backend = "c")]
+def file_close(fd: i64): i64 =
+    libc_close(fd)
+
+#[compile_if(backend = "chiba")]
 def file_read(fd: i64, buf: i64, count: i64): i64 =
-    asm (0: rax, fd: rdi, buf: rsi, count: rdx) : (rax) => {
-        "syscall"
-    }
+    sys_file_read(fd, buf, count)
 
+#[compile_if(backend = "c")]
+def file_read(fd: i64, buf: i64, count: i64): i64 =
+    libc_read(fd, buf, count)
+
+#[compile_if(backend = "chiba")]
 def file_lseek(fd: i64, offset: i64, whence: i64): i64 =
-    asm (8: rax, fd: rdi, offset: rsi, whence: rdx) : (rax) => {
-        "syscall"
-    }
+    sys_file_lseek(fd, offset, whence)
+
+#[compile_if(backend = "c")]
+def file_lseek(fd: i64, offset: i64, whence: i64): i64 =
+    libc_lseek(fd, offset, whence)
 
 def file_write_all_fd(fd: i64, ptr: i64, len: i64): i64 =
     file_write_all_fd_loop(fd, ptr, len, 0)

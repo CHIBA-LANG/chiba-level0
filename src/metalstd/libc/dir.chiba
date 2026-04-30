@@ -1,0 +1,12 @@
+namespace metalstd.libc.dir
+
+// libc syscall boundary for directory enumeration used by the C backend.
+
+def LIBC_SYS_getdents64(): i64 = 217
+
+#[compile_if(backend = "c")]
+def libc_syscall3(num: i64, a0: i64, a1: i64, a2: i64): i64 = extern "c" "syscall"
+
+#[compile_if(backend = "c")]
+def libc_dir_getdents64(fd: i64, buf: i64, size: i64): i64 =
+	libc_syscall3(LIBC_SYS_getdents64(), fd, buf, size)

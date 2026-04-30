@@ -1,0 +1,9 @@
+namespace metalstd.sys.linux_amd64.dir
+
+// Linux amd64 raw directory syscalls.
+
+#[compile_if(backend = "chiba")]
+def sys_dir_getdents64(fd: i64, buf: i64, size: i64): i64 =
+    asm (217: rax, fd: rdi, buf: rsi, size: rdx) : (rax) => {
+        "syscall"
+    }

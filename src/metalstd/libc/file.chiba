@@ -1,0 +1,15 @@
+namespace metalstd.libc.file
+
+// libc file boundary used by the portable C backend.
+
+#[compile_if(backend = "c")]
+def libc_openat(dirfd: i64, path: cstr, flags: i64, mode: i64): i64 = extern "c" "openat"
+
+#[compile_if(backend = "c")]
+def libc_close(fd: i64): i64 = extern "c" "close"
+
+#[compile_if(backend = "c")]
+def libc_read(fd: i64, buf: i64, count: i64): i64 = extern "c" "read"
+
+#[compile_if(backend = "c")]
+def libc_lseek(fd: i64, offset: i64, whence: i64): i64 = extern "c" "lseek"

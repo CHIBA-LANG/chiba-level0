@@ -3,6 +3,8 @@ use metalstd.mem.*
 use metalstd.list.*
 use metalstd.str.*
 use metalstd.file.*
+use metalstd.sys.linux_amd64.process.*
+use metalstd.libc.process.*
 
 // ── Linux x86-64 process syscalls/helpers ────────────────────────────────
 //
@@ -28,43 +30,58 @@ def proc_result_stdout(res: ProcResult): Str =
         ProcResult(_, out) => out
     }
 
+#[compile_if(backend = "chiba")]
 def proc_fork(): i64 =
-    asm (57: rax) : (rax) => {
-        "syscall"
-    }
+    sys_proc_fork()
 
+#[compile_if(backend = "c")]
+def proc_fork(): i64 =
+    libc_fork()
+
+#[compile_if(backend = "chiba")]
 def proc_execve(path: cstr, argv: i64, envp: i64): i64 =
-    asm (59: rax, path.ptr: rdi, argv: rsi, envp: rdx) : (rax) => {
-        "syscall"
-    }
+    sys_proc_execve(path, argv, envp)
 
+#[compile_if(backend = "c")]
+def proc_execve(path: cstr, argv: i64, envp: i64): i64 =
+    libc_execve(path, argv, envp)
+
+#[compile_if(backend = "chiba")]
 def proc_wait4(pid: i64, status_ptr: i64, options: i64, rusage: i64): i64 =
-    asm (61: rax, pid: rdi, status_ptr: rsi, options: rdx, rusage: r10) : (rax) => {
-        "syscall"
-    }
+    sys_proc_wait4(pid, status_ptr, options, rusage)
 
+#[compile_if(backend = "c")]
+def proc_wait4(pid: i64, status_ptr: i64, options: i64, rusage: i64): i64 =
+    libc_wait4(pid, status_ptr, options, rusage)
+
+#[compile_if(backend = "chiba")]
 def proc_pipe(pipefd_ptr: i64): i64 =
-    asm (22: rax, pipefd_ptr: rdi) : (rax) => {
-        "syscall"
-    }
+    sys_proc_pipe(pipefd_ptr)
 
+#[compile_if(backend = "c")]
+def proc_pipe(pipefd_ptr: i64): i64 =
+    libc_pipe(pipefd_ptr)
+
+#[compile_if(backend = "chiba")]
 def proc_dup2(oldfd: i64, newfd: i64): i64 =
-    asm (33: rax, oldfd: rdi, newfd: rsi) : (rax) => {
-        "syscall"
-    }
+    sys_proc_dup2(oldfd, newfd)
 
+#[compile_if(backend = "c")]
+def proc_dup2(oldfd: i64, newfd: i64): i64 =
+    libc_dup2(oldfd, newfd)
+
+#[compile_if(backend = "chiba")]
 def proc__exit(code: i64): i64 =
-    asm (60: rax, code: rdi) : (rax) => {
-        "syscall"
-    }
+    sys_proc_exit(code)
+
+#[compile_if(backend = "c")]
+def proc__exit(code: i64): i64 =
+    libc__exit(code)
 
 def proc_load32le(ptr: i64, off: i64): i64 =
     load8(ptr, off) + load8(ptr, off + 1) * 256 + load8(ptr, off + 2) * 65536 + load8(ptr, off + 3) * 16777216
 
-def proc_shr8(x: i64): i64 =
-    asm (x: rax) : (rax) => {
-        "shr rax, 8"
-    }
+def proc_shr8(x: i64): i64 = x / 256
 
 // Build a null-terminated argv vector (`char**`) from borrowed `cstr` views.
 // Each element contributes only its `.ptr`; ownership stays with the caller.

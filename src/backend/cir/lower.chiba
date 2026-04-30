@@ -41,7 +41,7 @@ def assign_fun_ids(items: List[Item], env: LowerEnv, ctx: LowerCtx): LowerEnv =
                     let env2 = env_add_fun(env, name, fid)
                     assign_fun_ids(rest, env2, ctx)
                 }
-                ExternDecl(name, _, _, _, _, _, _) => {
+                ExternDecl(name, _, _, _, _, _, _, _) => {
                     let fid = fresh_fun(ctx)
                     let env2 = env_add_fun(env, name, fid)
                     assign_fun_ids(rest, env2, ctx)
@@ -69,7 +69,7 @@ def lower_items(items: List[Item], env: LowerEnv,
                     }
                     Cons(fdef, lower_items(rest, env, module, ctx))
                 }
-                ExternDecl(name, _, _, params, _, convention, sym) => {
+                ExternDecl(name, _, _, params, _, convention, sym, _) => {
                     let fun_id = strlist_get_unwrap(env.funs, name)
                     let ret_cont = fresh_cont(ctx)
                     let param_vars = alloc_extern_params(params, ctx)

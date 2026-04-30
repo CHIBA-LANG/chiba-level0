@@ -1,10 +1,13 @@
 namespace metalstd.mem
+use metalstd.sys.linux_amd64.io.*
+use metalstd.libc.io.*
 
 // ── Low-level memory primitives ───────────────────────────────────────────────
 
 // Bump-allocate `bytes` from the runtime heap.
 // Returns pointer to the allocated region.
 // r15 = Ctx*, [r15+8] = heap_ptr, [r15+16] = heap_limit
+#[compile_if(backend = "chiba")]
 def heap_alloc(bytes: i64): i64 =
     asm (bytes: rcx) : (rax) => {
         "add rcx, 7"
@@ -22,31 +25,50 @@ def heap_alloc(bytes: i64): i64 =
         "mov [r15 + 8], rdx"
     }
 
+#[compile_if(backend = "c")]
+def heap_alloc(bytes: i64): i64 = extern "c" "chiba_bump_alloc"
+
 // Load a 64-bit word from ptr[idx] (idx in 8-byte units)
+#[compile_if(backend = "chiba")]
 def load64(ptr: i64, idx: i64): i64 =
     asm (ptr: rdi, idx: rsi) : (rax) => {
         "mov rax, [rdi + rsi*8]"
     }
 
+#[compile_if(backend = "c")]
+def load64(ptr: i64, idx: i64): i64 = extern "c" "chiba_heap_load"
+
 // Store a 64-bit word at ptr[idx] (idx in 8-byte units). Returns 0.
+#[compile_if(backend = "chiba")]
 def store64(ptr: i64, idx: i64, val: i64): i64 =
     asm (ptr: rdi, idx: rsi, val: rdx) : (rax) => {
         "mov [rdi + rsi*8], rdx"
         "xor eax, eax"
     }
 
+#[compile_if(backend = "c")]
+def store64(ptr: i64, idx: i64, val: i64): i64 = extern "c" "chiba_heap_store_value"
+
 // Load a single byte from ptr+offset, zero-extended to i64
+#[compile_if(backend = "chiba")]
 def load8(ptr: i64, offset: i64): i64 =
     asm (ptr: rdi, offset: rsi) : (rax) => {
         "movzx rax, byte ptr [rdi + rsi]"
     }
 
+#[compile_if(backend = "c")]
+def load8(ptr: i64, offset: i64): i64 = extern "c" "chiba_heap_load8"
+
 // Store a single byte at ptr+offset. Returns 0.
+#[compile_if(backend = "chiba")]
 def store8(ptr: i64, offset: i64, val: i64): i64 =
     asm (ptr: rdi, offset: rsi, val: rdx) : (rax) => {
         "mov byte ptr [rdi + rsi], dl"
         "xor eax, eax"
     }
+
+#[compile_if(backend = "c")]
+def store8(ptr: i64, offset: i64, val: i64): i64 = extern "c" "chiba_heap_store8_value"
 
 // ── memcpy / memset ───────────────────────────────────────────────────────────
 
@@ -102,13 +124,19 @@ def strlen(p: i64): i64 = strlen_loop(p, 0)
 // ── I/O syscalls ──────────────────────────────────────────────────────────────
 
 // write(fd, buf, len) -> bytes written
+#[compile_if(backend = "chiba")]
 def write_fd(fd: i64, ptr: i64, len: i64): i64 =
-    asm (1: rax, fd: rdi, ptr: rsi, len: rdx) : (rax) => {
-        "syscall"
-    }
+    sys_write_fd(fd, ptr, len)
+
+#[compile_if(backend = "c")]
+def write_fd(fd: i64, ptr: i64, len: i64): i64 =
+    libc_write(fd, ptr, len)
 
 // exit(code) -> never returns
+#[compile_if(backend = "chiba")]
 def exit(code: i64): i64 =
-    asm (60: rax, code: rdi) : (rax) => {
-        "syscall"
-    }
+    sys_exit(code)
+
+#[compile_if(backend = "c")]
+def exit(code: i64): i64 =
+    libc_exit(code)

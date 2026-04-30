@@ -1,0 +1,15 @@
+namespace metalstd.sys.linux_amd64.io
+
+// Linux amd64 raw syscall I/O boundary.
+
+#[compile_if(backend = "chiba")]
+def sys_write_fd(fd: i64, ptr: i64, len: i64): i64 =
+    asm (1: rax, fd: rdi, ptr: rsi, len: rdx) : (rax) => {
+        "syscall"
+    }
+
+#[compile_if(backend = "chiba")]
+def sys_exit(code: i64): i64 =
+    asm (60: rax, code: rdi) : (rax) => {
+        "syscall"
+    }

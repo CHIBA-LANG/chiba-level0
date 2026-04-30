@@ -1,0 +1,21 @@
+namespace metalstd.libc.process
+
+// libc process boundary used by the portable C backend.
+
+#[compile_if(backend = "c")]
+def libc_fork(): i64 = extern "c" "fork"
+
+#[compile_if(backend = "c")]
+def libc_execve(path: cstr, argv: i64, envp: i64): i64 = extern "c" "execve"
+
+#[compile_if(backend = "c")]
+def libc_wait4(pid: i64, status_ptr: i64, options: i64, rusage: i64): i64 = extern "c" "chiba_libc_wait4_value"
+
+#[compile_if(backend = "c")]
+def libc_pipe(pipefd_ptr: i64): i64 = extern "c" "pipe"
+
+#[compile_if(backend = "c")]
+def libc_dup2(oldfd: i64, newfd: i64): i64 = extern "c" "dup2"
+
+#[compile_if(backend = "c")]
+def libc__exit(code: i64): i64 = extern "c" "_exit"
