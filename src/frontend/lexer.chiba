@@ -248,6 +248,19 @@ def lx_scan_to_close_bracket(lx: i64): i64 =
         }
     }
 
+def lx_scan_to_close_bracket_pos(lx: i64): i64 =
+    if lx_pos(lx) >= lx_len(lx) { lx_pos(lx) }
+    else {
+        if lx_cur(lx) == 93 {
+            let end = lx_pos(lx)
+            let _ = lx_adv(lx)
+            end
+        } else {
+            let _ = lx_adv(lx)
+            lx_scan_to_close_bracket_pos(lx)
+        }
+    }
+
 def lx_lex_hash(lx: i64): Token = {
     let _ = lx_adv(lx)
     if lx_cur(lx) == 33 {
@@ -257,11 +270,9 @@ def lx_lex_hash(lx: i64): Token = {
         let _ = lx_adv(lx)
         let _ = if lx_cur(lx) == 32 { let _ = lx_adv(lx) 0 } else { 0 }
         let attr_start = lx_pos(lx)
-        let _ = lx_scan_ident(lx)
-        let attr_len = lx_pos(lx) - attr_start
+        let attr_end = lx_scan_to_close_bracket_pos(lx)
+        let attr_len = attr_end - attr_start
         let attr_ptr = lx_src(lx) + attr_start
-        let _ = if lx_cur(lx) == 32 { let _ = lx_adv(lx) 0 } else { 0 }
-        let _ = lx_scan_to_close_bracket(lx)
         TokItemAttr(mk_str(attr_ptr, attr_len))
     }
 }

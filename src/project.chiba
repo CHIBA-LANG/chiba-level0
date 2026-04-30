@@ -13,6 +13,45 @@ data SourceFile {
     SourceFile(Str, Program)
 }
 
+type CompileConfig {
+    target: Str
+    backend: Str
+}
+
+data CompileFilterResult {
+    CompileFilterOk(List[SourceFile]),
+    CompileFilterErr(List[Str])
+}
+
+data CompileIfEval {
+    CompileIfKeep,
+    CompileIfDrop,
+    CompileIfEvalErr(Str)
+}
+
+data CompileIfBoolParse {
+    CompileIfBoolOk(i64, i64),
+    CompileIfBoolErr(Str)
+}
+
+data CompileIfIdentParse {
+    CompileIfIdentOk(Str, i64),
+    CompileIfIdentErr(Str)
+}
+
+data CompileIfStrParse {
+    CompileIfStrOk(Str, i64),
+    CompileIfStrErr(Str)
+}
+
+data CompileFilterItemsResult {
+    CompileFilterItemsResult(List[Item], List[Str])
+}
+
+data CompileFilterProgramResult {
+    CompileFilterProgramResult(Program, List[Str])
+}
+
 def source_file_path(sf: SourceFile): Str =
     match sf {
         SourceFile(path, _) => path
@@ -22,6 +61,269 @@ def source_file_program(sf: SourceFile): Program =
     match sf {
         SourceFile(_, prog) => prog
     }
+
+def compile_config_default(): CompileConfig =
+    CompileConfig { target: mk_str("amd64-unknown-linux", 19), backend: mk_str("chiba", 5) }
+
+def compile_config_for_backend(backend: Str): CompileConfig =
+    CompileConfig { target: mk_str("amd64-unknown-linux", 19), backend: backend }
+
+def compile_config(target: Str, backend: Str): CompileConfig =
+    CompileConfig { target: target, backend: backend }
+
+def compile_if_err(msg: cstr): Str = {
+    let e = str_new()
+    let _ = str_push_cstr(e, msg)
+    e
+}
+
+def compile_if_is_ws(c: i64): i64 =
+    if c == 32 { 1 } else if c == 9 { 1 } else if c == 10 { 1 } else if c == 13 { 1 } else { 0 }
+
+def compile_if_skip_ws(s: Str, pos: i64): i64 =
+    if pos >= s.len { pos }
+    else {
+        if compile_if_is_ws(load8(s.ptr, pos)) != 0 { compile_if_skip_ws(s, pos + 1) }
+        else { pos }
+    }
+
+def compile_if_is_ident_char(c: i64): i64 =
+    if c == 95 { 1 }
+    else if c >= 65 {
+        if c <= 90 { 1 }
+        else if c >= 97 { if c <= 122 { 1 } else { 0 } } else { 0 }
+    } else if c >= 48 {
+        if c <= 57 { 1 } else { 0 }
+    } else { 0 }
+
+def compile_if_scan_ident(s: Str, pos: i64): i64 =
+    if pos >= s.len { pos }
+    else {
+        if compile_if_is_ident_char(load8(s.ptr, pos)) != 0 { compile_if_scan_ident(s, pos + 1) }
+        else { pos }
+    }
+
+def compile_if_parse_ident(s: Str, pos: i64): CompileIfIdentParse = {
+    let start = compile_if_skip_ws(s, pos)
+    if start >= s.len { CompileIfIdentErr(compile_if_err(c"compile_if expected identifier")) }
+    else {
+        if compile_if_is_ident_char(load8(s.ptr, start)) == 0 {
+            CompileIfIdentErr(compile_if_err(c"compile_if expected identifier"))
+        } else {
+            let end = compile_if_scan_ident(s, start)
+            CompileIfIdentOk(mk_str(s.ptr + start, end - start), end)
+        }
+    }
+}
+
+def compile_if_scan_quote(s: Str, pos: i64): i64 =
+    if pos >= s.len { pos }
+    else {
+        if load8(s.ptr, pos) == 34 { pos }
+        else { compile_if_scan_quote(s, pos + 1) }
+    }
+
+def compile_if_parse_str(s: Str, pos: i64): CompileIfStrParse = {
+    let start0 = compile_if_skip_ws(s, pos)
+    if start0 >= s.len { CompileIfStrErr(compile_if_err(c"compile_if expected string literal")) }
+    else if load8(s.ptr, start0) != 34 { CompileIfStrErr(compile_if_err(c"compile_if expected string literal")) }
+    else {
+        let start = start0 + 1
+        let end = compile_if_scan_quote(s, start)
+        if end >= s.len { CompileIfStrErr(compile_if_err(c"compile_if unterminated string literal")) }
+        else { CompileIfStrOk(mk_str(s.ptr + start, end - start), end + 1) }
+    }
+}
+
+def compile_if_known_target(v: Str): i64 =
+    if streq(v, mk_str("aarch64-apple-darwin", 20)) != 0 { 1 }
+    else if streq(v, mk_str("amd64-unknown-linux", 19)) != 0 { 1 }
+    else if streq(v, mk_str("aarch64-unknown-linux", 21)) != 0 { 1 }
+    else if streq(v, mk_str("amd64-windows-mingw64", 21)) != 0 { 1 }
+    else if streq(v, mk_str("wasm32-unknown-wasm", 19)) != 0 { 1 }
+    else { 0 }
+
+def compile_if_known_backend(v: Str): i64 =
+    if streq(v, mk_str("chiba", 5)) != 0 { 1 }
+    else if streq(v, mk_str("c", 1)) != 0 { 1 }
+    else { 0 }
+
+def compile_if_eval_key_value(cfg: CompileConfig, s: Str, key: Str, pos: i64): CompileIfBoolParse = {
+    let eq_pos = compile_if_skip_ws(s, pos)
+    if eq_pos >= s.len { CompileIfBoolErr(compile_if_err(c"compile_if expected =")) }
+    else if load8(s.ptr, eq_pos) != 61 { CompileIfBoolErr(compile_if_err(c"compile_if expected =")) }
+    else {
+        let val_parse = compile_if_parse_str(s, eq_pos + 1)
+        match val_parse {
+            CompileIfStrErr(e) => CompileIfBoolErr(e)
+            CompileIfStrOk(v, end_pos) => {
+                if streq(key, mk_str("target", 6)) != 0 {
+                    if compile_if_known_target(v) == 0 { CompileIfBoolErr(compile_if_err(c"compile_if unknown target")) }
+                    else {
+                        let matched = if streq(v, cfg.target) != 0 { 1 } else { 0 }
+                        CompileIfBoolOk(matched, end_pos)
+                    }
+                } else if streq(key, mk_str("backend", 7)) != 0 {
+                    if compile_if_known_backend(v) == 0 { CompileIfBoolErr(compile_if_err(c"compile_if unknown backend")) }
+                    else {
+                        let matched = if streq(v, cfg.backend) != 0 { 1 } else { 0 }
+                        CompileIfBoolOk(matched, end_pos)
+                    }
+                } else { CompileIfBoolErr(compile_if_err(c"compile_if unknown key")) }
+            }
+        }
+    }
+}
+
+def compile_if_parse_cond_list(cfg: CompileConfig, s: Str, pos: i64, is_all: i64, seen: i64, acc: i64): CompileIfBoolParse = {
+    let pos0 = compile_if_skip_ws(s, pos)
+    if pos0 < s.len {
+        if load8(s.ptr, pos0) == 41 {
+            if seen == 0 { CompileIfBoolErr(compile_if_err(c"compile_if all/any expects at least one argument")) }
+            else { CompileIfBoolOk(acc, pos0 + 1) }
+        } else {
+            let parsed = compile_if_parse_cond(cfg, s, pos0)
+            match parsed {
+                CompileIfBoolErr(e) => CompileIfBoolErr(e)
+                CompileIfBoolOk(v, after_cond) => {
+                    let acc2 = if is_all != 0 { if acc != 0 { v } else { 0 } } else { if acc != 0 { 1 } else { v } }
+                    let next = compile_if_skip_ws(s, after_cond)
+                    if next < s.len {
+                        if load8(s.ptr, next) == 44 { compile_if_parse_cond_list(cfg, s, next + 1, is_all, 1, acc2) }
+                        else if load8(s.ptr, next) == 41 { CompileIfBoolOk(acc2, next + 1) }
+                        else { CompileIfBoolErr(compile_if_err(c"compile_if expected , or )")) }
+                    } else { CompileIfBoolErr(compile_if_err(c"compile_if expected )")) }
+                }
+            }
+        }
+    } else { CompileIfBoolErr(compile_if_err(c"compile_if expected )")) }
+}
+
+def compile_if_parse_call(cfg: CompileConfig, s: Str, name: Str, pos: i64): CompileIfBoolParse = {
+    let lp = compile_if_skip_ws(s, pos)
+    if lp >= s.len { CompileIfBoolErr(compile_if_err(c"compile_if expected (")) }
+    else if load8(s.ptr, lp) != 40 { CompileIfBoolErr(compile_if_err(c"compile_if expected (")) }
+    else if streq(name, mk_str("all", 3)) != 0 { compile_if_parse_cond_list(cfg, s, lp + 1, 1, 0, 1) }
+    else if streq(name, mk_str("any", 3)) != 0 { compile_if_parse_cond_list(cfg, s, lp + 1, 0, 0, 0) }
+    else if streq(name, mk_str("not", 3)) != 0 {
+        let inner = compile_if_parse_cond(cfg, s, lp + 1)
+        match inner {
+            CompileIfBoolErr(e) => CompileIfBoolErr(e)
+            CompileIfBoolOk(v, after_inner) => {
+                let rp = compile_if_skip_ws(s, after_inner)
+                if rp < s.len {
+                    if load8(s.ptr, rp) == 44 { CompileIfBoolErr(compile_if_err(c"compile_if not expects exactly one argument")) }
+                    else if load8(s.ptr, rp) == 41 { CompileIfBoolOk(if v == 0 { 1 } else { 0 }, rp + 1) }
+                    else { CompileIfBoolErr(compile_if_err(c"compile_if expected )")) }
+                } else { CompileIfBoolErr(compile_if_err(c"compile_if expected )")) }
+            }
+        }
+    } else { CompileIfBoolErr(compile_if_err(c"compile_if unknown boolean operator")) }
+}
+
+def compile_if_parse_cond(cfg: CompileConfig, s: Str, pos: i64): CompileIfBoolParse = {
+    let id_parse = compile_if_parse_ident(s, pos)
+    match id_parse {
+        CompileIfIdentErr(e) => CompileIfBoolErr(e)
+        CompileIfIdentOk(name, after_name) => {
+            if streq(name, mk_str("all", 3)) != 0 { compile_if_parse_call(cfg, s, name, after_name) }
+            else if streq(name, mk_str("any", 3)) != 0 { compile_if_parse_call(cfg, s, name, after_name) }
+            else if streq(name, mk_str("not", 3)) != 0 { compile_if_parse_call(cfg, s, name, after_name) }
+            else { compile_if_eval_key_value(cfg, s, name, after_name) }
+        }
+    }
+}
+
+def compile_if_attr_is_compile_if(attr: Str): i64 =
+    match compile_if_parse_ident(attr, 0) {
+        CompileIfIdentOk(name, _) => if streq(name, mk_str("compile_if", 10)) != 0 { 1 } else { 0 }
+        _ => 0
+    }
+
+def compile_if_eval_bool(v: i64): CompileIfEval =
+    if v != 0 { CompileIfKeep } else { CompileIfDrop }
+
+def compile_if_eval_attr(cfg: CompileConfig, attr: Str): CompileIfEval =
+    match compile_if_parse_ident(attr, 0) {
+        CompileIfIdentErr(e) => CompileIfEvalErr(e)
+        CompileIfIdentOk(name, after_name) => {
+            if streq(name, mk_str("compile_if", 10)) == 0 { CompileIfKeep }
+            else {
+                let lp = compile_if_skip_ws(attr, after_name)
+                if lp >= attr.len { CompileIfEvalErr(compile_if_err(c"compile_if expected (")) }
+                else if load8(attr.ptr, lp) != 40 { CompileIfEvalErr(compile_if_err(c"compile_if expected (")) }
+                else {
+                    let cond = compile_if_parse_cond(cfg, attr, lp + 1)
+                    match cond {
+                        CompileIfBoolErr(e) => CompileIfEvalErr(e)
+                        CompileIfBoolOk(v, after_cond) => {
+                            let rp = compile_if_skip_ws(attr, after_cond)
+                            if rp >= attr.len { CompileIfEvalErr(compile_if_err(c"compile_if expected )")) }
+                            else if load8(attr.ptr, rp) != 41 { CompileIfEvalErr(compile_if_err(c"compile_if expected )")) }
+                            else {
+                                let end_pos = compile_if_skip_ws(attr, rp + 1)
+                                if end_pos == attr.len { compile_if_eval_bool(v) }
+                                else { CompileIfEvalErr(compile_if_err(c"compile_if unexpected trailing tokens")) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+def compile_if_eval_attrs(cfg: CompileConfig, attrs: List[Str], keep: i64): CompileIfEval =
+    match attrs {
+        Nil => compile_if_eval_bool(keep)
+        Cons(attr, rest) => {
+            if compile_if_attr_is_compile_if(attr) != 0 {
+                match compile_if_eval_attr(cfg, attr) {
+                    CompileIfEvalErr(e) => CompileIfEvalErr(e)
+                    CompileIfKeep => compile_if_eval_attrs(cfg, rest, keep)
+                    CompileIfDrop => compile_if_eval_attrs(cfg, rest, 0)
+                }
+            } else { compile_if_eval_attrs(cfg, rest, keep) }
+        }
+    }
+
+def compile_filter_items_loop(cfg: CompileConfig, items: List[Item], kept: List[Item], errs: List[Str]): CompileFilterItemsResult =
+    match items {
+        Nil => CompileFilterItemsResult(rev(kept), rev(errs))
+        Cons(item, rest) =>
+            match item {
+                FunDef(_, _, _, _, _, _, attrs) => {
+                    match compile_if_eval_attrs(cfg, attrs, 1) {
+                        CompileIfEvalErr(e) => compile_filter_items_loop(cfg, rest, kept, Cons(e, errs))
+                        CompileIfKeep => compile_filter_items_loop(cfg, rest, Cons(item, kept), errs)
+                        CompileIfDrop => compile_filter_items_loop(cfg, rest, kept, errs)
+                    }
+                }
+                _ => compile_filter_items_loop(cfg, rest, Cons(item, kept), errs)
+            }
+    }
+
+def compile_filter_program(cfg: CompileConfig, prog: Program): CompileFilterProgramResult =
+    match compile_filter_items_loop(cfg, prog.items, Nil, Nil) {
+        CompileFilterItemsResult(items2, errs) =>
+            CompileFilterProgramResult(Program { ns: prog.ns, uses: prog.uses, items: items2, source_files: prog.source_files }, errs)
+    }
+
+def compile_filter_source_files_loop(cfg: CompileConfig, files: List[SourceFile], kept: List[SourceFile], errs: List[Str]): CompileFilterResult =
+    match files {
+        Nil => if is_nil(errs) != 0 { CompileFilterOk(rev(kept)) } else { CompileFilterErr(rev(errs)) }
+        Cons(file, rest) =>
+            match file {
+                SourceFile(path, prog) => {
+                    match compile_filter_program(cfg, prog) {
+                        CompileFilterProgramResult(prog2, errs2) =>
+                            compile_filter_source_files_loop(cfg, rest, Cons(SourceFile(path, prog2), kept), append(errs2, errs))
+                    }
+                }
+            }
+    }
+
+def compile_filter_source_files(cfg: CompileConfig, files: List[SourceFile]): CompileFilterResult =
+    compile_filter_source_files_loop(cfg, files, Nil, Nil)
 
 data ScanParseResult {
     ScanParseOk(List[SourceFile]),

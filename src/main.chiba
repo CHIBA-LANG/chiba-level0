@@ -58,8 +58,25 @@ def parse_backend_name(name: i64): CompileBackend = {
     else { BackendAmd64Asm }
 }
 
+def compile_backend_config_name(backend: CompileBackend): Str =
+    match backend {
+        BackendAmd64Asm => mk_str("chiba", 5)
+        BackendC => mk_str("c", 1)
+    }
+
+def parse_target_arg(argc: i64, argv: i64, i: i64): Str =
+    if i >= argc { mk_str("amd64-unknown-linux", 19) }
+    else {
+        let arg = argv_cstr(argv, i)
+        let arg_s = str_from_cptr(arg)
+        if streq(arg_s, mk_str("--target", 8)) != 0 {
+            if i + 1 < argc { str_from_cptr(argv_cstr(argv, i + 1)) }
+            else { mk_str("amd64-unknown-linux", 19) }
+        } else { parse_target_arg(argc, argv, i + 1) }
+    }
+
 def print_usage(): i64 = {
-    let _ = write_fd(1, "Usage: chiba-level0 [--project <dir>] [--backend amd64|c]\n", 64)
+    let _ = write_fd(1, "Usage: chiba-level0 [--project <dir>] [--target <triple>] [--backend amd64|c]\n", 78)
     let _ = write_fd(1, "  With no args: run self-host tests\n", 37)
     let _ = write_fd(1, "  With --project: compile <dir>/src to target/debug/main.o\n", 62)
     0
@@ -143,7 +160,7 @@ def write_generated_file(path: cstr, text: Str): i64 = {
     } else { 0 }
 }
 
-def compile_project(project_dir: Str, backend: CompileBackend): i64 = {
+def compile_project(project_dir: Str, target: Str, backend: CompileBackend): i64 = {
     let _ = write_fd(1, "[1/5] scanning project...\n", 26)
     let scan = scan_and_parse(project_dir)
     match scan {
@@ -153,7 +170,15 @@ def compile_project(project_dir: Str, backend: CompileBackend): i64 = {
         }
         ScanParseOk(files) => {
             let _ = write_fd(1, "[2/5] resolving...\n", 19)
-            let merged = merge_program(files)
+            let cfg = compile_config(target, compile_backend_config_name(backend))
+            let filtered = compile_filter_source_files(cfg, files)
+            match filtered {
+                CompileFilterErr(errs) => {
+                    let _ = print_errs(c"[compile_if error] ", errs)
+                    1
+                }
+                CompileFilterOk(files2) => {
+            let merged = merge_program(files2)
             let resolved = resolve(merged)
             match resolved {
                 RErr(errs) => {
@@ -222,6 +247,8 @@ def compile_project(project_dir: Str, backend: CompileBackend): i64 = {
                     }
                 }
             }
+                }
+            }
         }
     }
 }
@@ -231,8 +258,9 @@ def main_dispatch(argc: i64, argv: i64): i64 = {
     else {
         let project_dir = parse_project_arg(argc, argv, 1)
         let backend = parse_backend_arg(argc, argv, 1)
+        let target = parse_target_arg(argc, argv, 1)
         match project_dir {
-            Some(dir) => compile_project(str_from_cptr(dir), backend)
+            Some(dir) => compile_project(str_from_cptr(dir), target, backend)
             None => {
                 let _ = print_usage()
                 1

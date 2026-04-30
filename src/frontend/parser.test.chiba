@@ -220,6 +220,14 @@ def test_parser_item(ctx: i64): i64 = {
     let nparams = match item0 { FunDef(_, _, _, params, _, _, _) => length(params)  _ => 0 }
     let _ = assert_eq(ctx, "parse def nparams", nparams, 1)
 
+    // Parse compile_if attribute body without dropping boolean expression text
+    let attr_src = "#[compile_if(all(backend = \"c\", not(target = \"wasm32-unknown-wasm\")))]\ndef cfg(): i64 = 1"
+    let attr_items = parse_program_items(attr_src, strlen(attr_src))
+    let attr_item = head(attr_items)
+    let attr_text = match attr_item { FunDef(_, _, _, _, _, _, attrs) => head(attrs)  _ => str_empty() }
+    let expected_attr = "compile_if(all(backend = \"c\", not(target = \"wasm32-unknown-wasm\")))"
+    let _ = assert_eq(ctx, "parse compile_if attrs", streq(attr_text, mk_str(expected_attr, strlen(expected_attr))), 1)
+
     // Parse a data definition
     let items2 = parse_program_items("data Color { Red, Green, Blue }", 31)
     let _ = assert_eq(ctx, "parse data items", length(items2), 1)
