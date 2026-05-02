@@ -1,0 +1,422 @@
+#![CHIBALEX]
+
+{
+    namespace lexer.chiba_level1
+    use metalstd.str.*
+    use metalstd.vec.*
+    use metalstd.option.*
+}
+
+mode CODE
+mode STRING
+
+// Character classes and macros.
+@ws = [ \t]+
+@wsnl = [ \t]* "\r"? "\n" ([ \t]* "\r"? "\n")* [ \t]*
+@linecom = "//" [^\n]* ("\r"? "\n" [ \t]* "//" [^\n]*)*
+@ident = $XID_START $XID_CONTINUE*
+@suffix = @ident
+
+@dec_digits = $ASCII_DIGIT ($ASCII_DIGIT | "_")*
+@hex_digits = $ASCII_HEX ($ASCII_HEX | "_")*
+@oct_digits = $ASCII_OCT ($ASCII_OCT | "_")*
+@bin_digits = $ASCII_BIN ($ASCII_BIN | "_")*
+@exp = [eE] ("+" | "-")? @dec_digits
+
+@hexint = "0" [xX] @hex_digits
+@octint = "0" [oO] @oct_digits
+@binint = "0" [bB] @bin_digits
+@decint = @dec_digits
+@float1 = @dec_digits "." @dec_digits @exp? @suffix?
+@float2 = @dec_digits @exp @suffix?
+@intlit = (@hexint | @octint | @binint | @decint) @suffix?
+
+@string_open = @ident? "r"? "#"* "\""
+@string_chunk = [^"{}]+
+
+// operator and keywords ignoring wsnl
+@kw_namespace = "namespace" @wsnl?
+@kw_def = "def" @wsnl?
+@kw_type = "type" @wsnl?
+@kw_data = "data" @wsnl?
+@kw_union = "union" @wsnl?
+@kw_let = "let" @wsnl?
+@kw_if = "if" @wsnl?
+@kw_else = "else" @wsnl?
+@kw_match = "match" @wsnl?
+@kw_extern = "extern" @wsnl?
+@kw_unsafe = "unsafe" @wsnl?
+@kw_reset = "reset" @wsnl?
+@kw_shift = "shift" @wsnl?
+@kw_true = "true"
+@kw_false = "false"
+@kw_as = "as" @wsnl?
+@kw_use = "use" @wsnl?
+@kw_private = "private" @wsnl?
+@kw_asm = "asm" @wsnl?
+@kw_for = "for" @wsnl?
+@kw_break = "break" @wsnl?
+@kw_continue = "continue" @wsnl?
+@kw_return = "return" @wsnl?
+@kw_unique = "unique" @wsnl?
+@kw_send = "send" @wsnl?
+
+@op_pipe_gt = "|>" @wsnl?
+@op_colon_eq = ":=" @wsnl?
+@op_dot_star = ".*" @wsnl?
+@op_dot_dot = ".." @wsnl?
+@op_fat_arrow = "=>" @wsnl?
+@op_thin_arrow = "->" @wsnl?
+@op_eq_eq = "==" @wsnl?
+@op_bang_eq = "!=" @wsnl?
+@op_lt_eq = "<=" @wsnl?
+@op_gt_eq = ">=" @wsnl?
+@op_lt_lt = "<<" @wsnl?
+@op_gt_gt = ">>" @wsnl?
+@op_amp_amp = "&&" @wsnl?
+@op_pipe_pipe = "||" @wsnl?
+
+@op_eq = "=" @wsnl?
+@op_plus = "+" @wsnl?
+@op_minus = "-" @wsnl?
+@op_star = "*" @wsnl?
+@op_slash = "/" @wsnl?
+@op_percent = "%" @wsnl?
+@op_lt = "<" @wsnl?
+@op_gt = ">" @wsnl?
+@op_bang = "!" @wsnl?
+@op_amp = "&" @wsnl?
+@op_pipe = "|" @wsnl?
+@op_caret = "^" @wsnl?
+@op_colon = ":" @wsnl?
+@op_comma = "," @wsnl?
+@op_dot = "." @wsnl?
+@op_semicolon = ";" @wsnl?
+@op_lparen = "(" @wsnl?
+@op_lbrace = "{" @wsnl?
+@op_lbracket = "[" @wsnl?
+
+@atom = ":" @ident
+@attr_file_start = "#![" @wsnl?
+@attr_item_start = "#[" @wsnl?
+@tok_hash = "#"
+@tok_at = "@"
+@tok_underscore = "_"
+@tok_rparen = ")"
+@tok_rbrace = "}"
+@tok_rbracket = "]"
+
+@str_quote = "\""
+@str_lbrace = "{"
+
+// Main source mode.
+tokens CODE :-
+    @wsnl                   { Newline(s) }
+    @ws                     ;
+    @linecom                { LineComment(s) }
+
+    @string_open            => string_open
+
+    @kw_namespace           { KwNamespace }
+    @kw_def                 { KwDef }
+    @kw_type                { KwType }
+    @kw_data                { KwData }
+    @kw_union               { KwUnion }
+    @kw_let                 { KwLet }
+    @kw_if                  { KwIf }
+    @kw_else                { KwElse }
+    @kw_match               { KwMatch }
+    @kw_extern              { KwExtern }
+    @kw_unsafe              { KwUnsafe }
+    @kw_reset               { KwReset }
+    @kw_shift               { KwShift }
+    @kw_true                { KwTrue }
+    @kw_false               { KwFalse }
+    @kw_as                  { KwAs }
+    @kw_use                 { KwUse }
+    @kw_private             { KwPrivate }
+    @kw_asm                 { KwAsm }
+    @kw_for                 { KwFor }
+    @kw_break               { KwBreak }
+    @kw_continue            { KwContinue }
+    @kw_return              { KwReturn }
+    @kw_unique              { KwUnique }
+    @kw_send                { KwSend }
+
+    @ident                  { Ident(s) }
+
+    @float1                 { FloatLit(s) }
+    @float2                 { FloatLit(s) }
+    @intlit                 { IntLit(s) }
+
+    @atom                   { Atom(mk_str(s.ptr + 1, s.len - 1)) }
+
+    @attr_file_start        { FileAttrStart }
+    @attr_item_start        { ItemAttrStart }
+    @tok_hash               { Hash }
+
+    @op_pipe_gt            { PipeGt }
+    @op_colon_eq           { ColonEq }
+    @op_dot_star           { DotStar }
+    @op_dot_dot            { DotDot }
+    @op_fat_arrow          { FatArrow }
+    @op_thin_arrow         { ThinArrow }
+    @op_eq_eq              { EqEq }
+    @op_bang_eq            { BangEq }
+    @op_lt_eq              { LtEq }
+    @op_gt_eq              { GtEq }
+    @op_lt_lt              { LtLt }
+    @op_gt_gt              { GtGt }
+    @op_amp_amp            { AmpAmp }
+    @op_pipe_pipe          { PipePipe }
+
+    @op_eq                 { Eq }
+    @op_plus               { Plus }
+    @op_minus              { Minus }
+    @op_star               { Star }
+    @op_slash              { Slash }
+    @op_percent            { Percent }
+    @op_lt                 { Lt }
+    @op_gt                 { Gt }
+    @op_bang               { Bang }
+    @op_amp                { Amp }
+    @op_pipe               { Pipe }
+    @op_caret              { Caret }
+    @op_colon              { Colon }
+    @op_comma              { Comma }
+    @op_dot                { Dot }
+    @op_semicolon          { Semicolon }
+    @tok_at                 { At }
+    @tok_underscore         { Underscore }
+    @op_lparen             { LParen }
+    @tok_rparen             { RParen }
+    @op_lbrace             => code_lbrace
+    @tok_rbrace             => code_rbrace
+    @op_lbracket           { LBracket }
+    @tok_rbracket           { RBracket }
+
+// String body mode. Closing is handled by hook because # count is dynamic.
+tokens STRING :-
+    @str_quote              => string_quote
+    @str_lbrace             => string_enter_interp
+    @string_chunk           => string_chunk
+    $ANY                    => string_chunk
+
+{
+
+    data UserStack {
+        StringState(i64, i64) // hash count, raw flag
+    }
+
+    data Token {
+        KwNamespace,
+        KwDef,
+        KwType,
+        KwData,
+        KwUnion,
+        KwLet,
+        KwIf,
+        KwElse,
+        KwMatch,
+        KwExtern,
+        KwUnsafe,
+        KwReset,
+        KwShift,
+        KwTrue,
+        KwFalse,
+        KwAs,
+        KwUse,
+        KwPrivate,
+        KwAsm,
+        KwFor,
+        KwBreak,
+        KwContinue,
+        KwReturn,
+        KwUnique,
+        KwSend,
+
+        LineComment(Str),
+        Newline(Str),
+
+        Ident(Str),
+        IntLit(Str),
+        FloatLit(Str),
+        Atom(Str),
+
+        StringStart(Str, i64, i64),     // prefix, raw flag, hash count
+        StringChunk(Str),
+        StringExprStart,
+        StringExprEnd,
+        StringEnd,
+
+        FileAttrStart,
+        ItemAttrStart,
+        Hash,
+
+        PipeGt,
+        ColonEq,
+        DotStar,
+        DotDot,
+        FatArrow,
+        ThinArrow,
+        EqEq,
+        BangEq,
+        LtEq,
+        GtEq,
+        LtLt,
+        GtGt,
+        AmpAmp,
+        PipePipe,
+
+        Eq,
+        Plus,
+        Minus,
+        Star,
+        Slash,
+        Percent,
+        Lt,
+        Gt,
+        Bang,
+        Amp,
+        Pipe,
+        Caret,
+        Colon,
+        Comma,
+        Dot,
+        Semicolon,
+        At,
+        Underscore,
+        LParen,
+        RParen,
+        LBrace,
+        RBrace,
+        LBracket,
+        RBracket,
+
+        LexError(i64),
+        Eof,
+    }
+
+    def ch_at(s: Str, idx: i64): i64 = *(s.ptr + idx)
+
+    def count_hashes_after_quote(src: i64, src_len: i64, pos: i64): i64 = {
+        let i = pos + 1
+        let n = 0
+        for i < src_len && *(src + i) == 35 {
+            let i = i + 1
+            let n = n + 1
+        }
+        n
+    }
+
+    def string_open_prefix_len(matched: Str): i64 = {
+        let n = matched.len
+        let i = 0
+        for i < n && ch_at(matched, i) != 114 && ch_at(matched, i) != 35 && ch_at(matched, i) != 34 {
+            let i = i + 1
+        }
+        i
+    }
+
+    def string_open_raw_flag(matched: Str, prefix_len: i64): i64 =
+        if prefix_len < matched.len && ch_at(matched, prefix_len) == 114 { 1 } else { 0 }
+
+    def string_open_hash_count(matched: Str, prefix_len: i64, raw: i64): i64 = {
+        let i = prefix_len + raw
+        let n = 0
+        for i < matched.len && ch_at(matched, i) == 35 {
+            let i = i + 1
+            let n = n + 1
+        }
+        n
+    }
+
+    def push_string_state(ctx: LexerCtx, hashes: i64, raw: i64): LexerCtx = {
+        let _ = vec_push(ctx.user_stack, StringState(hashes, raw) as i64)
+        ctx
+    }
+
+    def pop_string_state(ctx: LexerCtx): LexerCtx = {
+        let _ = vec_pop(ctx.user_stack)
+        ctx
+    }
+
+    def current_string_hash(ctx: LexerCtx): i64 =
+        if vec_len(ctx.user_stack) > 0 {
+            match vec_last(ctx.user_stack) as UserStack { StringState(hashes, _) => hashes }
+        } else { 0 }
+
+    def current_string_raw(ctx: LexerCtx): i64 =
+        if vec_len(ctx.user_stack) > 0 {
+            match vec_last(ctx.user_stack) as UserStack { StringState(_, raw) => raw }
+        } else { 0 }
+
+    def string_open(ctx: LexerCtx, matched: Str): LexerCtx = {
+        let prefix_len = string_open_prefix_len(matched)
+        let prefix = mk_str(matched.ptr, prefix_len)
+        let raw = string_open_raw_flag(matched, prefix_len)
+        let hashes = string_open_hash_count(matched, prefix_len, raw)
+        let emit = vec_new()
+        let _ = vec_push(emit, StringStart(prefix, raw, hashes) as i64)
+        let next = lex_ctx_advance(ctx, matched.len)
+        let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
+        let next = push_string_state(next, hashes, raw)
+        lex_push_mode(next, LEX_MODE_STRING())
+    }
+
+    def string_quote(ctx: LexerCtx, matched: Str): LexerCtx = {
+        let hashes = current_string_hash(ctx)
+        let after = count_hashes_after_quote(ctx.src, ctx.src_len, ctx.pos)
+        let is_close = after == hashes
+        if is_close {
+            let emit = vec_new()
+            let _ = vec_push(emit, StringEnd as i64)
+            let next = lex_ctx_advance(ctx, matched.len + after)
+            let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
+            let next = pop_string_state(next)
+            lex_pop_mode(next)
+        } else {
+            lex_ctx_emit(ctx, matched.len, StringChunk(matched))
+        }
+    }
+
+    def string_chunk(ctx: LexerCtx, matched: Str): LexerCtx =
+        lex_ctx_emit(ctx, matched.len, StringChunk(matched))
+
+    def string_enter_interp(ctx: LexerCtx, matched: Str): LexerCtx = {
+        if current_string_raw(ctx) == 1 {
+            lex_ctx_emit(ctx, matched.len, StringChunk(matched))
+        } else {
+            let emit = vec_new()
+            let _ = vec_push(emit, StringExprStart as i64)
+            let next = lex_ctx_advance(ctx, matched.len)
+            let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
+            lex_push_mode(next, LEX_MODE_CODE())
+        }
+    }
+
+    def code_lbrace(ctx: LexerCtx, matched: Str): LexerCtx = {
+        let emit = vec_new()
+        let _ = vec_push(emit, LBrace as i64)
+        let next = lex_ctx_advance(ctx, matched.len)
+        let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
+        lex_push_mode(next, LEX_MODE_CODE())
+    }
+
+    def code_rbrace(ctx: LexerCtx, matched: Str): LexerCtx = {
+        let parent_mode = if vec_len(ctx.mode_stack) > 0 { vec_last(ctx.mode_stack) } else { 0 - 1 }
+        let emit = vec_new()
+        let _ = if parent_mode == LEX_MODE_STRING() {
+            vec_push(emit, StringExprEnd as i64)
+        } else {
+            vec_push(emit, RBrace as i64)
+        }
+        let next = lex_ctx_advance(ctx, matched.len)
+        let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
+        if vec_len(next.mode_stack) > 0 {
+            lex_pop_mode(next)
+        } else {
+            next
+        }
+    }
+}
