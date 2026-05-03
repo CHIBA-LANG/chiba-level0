@@ -166,25 +166,6 @@ def parse_args(argc: i64, argv: i64): Option[CliArgs] = {
     else { None }
 }
 
-def append_source_info(out: Str, source_path: Str): i64 = {
-    if source_path.len == 0 { 0 }
-    else {
-        let src = file_read_file_all_sized(str_to_cstr(source_path))
-        let toks = source_token_tags(src)
-        let _ = str_push_cstr(out, "source_path: ")
-        let _ = str_append(out, source_path)
-        let _ = str_push(out, 10)
-        let _ = str_push_cstr(out, "source_size: ")
-        let _ = str_append_i64(out, src.len)
-        let _ = str_push(out, 10)
-        let _ = str_push_cstr(out, "source_token_count: ")
-        let _ = str_append_i64(out, vec_len(toks))
-        let _ = str_push(out, 10)
-        let _ = str_push_cstr(out, "source_status: interpreted as whitespace-separated token tags for generated/debug parser validation\n")
-        0
-    }
-}
-
 def run_chibacc(args: CliArgs): i64 = {
     let grammar_path = cli_grammar_path(args)
     let source_path = cli_source_path(args)

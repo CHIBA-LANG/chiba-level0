@@ -2,6 +2,11 @@ namespace lexer.spec.memory.types
 
 def capabilities(p: Ptr[u8], r: Ref[i64], u: UnsafeRef[File]): () = {
     let x = p.*
-    r := r.read() + 1
+    r := 
+    r.
+    read(
+
+    ) + 
+    1
     return ()
 }
