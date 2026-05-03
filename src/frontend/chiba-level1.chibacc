@@ -1,0 +1,814 @@
+#![CHIBACC]
+
+{
+		namespace parser.chiba_level1
+		use metalstd.option.*
+		use metalstd.vec.*
+}
+
+// Chiba level-1 grammar draft.
+//
+// This file is intentionally verbose. It is not only a generator input, but also
+// the closest executable checklist for the level-1 surface syntax. The grammar
+// consumes lexer token constructor names only. Character-level concerns such as
+// UTF-8, raw-string delimiter counting, comment aggregation, and layout-sensitive
+// newline emission stay in chiba-level1.chibalex.
+//
+// Layout policy used here:
+// - Newline and LineComment are real tokens because formatters need them.
+// - Many keywords/operators already consume right-side Newline in the lexer.
+// - Grammar still accepts explicit layout tokens at item/statement/list edges.
+// - A normal expression followed by Newline can end a statement.
+// - A call followed by Newline and then `{|...| ...}` is not a trailing closure.
+
+start programme
+
+// -----------------------------------------------------------------------------
+// 0. Trivia and separators
+// -----------------------------------------------------------------------------
+
+// A single trivia item. Comments are preserved by the lexer so formatter and IDE
+// tooling can reattach them after AST construction.
+rule trivia ::=
+		Newline => Trivia_Newline()
+	| LineComment => Trivia_LineComment()
+	;
+
+// Optional trivia at list boundaries. This rule is deliberately separate from
+// statement separators: whitespace can decorate syntax without ending a statement.
+rule layout ::=
+		items:trivia* => Layout(items)
+	;
+
+// Statement terminators. Semicolon is explicit; Newline and LineComment represent
+// layout endings produced by the lexer. LineComment is accepted here so a trailing
+// comment can terminate a statement even if the following Newline is aggregated
+// or consumed by a later policy change.
+rule stmt_sep ::=
+		Semicolon layout => Sep_Semicolon()
+	| Newline layout => Sep_Newline()
+	| LineComment layout => Sep_LineComment()
+	;
+
+// Comma separator with optional layout after it. Open delimiters and comma tokens
+// often eat right-side newlines in the lexer, but this keeps the grammar robust.
+rule comma_sep ::=
+		Comma layout => Sep_Comma()
+	;
+
+// -----------------------------------------------------------------------------
+// 1. Programme and top-level items
+// -----------------------------------------------------------------------------
+
+// Whole source file. Lexical errors are kept as recoverable items so tooling can
+// still inspect the rest of the file.
+rule programme ::=
+		layout files:file_attr* items:top_entry* Eof => Programme(files, items)
+	;
+
+// Top-level streams are a mix of trivia, ordinary items, and lexical errors.
+rule top_entry ::=
+		t:trivia => Top_Trivia(t)
+	| e:lexical_error => Top_Error(e)
+	| i:item => Top_Item(i)
+	;
+
+rule lexical_error ::=
+		LexError => Lexical_Error()
+	;
+
+// File attrs are accepted only at the grammar level as leading entries, but the
+// lexer can tokenize them anywhere. We keep the structure open for formatter and
+// diagnostics instead of baking in a small fixed attr language.
+rule file_attr ::=
+		FileAttrStart layout body:attr_args? RBracket layout => FileAttr(body)
+	;
+
+// Item/statement/expression attributes. Level-1 deliberately uses one prefix
+// attribute surface for many targets.
+rule item_attr ::=
+		ItemAttrStart layout body:attr_args? RBracket layout => Attr(body)
+	;
+
+// Attribute arguments support paths, symbols, literals, nested brackets, and
+// comma-separated groups. This is intentionally permissive because the semantic
+// meaning belongs to later compiler phases.
+rule attr_args ::=
+		args:attr_arg_list => AttrArgs(args)
+	;
+
+rule attr_arg_list ::=
+		head:attr_arg tail:attr_arg_tail* comma:comma_sep? => List(head, tail, comma)
+	| => EmptyList()
+	;
+
+rule attr_arg_tail ::=
+		comma_sep value:attr_arg => value
+	;
+
+rule attr_arg ::=
+		p:path => AttrArg_Path(p)
+	| a:Atom => AttrArg_Atom(a)
+	| i:IntLit => AttrArg_Int(i)
+	| f:FloatLit => AttrArg_Float(f)
+	| s:string_literal => AttrArg_String(s)
+	| LParen layout inner:attr_arg_list RParen => AttrArg_Tuple(inner)
+	| LBracket layout inner:attr_arg_list RBracket => AttrArg_List(inner)
+	;
+
+// Item wrapper. Attributes and `private` are parsed once here, so each item body
+// can focus on its own syntax.
+rule item ::=
+		attrs:item_attr* priv:KwPrivate? body:item_body => Item(attrs, priv, body)
+	;
+
+rule item_body ::=
+		n:namespace_item => n
+	| u:use_item => u
+	| d:def_item => d
+	| t:type_item => t
+	| data:data_item => data
+	| un:union_item => un
+	| ex:extern_item => ex
+	;
+
+// `namespace path` and `namespace path { ... }` share the same entry. Inline
+// namespace blocks contain items, not closure-capturing local statements.
+rule namespace_item ::=
+		KwNamespace name:path body:namespace_body? => Item_Namespace(name, body)
+	;
+
+rule namespace_body ::=
+		LBrace layout entries:top_entry* RBrace layout => NamespaceBody(entries)
+	;
+
+// `use a.b`, `use a.{b,c}`, and `use a.*` are all kept as a path plus an optional
+// import tail.
+rule use_item ::=
+		KwUse base:path tail:use_tail? item_end? => Item_Use(base, tail)
+	;
+
+rule use_tail ::=
+		Dot Star => UseTail_Glob()
+	| Dot LBrace layout names:use_name_list RBrace => UseTail_Multi(names)
+	;
+
+rule use_name_list ::=
+		head:Ident tail:use_name_tail* comma:comma_sep? => List(head, tail, comma)
+	| => EmptyList()
+	;
+
+rule use_name_tail ::=
+		comma_sep name:Ident => name
+	;
+
+// A path is a chain of identifiers. Token-level path spelling is deliberately
+// left simple; type applications and method calls are parsed elsewhere.
+rule path ::=
+		head:Ident tail:path_tail* => Path(head, tail)
+	;
+
+rule path_tail ::=
+		Dot name:Ident => name
+	;
+
+// Optional end used by top-level single-line items. It is optional because blocks
+// and EOF often terminate items naturally.
+rule item_end ::=
+		stmt_sep => ItemEnd()
+	;
+
+// -----------------------------------------------------------------------------
+// 2. Type, data, union, extern, and def items
+// -----------------------------------------------------------------------------
+
+rule type_item ::=
+		KwType name:Ident params:generic_params? Eq body:type_expr item_end? => Item_Type(name, params, body)
+	| KwType name:Ident params:generic_params? item_end? => Item_TypeName(name, params)
+	;
+
+rule data_item ::=
+		KwData name:Ident params:generic_params? LBrace layout variants:data_member* RBrace layout => Item_Data(name, params, variants)
+	;
+
+rule union_item ::=
+		KwUnion name:Ident params:generic_params? LBrace layout fields:record_field_decl* RBrace layout => Item_Union(name, params, fields)
+	;
+
+// Data bodies allow constructor-style variants, record-style fields, and attrs
+// on both. The semantic checker can reject combinations that are not meaningful.
+rule data_member ::=
+		t:trivia => Data_Trivia(t)
+	| attrs:item_attr* name:Ident payload:data_payload? comma:comma_sep? => Data_Variant(attrs, name, payload, comma)
+	| attrs:item_attr* field:record_field_decl => Data_Field(attrs, field)
+	;
+
+rule data_payload ::=
+		LParen layout args:type_arg_list? RParen => Payload_Tuple(args)
+	| LBrace layout fields:record_field_decl* RBrace => Payload_Record(fields)
+	;
+
+rule record_field_decl ::=
+		attrs:item_attr* name:Ident Colon ty:type_expr comma:comma_sep? => FieldDecl(attrs, name, ty, comma)
+	;
+
+rule generic_params ::=
+		LBracket layout params:ident_list? RBracket => GenericParams(params)
+	;
+
+rule ident_list ::=
+		head:Ident tail:ident_tail* comma:comma_sep? => List(head, tail, comma)
+	;
+
+rule ident_tail ::=
+		comma_sep name:Ident => name
+	;
+
+// `def` covers normal functions, method-style `def Type.method`, and static
+// value definitions without a parameter list.
+rule def_item ::=
+		KwDef name:def_name params:param_list ret:return_type? Eq body:expr item_end? => Item_Def(name, params, ret, body)
+	| KwDef name:def_name ret:return_type? Eq body:expr item_end? => Item_StaticDef(name, ret, body)
+	| KwDef name:def_name params:param_list ret:return_type? body:block => Item_DefBlock(name, params, ret, body)
+	;
+
+rule def_name ::=
+		receiver:path Dot name:Ident => DefName_Method(receiver, name)
+	| name:Ident => DefName_Plain(name)
+	;
+
+rule param_list ::=
+		LParen layout params:param_items? RParen => Params(params)
+	;
+
+rule param_items ::=
+		head:param tail:param_tail* comma:comma_sep? => List(head, tail, comma)
+	;
+
+rule param_tail ::=
+		comma_sep p:param => p
+	;
+
+rule param ::=
+		p:pattern Colon ty:type_expr => Param_Typed(p, ty)
+	| p:pattern => Param_Pattern(p)
+	;
+
+rule return_type ::=
+		Colon ty:type_expr => ty
+	;
+
+rule extern_item ::=
+		KwExtern abi:string_literal KwDef name:def_name params:param_list ret:return_type? item_end? => Item_Extern(abi, name, params, ret)
+	;
+
+// -----------------------------------------------------------------------------
+// 3. Type expressions
+// -----------------------------------------------------------------------------
+
+// Type syntax is a small Pratt grammar so path selection, type application, tuple
+// types, and function arrows can share one precedence model.
+rule type_expr ::= pratt {
+		prefix (80) {
+				name:Ident => Ty_Name(name) ;
+				a:Atom => Ty_Atom(a) ;
+				Underscore => Ty_Hole() ;
+				LParen layout elems:type_arg_list? RParen => Ty_Tuple(elems) ;
+		}
+
+		postfix(90) {
+				Dot name:Ident => Ty_Path($lhs, name) ;
+				LBracket layout args:type_arg_list? RBracket => Ty_Apply($lhs, args) ;
+		}
+
+		infix(10, 9) {
+				ThinArrow rhs:type_expr => Ty_Fn($lhs, rhs) ;
+		}
+} ;
+
+rule type_arg_list ::=
+		head:type_expr tail:type_arg_tail* comma:comma_sep? => List(head, tail, comma)
+	;
+
+rule type_arg_tail ::=
+		comma_sep ty:type_expr => ty
+	;
+
+// -----------------------------------------------------------------------------
+// 4. Blocks, statements, and control-flow surfaces
+// -----------------------------------------------------------------------------
+
+rule block ::=
+		LBrace layout entries:block_entry* RBrace layout => Block(entries)
+	;
+
+rule block_entry ::=
+		t:trivia => Block_Trivia(t)
+	| i:item => Block_Item(i)
+	| s:stmt => Block_Stmt(s)
+	;
+
+rule stmt ::=
+		l:let_stmt => l
+	| r:return_stmt => r
+	| b:break_stmt => b
+	| c:continue_stmt => c
+	| e:expr_stmt => e
+	;
+
+rule let_stmt ::=
+		KwLet p:pattern ty:return_type? Eq rhs:expr stmt_sep? => Stmt_Let(p, ty, rhs)
+	;
+
+rule return_stmt ::=
+		KwReturn value:expr stmt_sep? => Stmt_Return(value)
+	;
+
+rule break_stmt ::=
+		KwBreak tag:Atom? value:expr? stmt_sep? => Stmt_Break(tag, value)
+	;
+
+rule continue_stmt ::=
+		KwContinue tag:Atom? stmt_sep? => Stmt_Continue(tag)
+	;
+
+rule expr_stmt ::=
+		value:expr stmt_sep? => Stmt_Expr(value)
+	;
+
+rule if_expr ::=
+		KwIf cond:expr then:block else_part:else_part => Expr_If(cond, then, else_part)
+	| KwIf KwLet p:pattern Eq value:expr then:block else_part:else_part => Expr_IfLet(p, value, then, else_part)
+	;
+
+rule else_part ::=
+		KwElse next:if_expr => Else_If(next)
+	| KwElse body:block => Else_Block(body)
+	;
+
+rule match_expr ::=
+		KwMatch value:expr LBrace layout arms:match_arm* RBrace layout => Expr_Match(value, arms)
+	;
+
+rule match_arm ::=
+		t:trivia => Match_Trivia(t)
+	| p:pattern guard:pattern_guard? FatArrow body:expr comma:comma_sep? => Match_Arm(p, guard, body, comma)
+	;
+
+rule pattern_guard ::=
+		KwIf cond:expr => cond
+	;
+
+rule for_expr ::=
+		KwFor tag:Atom? cond:expr? body:block => Expr_For(tag, cond, body)
+	;
+
+rule reset_expr ::=
+		KwReset tag:Atom? body:block => Expr_Reset(tag, body)
+	;
+
+rule shift_expr ::=
+		KwShift tag:Atom? k:Ident body:block => Expr_Shift(tag, k, body)
+	;
+
+rule unsafe_expr ::=
+		KwUnsafe body:block => Expr_Unsafe(body)
+	;
+
+// Inline asm surface: `asm (inputs) : (outputs) => { "instr" ... }`.
+rule asm_expr ::=
+		KwAsm inputs:asm_bind_list Colon outputs:asm_output_list FatArrow body:asm_body => Expr_Asm(inputs, outputs, body)
+	;
+
+rule asm_bind_list ::=
+		LParen layout args:asm_bind_items? RParen => AsmBinds(args)
+	;
+
+rule asm_bind_items ::=
+		head:asm_bind tail:asm_bind_tail* comma:comma_sep? => List(head, tail, comma)
+	;
+
+rule asm_bind_tail ::=
+		comma_sep b:asm_bind => b
+	;
+
+rule asm_bind ::=
+		name:Ident Colon reg:Ident => AsmBind(name, reg)
+	;
+
+rule asm_output_list ::=
+		LParen layout regs:ident_list? RParen => AsmOutputs(regs)
+	;
+
+rule asm_body ::=
+		LBrace layout lines:asm_line* RBrace layout => AsmBody(lines)
+	;
+
+rule asm_line ::=
+		t:trivia => Asm_Trivia(t)
+	| s:string_literal => Asm_Line(s)
+	;
+
+// -----------------------------------------------------------------------------
+// 5. Patterns
+// -----------------------------------------------------------------------------
+
+// Pattern support is deliberately broad: match/if-let can use refutable patterns,
+// while semantic checks later restrict let/parameter positions to irrefutable
+// subsets where necessary.
+rule pattern ::=
+		name:Ident At body:pattern => Pat_At(name, body)
+	| body:pattern_atom => body
+	;
+
+rule pattern_atom ::=
+		Underscore => Pat_Wildcard()
+	| KwTrue => Pat_BoolTrue()
+	| KwFalse => Pat_BoolFalse()
+	| n:IntLit => Pat_Int(n)
+	| a:Atom => Pat_Atom(a)
+	| name:path payload:constructor_pat_payload? => Pat_Name(name, payload)
+	| LParen layout elems:pattern_list? RParen => Pat_Tuple(elems)
+	| LBrace layout fields:record_pattern_fields? RBrace => Pat_Record(fields)
+	;
+
+rule constructor_pat_payload ::=
+		LParen layout args:pattern_list? RParen => CtorPat_Tuple(args)
+	| LBrace layout fields:record_pattern_fields? RBrace => CtorPat_Record(fields)
+	;
+
+rule pattern_list ::=
+		head:pattern tail:pattern_tail* comma:comma_sep? => List(head, tail, comma)
+	;
+
+rule pattern_tail ::=
+		comma_sep p:pattern => p
+	;
+
+rule record_pattern_fields ::=
+		head:record_pattern_field tail:record_pattern_field_tail* comma:comma_sep? => List(head, tail, comma)
+	| => EmptyList()
+	;
+
+rule record_pattern_field_tail ::=
+		comma_sep f:record_pattern_field => f
+	;
+
+rule record_pattern_field ::=
+		name:Ident Colon p:pattern => RecordPat_Field(name, p)
+	| name:Ident => RecordPat_Shorthand(name)
+	;
+
+// -----------------------------------------------------------------------------
+// 6. Expressions
+// -----------------------------------------------------------------------------
+
+// Expression parsing is Pratt-based. Binding powers are intentionally written in
+// large gaps so new operators can be inserted without renumbering everything.
+rule expr ::= pratt {
+		prefix (100) {
+				name:Ident => Expr_Name(name) ;
+				n:IntLit => Expr_Int(n) ;
+				f:FloatLit => Expr_Float(f) ;
+				KwTrue => Expr_BoolTrue() ;
+				KwFalse => Expr_BoolFalse() ;
+				a:Atom => Expr_Atom(a) ;
+				s:string_literal => s ;
+				Underscore => Expr_Hole() ;
+				Minus e:expr => Expr_Unary(Op_Neg(), e) ;
+				Bang e:expr => Expr_Unary(Op_Not(), e) ;
+				Star e:expr => Expr_Unary(Op_DerefPrefix(), e) ;
+				LParen layout inside:paren_expr_body RParen => inside ;
+				LBracket layout elems:expr_list? RBracket => Expr_Slice(elems) ;
+				r:record_or_block_expr => r ;
+				l:lambda_expr => l ;
+				i:if_expr => i ;
+				m:match_expr => m ;
+				f:for_expr => f ;
+				r:reset_expr => r ;
+				s:shift_expr => s ;
+				u:unsafe_expr => u ;
+				a:asm_expr => a ;
+		}
+
+		postfix(130) {
+				LParen layout args:call_args? RParen => Expr_Call($lhs, args) ;
+				t:trailing_closure => Expr_TrailingClosure($lhs, t) ;
+				LBracket layout idx:index_args RBracket => Expr_Index($lhs, idx) ;
+				DotStar => Expr_PostfixDeref($lhs) ;
+				Dot name:Ident => Expr_Field($lhs, name) ;
+		}
+
+		infix(95, 96) {
+				Star rhs:expr => Expr_Binary(Op_Mul(), $lhs, rhs) ;
+				Slash rhs:expr => Expr_Binary(Op_Div(), $lhs, rhs) ;
+				Percent rhs:expr => Expr_Binary(Op_Mod(), $lhs, rhs) ;
+		}
+
+		infix(90, 91) {
+				Plus rhs:expr => Expr_Binary(Op_Add(), $lhs, rhs) ;
+				Minus rhs:expr => Expr_Binary(Op_Sub(), $lhs, rhs) ;
+		}
+
+		infix(82, 83) {
+				LtLt rhs:expr => Expr_Binary(Op_Shl(), $lhs, rhs) ;
+				GtGt rhs:expr => Expr_Binary(Op_Shr(), $lhs, rhs) ;
+		}
+
+		infix(78, 79) {
+				Amp rhs:expr => Expr_Binary(Op_BitAnd(), $lhs, rhs) ;
+		}
+
+		infix(76, 77) {
+				Caret rhs:expr => Expr_Binary(Op_BitXor(), $lhs, rhs) ;
+		}
+
+		infix(74, 75) {
+				Pipe rhs:expr => Expr_Binary(Op_BitOr(), $lhs, rhs) ;
+		}
+
+		infix(70, 71) {
+				EqEq rhs:expr => Expr_Binary(Op_Eq(), $lhs, rhs) ;
+				BangEq rhs:expr => Expr_Binary(Op_Ne(), $lhs, rhs) ;
+				Lt rhs:expr => Expr_Binary(Op_Lt(), $lhs, rhs) ;
+				LtEq rhs:expr => Expr_Binary(Op_Le(), $lhs, rhs) ;
+				Gt rhs:expr => Expr_Binary(Op_Gt(), $lhs, rhs) ;
+				GtEq rhs:expr => Expr_Binary(Op_Ge(), $lhs, rhs) ;
+		}
+
+		infix(62, 63) {
+				AmpAmp rhs:expr => Expr_Binary(Op_And(), $lhs, rhs) ;
+		}
+
+		infix(60, 61) {
+				PipePipe rhs:expr => Expr_Binary(Op_Or(), $lhs, rhs) ;
+		}
+
+		infix(50, 51) {
+				KwAs rhs:type_expr => Expr_Cast($lhs, rhs) ;
+		}
+
+		infix(30, 31) {
+				PipeGt rhs:expr => Expr_Pipe($lhs, rhs) ;
+		}
+
+		infix(20, 19) {
+				ColonEq rhs:expr => Expr_Assign($lhs, rhs) ;
+		}
+} ;
+
+// Parenthesized expression body distinguishes grouped expr, unit, and tuple.
+rule paren_expr_body ::=
+		=> Expr_Unit()
+	| head:expr comma:comma_sep tail:expr_list? => Expr_Tuple(head, tail)
+	| one:expr => one
+	;
+
+rule expr_list ::=
+		head:expr tail:expr_tail* comma:comma_sep? => List(head, tail, comma)
+	;
+
+rule expr_tail ::=
+		comma_sep value:expr => value
+	;
+
+rule call_args ::=
+		args:expr_list => args
+	| => EmptyList()
+	;
+
+rule index_args ::=
+		start:expr DotDot end:expr? => Index_Range(start, end)
+	| value:expr => Index_One(value)
+	;
+
+// Record literal, record update, block expression, and trailing closure all use
+// braces. Trailing closure is parsed as a postfix suffix, so this rule covers the
+// prefix `{...}` cases.
+rule record_or_block_expr ::=
+		LBrace layout base:expr Pipe fields:record_fields? RBrace layout => Expr_RecordUpdate(base, fields)
+	| LBrace layout fields:record_fields RBrace layout => Expr_Record(fields)
+	| body:block => body
+	;
+
+rule record_fields ::=
+		head:record_field tail:record_field_tail* comma:comma_sep? => List(head, tail, comma)
+	| => EmptyList()
+	;
+
+rule record_field_tail ::=
+		comma_sep f:record_field => f
+	;
+
+rule record_field ::=
+		name:Ident Colon value:expr => RecordField_Value(name, value)
+	| name:Ident => RecordField_Shorthand(name)
+	;
+
+// Lambda is `(...): Ret => expr`. Trailing closure uses a separate `{|...| ...}`
+// call-site-only grammar below.
+rule lambda_expr ::=
+		LParen layout params:param_items? RParen ret:return_type FatArrow body:expr => Expr_Lambda(params, ret, body)
+	;
+
+rule trailing_closure ::=
+		LBrace Pipe params:trailing_params? Pipe body:block_entry* RBrace layout => TrailingClosure(params, body)
+	;
+
+rule trailing_params ::=
+		params:param_items => params
+	| => EmptyList()
+	;
+
+// String token stream is mode-driven by the lexer. Prefix/raw/hash information
+// lives in StringStart payload; parser keeps all chunks/interpolations in order.
+rule string_literal ::=
+		start:StringStart parts:string_part* StringEnd => Expr_String(start, parts)
+	;
+
+rule string_part ::=
+		c:StringChunk => String_Chunk(c)
+	| StringExprStart e:expr StringExprEnd => String_Expr(e)
+	;
+
+// -----------------------------------------------------------------------------
+// 7. Footer AST model used by generated parsers
+// -----------------------------------------------------------------------------
+
+{
+		// The parser grammar is intentionally ahead of the final typed AST. Keep this
+		// AST wide and lossless while level-1 syntax is still moving: token payloads,
+		// optional pieces, and child ASTs all fit into `i64`; repeated children use Vec.
+		data AST {
+				// Trivia and recovery.
+				Trivia_Newline(),
+				Trivia_LineComment(),
+				Layout(Vec),
+				Sep_Semicolon(),
+				Sep_Newline(),
+				Sep_LineComment(),
+				Sep_Comma(),
+				Lexical_Error(),
+
+				// Generic list and programme wrappers.
+				List(i64, Vec, i64),
+				EmptyList(),
+				Programme(Vec, Vec),
+				Top_Trivia(AST),
+				Top_Error(AST),
+				Top_Item(AST),
+
+				// Attributes.
+				FileAttr(i64),
+				Attr(i64),
+				AttrArgs(i64),
+				AttrArg_Path(AST),
+				AttrArg_Atom(i64),
+				AttrArg_Int(i64),
+				AttrArg_Float(i64),
+				AttrArg_String(AST),
+				AttrArg_Tuple(i64),
+				AttrArg_List(i64),
+
+				// Items.
+				Item(Vec, i64, AST),
+				Item_Namespace(AST, i64),
+				NamespaceBody(Vec),
+				Item_Use(AST, i64),
+				UseTail_Glob(),
+				UseTail_Multi(AST),
+				Path(i64, Vec),
+				ItemEnd(),
+				Item_Type(i64, i64, AST),
+				Item_TypeName(i64, i64),
+				Item_Data(i64, i64, Vec),
+				Item_Union(i64, i64, Vec),
+				Data_Trivia(AST),
+				Data_Variant(Vec, i64, i64, i64),
+				Data_Field(Vec, AST),
+				Payload_Tuple(i64),
+				Payload_Record(Vec),
+				FieldDecl(Vec, i64, AST, i64),
+				GenericParams(i64),
+				Item_Def(AST, AST, i64, AST),
+				Item_StaticDef(AST, i64, AST),
+				Item_DefBlock(AST, AST, i64, AST),
+				DefName_Method(AST, i64),
+				DefName_Plain(i64),
+				Params(i64),
+				Param_Typed(AST, AST),
+				Param_Pattern(AST),
+				Item_Extern(AST, AST, AST, i64),
+
+				// Types.
+				Ty_Name(i64),
+				Ty_Atom(i64),
+				Ty_Hole(),
+				Ty_Tuple(i64),
+				Ty_Path(AST, i64),
+				Ty_Apply(AST, i64),
+				Ty_Fn(AST, AST),
+
+				// Blocks and statements.
+				Block(Vec),
+				Block_Trivia(AST),
+				Block_Item(AST),
+				Block_Stmt(AST),
+				Stmt_Let(AST, i64, AST),
+				Stmt_Return(AST),
+				Stmt_Break(i64, i64),
+				Stmt_Continue(i64),
+				Stmt_Expr(AST),
+				Else_If(AST),
+				Else_Block(AST),
+
+				// Control expressions.
+				Expr_If(AST, AST, AST),
+				Expr_IfLet(AST, AST, AST, AST),
+				Expr_Match(AST, Vec),
+				Match_Trivia(AST),
+				Match_Arm(AST, i64, AST, i64),
+				Expr_For(i64, i64, AST),
+				Expr_Reset(i64, AST),
+				Expr_Shift(i64, i64, AST),
+				Expr_Unsafe(AST),
+				Expr_Asm(AST, AST, AST),
+				AsmBinds(i64),
+				AsmOutputs(i64),
+				AsmBind(i64, i64),
+				AsmBody(Vec),
+				Asm_Trivia(AST),
+				Asm_Line(AST),
+
+				// Patterns.
+				Pat_At(i64, AST),
+				Pat_Wildcard(),
+				Pat_BoolTrue(),
+				Pat_BoolFalse(),
+				Pat_Int(i64),
+				Pat_Atom(i64),
+				Pat_Name(AST, i64),
+				Pat_Tuple(i64),
+				Pat_Record(i64),
+				CtorPat_Tuple(i64),
+				CtorPat_Record(i64),
+				RecordPat_Field(i64, AST),
+				RecordPat_Shorthand(i64),
+
+				// Expressions and operators.
+				Expr_Name(i64),
+				Expr_Int(i64),
+				Expr_Float(i64),
+				Expr_BoolTrue(),
+				Expr_BoolFalse(),
+				Expr_Atom(i64),
+				Expr_Hole(),
+				Expr_Unit(),
+				Expr_Tuple(AST, i64),
+				Expr_Slice(i64),
+				Expr_Call(AST, i64),
+				Expr_TrailingClosure(AST, AST),
+				Expr_Index(AST, AST),
+				Expr_PostfixDeref(AST),
+				Expr_Field(AST, i64),
+				Expr_Unary(AST, AST),
+				Expr_Binary(AST, AST, AST),
+				Expr_Cast(AST, AST),
+				Expr_Pipe(AST, AST),
+				Expr_Assign(AST, AST),
+				Expr_RecordUpdate(AST, i64),
+				Expr_Record(AST),
+				RecordField_Value(i64, AST),
+				RecordField_Shorthand(i64),
+				Expr_Lambda(i64, AST, AST),
+				TrailingClosure(i64, Vec),
+				Index_Range(AST, i64),
+				Index_One(AST),
+				Expr_String(i64, Vec),
+				String_Chunk(i64),
+				String_Expr(AST),
+
+				// Operator marker nodes keep the parsed surface lossless.
+				Op_Neg(),
+				Op_Not(),
+				Op_DerefPrefix(),
+				Op_Mul(),
+				Op_Div(),
+				Op_Mod(),
+				Op_Add(),
+				Op_Sub(),
+				Op_Shl(),
+				Op_Shr(),
+				Op_BitAnd(),
+				Op_BitXor(),
+				Op_BitOr(),
+				Op_Eq(),
+				Op_Ne(),
+				Op_Lt(),
+				Op_Le(),
+				Op_Gt(),
+				Op_Ge(),
+				Op_And(),
+				Op_Or()
+		}
+}

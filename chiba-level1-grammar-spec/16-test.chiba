@@ -1,0 +1,15 @@
+namespace lexer.spec.control.reset.shift
+
+def reset_shift(): i64 = {
+    let value = reset :parse {
+        1 + shift :parse k {
+            k(41)
+        }
+    }
+    let plain = reset {
+        shift cont {
+            cont(value)
+        }
+    }
+    return plain
+}
