@@ -66,6 +66,184 @@ def is_token_name(name: Str): i64 =
         if ch >= 65 && ch <= 90 { 1 } else { 0 }
     }
 
+// ── Token name collection & lexer namespace derivation ──
+
+def collect_token_names(ir: GrammarIr): Vec = {
+    let names = vec_new()
+    let _ = vec_push(names, mk_str("Eof", 3) as i64)
+    collect_token_names_rules(ir_rules(ir), names)
+    names
+}
+
+def collect_token_names_rules(rules: Vec, names: Vec): i64 =
+    collect_token_names_rules_loop(rules, 0, names)
+
+def collect_token_names_rules_loop(rules: Vec, i: i64, names: Vec): i64 =
+    if i >= vec_len(rules) { 0 }
+    else {
+        let rule = vec_get(rules, i) as IrRule
+        let _ = collect_token_names_body(ir_rule_body(rule), names)
+        collect_token_names_rules_loop(rules, i + 1, names)
+    }
+
+def collect_token_names_body(body: IrRuleBody, names: Vec): i64 =
+    match body {
+        IrBodyAlts(alts) => collect_token_names_alts(alts, names)
+        IrBodyPratt(pr) => collect_token_names_pratt(pr, names)
+    }
+
+def collect_token_names_alts(alts: Vec, names: Vec): i64 =
+    collect_token_names_alts_loop(alts, 0, names)
+
+def collect_token_names_alts_loop(alts: Vec, i: i64, names: Vec): i64 =
+    if i >= vec_len(alts) { 0 }
+    else {
+        let alt = vec_get(alts, i) as IrAlt
+        match alt {
+            IrAlt(items, _) => {
+                let _ = collect_token_names_items(items, names)
+                0
+            }
+        }
+        collect_token_names_alts_loop(alts, i + 1, names)
+    }
+
+def collect_token_names_pratt(pr: IrPrattRule, names: Vec): i64 =
+    match pr {
+        IrPrattRule(prefixes, infixes, postfixes) => {
+            let _ = collect_token_names_alts(pratt_prefix_alts(prefixes), names)
+            let _ = collect_token_names_alts(pratt_infix_alts(infixes), names)
+            collect_token_names_alts(pratt_postfix_alts(postfixes), names)
+        }
+    }
+
+def pratt_prefix_alts(blocks: Vec): Vec = pratt_prefix_alts_loop(blocks, 0, vec_new())
+
+def pratt_prefix_alts_loop(blocks: Vec, i: i64, acc: Vec): Vec =
+    if i >= vec_len(blocks) { acc }
+    else {
+        let blk = vec_get(blocks, i) as IrPrefixBlock
+        match blk {
+            IrPrefixBlock(_, arms) => { let _ = vec_append(acc, arms); pratt_prefix_alts_loop(blocks, i + 1, acc) }
+        }
+    }
+
+def pratt_infix_alts(blocks: Vec): Vec = pratt_infix_alts_loop(blocks, 0, vec_new())
+
+def pratt_infix_alts_loop(blocks: Vec, i: i64, acc: Vec): Vec =
+    if i >= vec_len(blocks) { acc }
+    else {
+        let blk = vec_get(blocks, i) as IrInfixBlock
+        match blk {
+            IrInfixBlock(_, _, arms) => { let _ = vec_append(acc, arms); pratt_infix_alts_loop(blocks, i + 1, acc) }
+        }
+    }
+
+def pratt_postfix_alts(blocks: Vec): Vec = pratt_postfix_alts_loop(blocks, 0, vec_new())
+
+def pratt_postfix_alts_loop(blocks: Vec, i: i64, acc: Vec): Vec =
+    if i >= vec_len(blocks) { acc }
+    else {
+        let blk = vec_get(blocks, i) as IrPostfixBlock
+        match blk {
+            IrPostfixBlock(_, arms) => { let _ = vec_append(acc, arms); pratt_postfix_alts_loop(blocks, i + 1, acc) }
+        }
+    }
+
+def collect_token_names_items(items: Vec, names: Vec): i64 =
+    collect_token_names_items_loop(items, 0, names)
+
+def collect_token_names_items_loop(items: Vec, i: i64, names: Vec): i64 =
+    if i >= vec_len(items) { 0 }
+    else {
+        let item = vec_get(items, i) as IrItem
+        match item {
+            IrItem(_, atom, _) => { let _ = collect_token_names_atom(atom, names); 0 }
+        }
+        collect_token_names_items_loop(items, i + 1, names)
+    }
+
+def collect_token_names_atom(atom: IrAtom, names: Vec): i64 =
+    match atom {
+        IrAtomRef(name) => {
+            if is_token_name(name) != 0 { add_token_name_if_new(names, name) }
+            else { 0 }
+        }
+        _ => 0
+    }
+
+def add_token_name_if_new(names: Vec, name: Str): i64 =
+    if token_name_in_vec(names, name, 0) != 0 { 0 }
+    else { vec_push(names, name as i64) }
+
+def token_name_in_vec(names: Vec, name: Str, i: i64): i64 =
+    if i >= vec_len(names) { 0 }
+    else {
+        let existing = vec_get(names, i) as Str
+        if (existing as i64) != 0 && streq(existing, name) != 0 { 1 }
+        else { token_name_in_vec(names, name, i + 1) }
+    }
+
+def derive_lexer_use_from_header(header: Str): Str = {
+    let ns = find_namespace_in_header(header, 0)
+    if ns.len == 0 { str_empty() }
+    else { make_lexer_use(ns) }
+}
+
+def str_starts_with_at(s: Str, offset: i64, prefix: Str): i64 =
+    str_starts_with_at_loop(s, offset, prefix, 0)
+
+def str_starts_with_at_loop(s: Str, offset: i64, prefix: Str, j: i64): i64 =
+    if j >= prefix.len { 1 }
+    else if offset + j >= s.len { 0 }
+    else if load8(s.ptr, offset + j) != load8(prefix.ptr, j) { 0 }
+    else { str_starts_with_at_loop(s, offset, prefix, j + 1) }
+
+def find_namespace_in_header(header: Str, i: i64): Str =
+    if i >= header.len { str_empty() }
+    else if str_starts_with_at(header, i, mk_str("namespace ", 10)) != 0 {
+        extract_namespace_name(header, i + 10)
+    }
+    else { find_namespace_in_header(header, i + 1) }
+
+def extract_namespace_name(header: Str, start: i64): Str =
+    extract_namespace_name_len(header, start, start)
+
+def extract_namespace_name_len(header: Str, start: i64, pos: i64): Str =
+    if pos >= header.len { mk_str(header.ptr + start, pos - start) }
+    else {
+        let ch = load8(header.ptr, pos)
+        if ch == 10 || ch == 32 || ch == 13 || ch == 9 || ch == 123 {
+            mk_str(header.ptr + start, pos - start)
+        }
+        else { extract_namespace_name_len(header, start, pos + 1) }
+    }
+
+def make_lexer_use(parser_ns: Str): Str = {
+    let out = str_new()
+    let _ = str_push_cstr(out, "use ")
+    let _ = replace_parser_with_lexer(out, parser_ns)
+    let _ = str_push_cstr(out, ".*")
+    out
+}
+
+def replace_parser_with_lexer(out: Str, ns: Str): i64 =
+    replace_parser_with_lexer_loop(out, ns, 0, 0)
+
+def replace_parser_with_lexer_loop(out: Str, ns: Str, i: i64, matched: i64): i64 =
+    if i >= ns.len {
+        if matched == 0 { str_append(out, ns) }
+        else { 0 }
+    }
+    else if str_starts_with_at(ns, i, mk_str("parser", 6)) != 0 && matched == 0 {
+        let _ = str_push_cstr(out, "lexer")
+        replace_parser_with_lexer_loop(out, ns, i + 6, 1)
+    }
+    else {
+        let _ = str_push(out, load8(ns.ptr, i))
+        replace_parser_with_lexer_loop(out, ns, i + 1, matched)
+    }
+
 def find_rule_index(rules: Vec, name: Str): i64 =
     find_rule_index_loop(rules, name, 0)
 

@@ -40,7 +40,7 @@ def cli_output_path(args: CliArgs): Str =
     }
 
 def print_usage(): i64 = {
-    let _ = write_fd(1, "Usage: chibacc <grammar.chibacc> [source.xxx] -o <debug.txt>\n", 62)
+    let _ = write_fd(1, "Usage: chibacc <grammar.chibacc> [source.xxx] -o <output.chiba>\n", 65)
     1
 }
 
@@ -185,9 +185,7 @@ def append_source_info(out: Str, source_path: Str): i64 = {
     }
 }
 
-    // M1 entrypoint: read a real `.chibacc` file and dump grammar AST / IR only.
-
-def run_debug(args: CliArgs): i64 = {
+def run_chibacc(args: CliArgs): i64 = {
     let grammar_path = cli_grammar_path(args)
     let source_path = cli_source_path(args)
     let output_path = cli_output_path(args)
@@ -196,56 +194,37 @@ def run_debug(args: CliArgs): i64 = {
         let _ = write_fd(2, "[chibacc] could not read grammar file\n", 38)
         1
     } else {
+        let _ = write_fd(1, "[chibacc] parsing grammar...\n", 29)
         let toks = lex_chibacc(src)
         let parsed = parse_file(src, toks)
-    match parsed {
-        None => {
-            let _ = write_fd(2, "[chibacc] M1 parse failed\n", 26)
-            1
-        }
-        Some(file) => {
-            let ir = lower_file(file)
-            let generated = codegen_parser(file, ir)
-            let ast_dump = show_file_ast(file)
-            let ir_dump = show_grammar_ir(ir)
-            let source_debug = if source_path.len > 0 {
-                let source_src = file_read_file_all_sized(str_to_cstr(source_path))
-                run_generated_parser(file, generated, ir, source_src)
-            } else {
-                mk_str("<source not provided>\n", 22)
-            }
-            let out = str_new()
-            let _ = str_push_cstr(out, "grammar_path: ")
-            let _ = str_append(out, grammar_path)
-            let _ = str_push(out, 10)
-            let _ = append_source_info(out, source_path)
-            let _ = str_push_cstr(out, "token_count: ")
-            let _ = str_append_i64(out, vec_len(toks))
-            let _ = str_push(out, 10)
-            let _ = str_push_cstr(out, "rule_count: ")
-            let _ = str_append_i64(out, vec_len(file_rules(file)))
-            let _ = str_push(out, 10)
-            let _ = str_push(out, 10)
-            let _ = str_push_cstr(out, "== Grammar AST ==\n")
-            let _ = str_append(out, ast_dump)
-            let _ = str_push(out, 10)
-            let _ = str_push_cstr(out, "== Grammar IR ==\n")
-            let _ = str_append(out, ir_dump)
-            let _ = str_push(out, 10)
-            let _ = str_push_cstr(out, "== LabeledAST ==\n")
-            let _ = str_append(out, source_debug)
-            let _ = str_push(out, 10)
-            let _ = str_push_cstr(out, "== Generated Parser Preview ==\n")
-            let _ = str_append(out, generated)
-            let res = file_write_file_all(str_to_cstr(output_path), out)
-            if res < 0 {
-                let _ = write_fd(2, "[chibacc] could not write debug output\n", 40)
+        match parsed {
+            None => {
+                let _ = write_fd(2, "[chibacc] parse failed\n", 24)
                 1
-            } else {
-                let _ = write_fd(1, "[chibacc] wrote grammar debug output\n", 37)
-                0
             }
-        }
+            Some(file) => {
+                let _ = write_fd(1, "[chibacc] lowering IR...\n", 25)
+                let ir = lower_file(file)
+                let _ = write_fd(1, "[chibacc] generating parser...\n", 31)
+                let generated = codegen_parser(file, ir)
+                let _ = write_fd(1, "[chibacc] writing ", 18)
+                let _ = str_write_to(output_path, 1)
+                let _ = write_fd(1, "\n", 1)
+                let res = file_write_file_all(str_to_cstr(output_path), generated)
+                if res < 0 {
+                    let _ = write_fd(2, "[chibacc] could not write output\n", 33)
+                    1
+                } else {
+                    if source_path.len > 0 {
+                        let source_src = file_read_file_all_sized(str_to_cstr(source_path))
+                        let _ = write_fd(1, "[chibacc] testing on source...\n", 31)
+                        let result = run_generated_parser(file, generated, ir, source_src)
+                        let _ = str_write_to(result, 1)
+                        let _ = write_fd(1, "\n", 1)
+                        0
+                    } else { 0 }
+                }
+            }
         }
     }
 }
@@ -254,7 +233,7 @@ def run_debug(args: CliArgs): i64 = {
 def main(argc: i64, argv: i64): i64 = {
     let parsed = parse_args(argc, argv)
     let code = match parsed {
-        Some(args) => run_debug(args)
+        Some(args) => run_chibacc(args)
         None => print_usage()
     }
     exit(code)

@@ -782,3 +782,57 @@ def collect_source_file_paths(files: List[SourceFile]): List[Str] =
         Nil => Nil
         Cons(sf, rest) => Cons(source_file_path(sf), collect_source_file_paths(rest))
     }
+
+// ── Entry-point filtering ────────────────────────────────────────────────────
+// When --entry is specified, include only the entry file and files from
+// namespaces other than the entry file's namespace.  This avoids duplicate
+// symbol errors when multiple files share the same namespace (e.g. main).
+
+def source_file_ns(sf: SourceFile): Str = {
+    let prog = source_file_program(sf)
+    prog.ns
+}
+
+// Check if haystack ends with needle (Str, Str version).
+def str_ends_with_str(haystack: Str, needle: Str): i64 = {
+    if haystack.len < needle.len { 0 }
+    else { str_eq(haystack.ptr + (haystack.len - needle.len), needle.len, needle.ptr, needle.len) }
+}
+
+def source_file_ns_by_path(files: List[SourceFile], path: Str): Str =
+    match files {
+        Nil => str_empty()
+        Cons(sf, rest) => {
+            let sf_path = source_file_path(sf)
+            if str_ends_with_str(sf_path, path) != 0 { source_file_ns(sf) }
+            else { source_file_ns_by_path(rest, path) }
+        }
+    }
+
+def filter_files_by_entry(files: List[SourceFile], entry_path: Str): List[SourceFile] = {
+    let entry_ns = source_file_ns_by_path(files, entry_path)
+    filter_files_by_ns(files, entry_path, entry_ns)
+}
+
+def filter_files_by_ns(files: List[SourceFile], entry_path: Str, entry_ns: Str): List[SourceFile] =
+    match files {
+        Nil => Nil
+        Cons(sf, rest) => {
+            let sf_path = source_file_path(sf)
+            let sf_ns = source_file_ns(sf)
+            if str_ends_with_str(sf_path, entry_path) != 0 {
+                Cons(sf, filter_files_by_ns(rest, entry_path, entry_ns))
+            } else if streq(sf_ns, entry_ns) != 0 {
+                filter_files_by_ns(rest, entry_path, entry_ns)
+            } else {
+                Cons(sf, filter_files_by_ns(rest, entry_path, entry_ns))
+            }
+        }
+    }
+
+def merge_program_with_entry(files: List[SourceFile], entry_path: Str): Program = {
+    let global = build_namespace_modules(files)
+    let filtered = filter_files_by_entry(files, entry_path)
+    let sf = collect_source_file_paths(filtered)
+    Program { ns: str_empty(), uses: Nil, items: rewrite_file_items(filtered, global), source_files: sf }
+}

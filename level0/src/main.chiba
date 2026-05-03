@@ -35,10 +35,34 @@ def parse_project_arg(argc: i64, argv: i64, i: i64): Option[i64] =
         } else { parse_project_arg(argc, argv, i + 1) }
     }
 
+def parse_entry_arg(argc: i64, argv: i64, i: i64): Option[i64] =
+    if i >= argc { None }
+    else {
+        let arg = argv_cstr(argv, i)
+        let arg_s = str_from_cptr(arg)
+        if streq(arg_s, mk_str("--entry", 7)) != 0 {
+            if i + 1 < argc { Some(argv_cstr(argv, i + 1)) }
+            else { None }
+        } else { parse_entry_arg(argc, argv, i + 1) }
+    }
+
+def parse_output_arg(argc: i64, argv: i64, i: i64): Option[i64] =
+    if i >= argc { None }
+    else {
+        let arg = argv_cstr(argv, i)
+        let arg_s = str_from_cptr(arg)
+        if streq(arg_s, mk_str("--output", 8)) != 0 {
+            if i + 1 < argc { Some(argv_cstr(argv, i + 1)) }
+            else { None }
+        } else { parse_output_arg(argc, argv, i + 1) }
+    }
+
 def print_usage(): i64 = {
-    let _ = write_fd(1, "Usage: chiba-level0 [--project <dir>]\n", 39)
+    let _ = write_fd(1, "Usage: chiba-level0 [--project <dir>] [--entry <file>] [--output <name>]\n", 73)
     let _ = write_fd(1, "  With no args: run self-host tests\n", 37)
-    let _ = write_fd(1, "  With --project: compile <dir>/src to target/debug/main.o\n", 62)
+    let _ = write_fd(1, "  --project <dir>   compile <dir>/src to target/debug/<output>\n", 63)
+    let _ = write_fd(1, "  --entry <file>    specify entry source file (default: auto-detect)\n", 70)
+    let _ = write_fd(1, "  --output <name>   specify output binary name (default: main.o)\n", 66)
     0
 }
 
@@ -94,7 +118,7 @@ def run_gcc(out_path: cstr, asm_text: Str): i64 = {
     } else { 0 }
 }
 
-def compile_project(project_dir: Str): i64 = {
+def compile_project(project_dir: Str, entry: Option[Str], output: Option[Str]): i64 = {
     let _ = write_fd(1, "[1/5] scanning project...\n", 26)
     let scan = scan_and_parse(project_dir)
     match scan {
@@ -104,7 +128,13 @@ def compile_project(project_dir: Str): i64 = {
         }
         ScanParseOk(files) => {
             let _ = write_fd(1, "[2/5] resolving...\n", 19)
-            let merged = merge_program(files)
+            let merged = match entry {
+                Some(entry_path) => {
+                    let full_entry = path_join_raw(str_from_cstr(path_join(project_dir, c"src")), str_to_cstr(entry_path).ptr)
+                    merge_program_with_entry(files, str_from_cptr(full_entry))
+                }
+                None => merge_program(files)
+            }
             let resolved = resolve(merged)
             match resolved {
                 RErr(errs) => {
@@ -139,12 +169,18 @@ def compile_project(project_dir: Str): i64 = {
                         let mk_res = ensure_dir(debug_dir)
                         if mk_res != 0 { 1 }
                         else {
-                            let out_path = path_join_cstr(str_from_cstr(debug_dir), c"main.o")
+                            let out_name = match output {
+                                Some(name) => name
+                                None => mk_str("main.o", 6)
+                            }
+                            let out_path = path_join_cstr(str_from_cstr(debug_dir), str_to_cstr(out_name))
                             let _ = write_fd(1, "[5/5] assembling...\n", 20)
                             let gcc_res = run_gcc(out_path, asm_text)
                             if gcc_res != 0 { 1 }
                             else {
-                                let _ = write_fd(1, "[ok] wrote target/debug/main.o\n", 33)
+                                let _ = write_fd(1, "[ok] wrote target/debug/", 24)
+                                let _ = str_write_to(out_name, 1)
+                                let _ = write_fd(1, "\n", 1)
                                 0
                             }
                         }
@@ -160,8 +196,22 @@ def main_dispatch(argc: i64, argv: i64): i64 = {
     if argc <= 1 { run_all_tests() }
     else {
         let project_dir = parse_project_arg(argc, argv, 1)
+        let entry_arg = parse_entry_arg(argc, argv, 1)
+        let output_arg = parse_output_arg(argc, argv, 1)
         match project_dir {
-            Some(dir) => compile_project(str_from_cptr(dir))
+            Some(dir) => {
+                let entry = match entry_arg {
+                    Some(e) => Some(str_from_cptr(e))
+                    // Auto-detect: default to main.chiba to avoid
+                    // pulling in tools (chibacc, chibalex) from the same namespace.
+                    None => Some(mk_str("main.chiba", 10))
+                }
+                let output = match output_arg {
+                    Some(o) => Some(str_from_cptr(o))
+                    None => None
+                }
+                compile_project(str_from_cptr(dir), entry, output)
+            }
             None => {
                 let _ = print_usage()
                 1
