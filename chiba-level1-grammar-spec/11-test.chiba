@@ -11,7 +11,8 @@ def records(base: Point): Point = {
     let update = {base | y: 3, z: 4}
     let update_multi = {base |
         x: literal.x,
-        y: multi.y,
+        y: multi.
+            y,
     }
     return update
 }

@@ -1,8 +1,13 @@
 namespace lexer.spec.everything.smoke
 
-#[derive(Debug, Clone)]
+#[derive(
+    Debug, 
+    Clone
+    )
+    ]
 data Smoke[T] {
-    Smoke(value: T, tag: :ok)
+    Smoke(value: T, tag: 
+    :ok)
 }
 
 def smoke[T](input: T): i64 = {

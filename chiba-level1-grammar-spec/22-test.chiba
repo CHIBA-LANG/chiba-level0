@@ -6,6 +6,7 @@ namespace lexer.spec.attribute.targets
 def main(): i32 = {
     #[trace]
     let value = 1
+
     #[inline]
     unsafe {
         use_low_level()

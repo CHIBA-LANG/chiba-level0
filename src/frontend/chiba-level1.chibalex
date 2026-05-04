@@ -31,7 +31,7 @@ mode STRING
 @float2 = @dec_digits @exp @suffix?
 @intlit = (@hexint | @octint | @binint | @decint) @suffix?
 
-@string_open = @ident? "r"? "#"* "\""
+@string_open = "#"* "\""
 @string_chunk = [^"{}]+
 
 // operator and keywords ignoring wsnl
@@ -100,11 +100,11 @@ mode STRING
 @attr_file_start = "#![" @wsnl?
 @attr_item_start = "#[" @wsnl?
 @tok_hash = "#"
-@tok_at = "@"
+@tok_at = "@" @wsnl?
 @tok_underscore = "_"
-@tok_rparen = ")"
-@tok_rbrace = "}"
-@tok_rbracket = "]"
+@tok_rparen = @wsnl? ")"
+@tok_rbrace = @wsnl? "}"
+@tok_rbracket = @wsnl? "]"
 
 @str_quote = "\""
 @str_lbrace = "{"
@@ -143,7 +143,7 @@ tokens CODE :-
     @kw_unique              { KwUnique }
     @kw_send                { KwSend }
 
-    @ident                  { Ident(s) }
+    @ident                  => ident_or_string_open
 
     @float1                 { FloatLit(s) }
     @float2                 { FloatLit(s) }
@@ -297,17 +297,15 @@ tokens STRING :-
         Eof,
     }
 
-    def ch_at(s: Str, idx: i64): i64 = *(s.ptr + idx)
+    def ch_at(s: Str, idx: i64): i64 = load8(s.ptr, idx)
 
-    def count_hashes_after_quote(src: i64, src_len: i64, pos: i64): i64 = {
-        let i = pos + 1
-        let n = 0
-        for i < src_len && *(src + i) == 35 {
-            let i = i + 1
-            let n = n + 1
-        }
-        n
-    }
+    def count_hashes_after_quote(src: i64, src_len: i64, pos: i64): i64 =
+        count_hashes_after_quote_loop(src, src_len, pos + 1, 0)
+
+    def count_hashes_after_quote_loop(src: i64, src_len: i64, pos: i64, acc: i64): i64 =
+        if pos >= src_len { acc }
+        else if load8(src, pos) == 35 { count_hashes_after_quote_loop(src, src_len, pos + 1, acc + 1) }
+        else { acc }
 
     def string_open_prefix_len(matched: Str): i64 = {
         let n = matched.len
@@ -321,19 +319,59 @@ tokens STRING :-
     def string_open_raw_flag(matched: Str, prefix_len: i64): i64 =
         if prefix_len < matched.len && ch_at(matched, prefix_len) == 114 { 1 } else { 0 }
 
-    def string_open_hash_count(matched: Str, prefix_len: i64, raw: i64): i64 = {
-        let i = prefix_len + raw
-        let n = 0
-        for i < matched.len && ch_at(matched, i) == 35 {
-            let i = i + 1
-            let n = n + 1
-        }
-        n
-    }
+    def string_open_hash_count(matched: Str, prefix_len: i64, raw: i64): i64 =
+        string_open_hash_count_loop(matched, prefix_len + raw, 0)
+
+    def string_open_hash_count_loop(matched: Str, i: i64, acc: i64): i64 =
+        if i >= matched.len { acc }
+        else if ch_at(matched, i) == 35 { string_open_hash_count_loop(matched, i + 1, acc + 1) }
+        else { acc }
 
     def push_string_state(ctx: LexerCtx, hashes: i64, raw: i64): LexerCtx = {
         let _ = vec_push(ctx.user_stack, StringState(hashes, raw) as i64)
         ctx
+    }
+
+    def count_hashes_from(src: i64, src_len: i64, pos: i64): i64 =
+        count_hashes_from_loop(src, src_len, pos, 0)
+
+    def count_hashes_from_loop(src: i64, src_len: i64, pos: i64, acc: i64): i64 =
+        if pos >= src_len { acc }
+        else if load8(src, pos) == 35 { count_hashes_from_loop(src, src_len, pos + 1, acc + 1) }
+        else { acc }
+
+    def string_open_with_parts(ctx: LexerCtx, prefix: Str, raw: i64, hashes: i64, open_len: i64): LexerCtx = {
+        let emit = vec_new()
+        let _ = vec_push(emit, StringStart(prefix, raw, hashes) as i64)
+        let next = lex_ctx_advance(ctx, open_len)
+        let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
+        let next = push_string_state(next, hashes, raw)
+        lex_push_mode(next, LEX_MODE_STRING())
+    }
+
+    def ident_or_string_open(ctx: LexerCtx, matched: Str): LexerCtx = {
+        let after = ctx.pos + matched.len
+        if after < ctx.src_len && load8(ctx.src, after) == 34 {
+            if matched.len == 1 && ch_at(matched, 0) == 114 {
+                string_open_with_parts(ctx, str_empty(), 1, 0, matched.len + 1)
+            } else {
+                string_open_with_parts(ctx, matched, 0, 0, matched.len + 1)
+            }
+        } else {
+            let hashes = count_hashes_from(ctx.src, ctx.src_len, after)
+            let quote_pos = after + hashes
+            if hashes > 0 && quote_pos < ctx.src_len && load8(ctx.src, quote_pos) == 34 {
+                if matched.len == 1 && ch_at(matched, 0) == 114 {
+                    string_open_with_parts(ctx, str_empty(), 1, hashes, matched.len + hashes + 1)
+                } else if matched.len > 1 && ch_at(matched, matched.len - 1) == 114 {
+                    string_open_with_parts(ctx, mk_str(matched.ptr, matched.len - 1), 1, hashes, matched.len + hashes + 1)
+                } else {
+                    string_open_with_parts(ctx, matched, 0, hashes, matched.len + hashes + 1)
+                }
+            } else {
+                lex_ctx_emit(ctx, matched.len, Ident(matched))
+            }
+        }
     }
 
     def pop_string_state(ctx: LexerCtx): LexerCtx = {
@@ -352,16 +390,7 @@ tokens STRING :-
         } else { 0 }
 
     def string_open(ctx: LexerCtx, matched: Str): LexerCtx = {
-        let prefix_len = string_open_prefix_len(matched)
-        let prefix = mk_str(matched.ptr, prefix_len)
-        let raw = string_open_raw_flag(matched, prefix_len)
-        let hashes = string_open_hash_count(matched, prefix_len, raw)
-        let emit = vec_new()
-        let _ = vec_push(emit, StringStart(prefix, raw, hashes) as i64)
-        let next = lex_ctx_advance(ctx, matched.len)
-        let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
-        let next = push_string_state(next, hashes, raw)
-        lex_push_mode(next, LEX_MODE_STRING())
+        string_open_with_parts(ctx, str_empty(), 0, matched.len - 1, matched.len)
     }
 
     def string_quote(ctx: LexerCtx, matched: Str): LexerCtx = {

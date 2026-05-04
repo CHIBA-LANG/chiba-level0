@@ -115,17 +115,15 @@ data Token {
     Eof,
 }
 
-def ch_at(s: Str, idx: i64): i64 = *(s.ptr + idx)
+def ch_at(s: Str, idx: i64): i64 = load8(s.ptr, idx)
 
-def count_hashes_after_quote(src: i64, src_len: i64, pos: i64): i64 = {
-    let i = pos + 1
-    let n = 0
-    for i < src_len && *(src + i) == 35 {
-        let i = i + 1
-        let n = n + 1
-    }
-    n
-}
+def count_hashes_after_quote(src: i64, src_len: i64, pos: i64): i64 =
+    count_hashes_after_quote_loop(src, src_len, pos + 1, 0)
+
+def count_hashes_after_quote_loop(src: i64, src_len: i64, pos: i64, acc: i64): i64 =
+    if pos >= src_len { acc }
+    else if load8(src, pos) == 35 { count_hashes_after_quote_loop(src, src_len, pos + 1, acc + 1) }
+    else { acc }
 
 def string_open_prefix_len(matched: Str): i64 = {
     let n = matched.len
@@ -139,19 +137,59 @@ def string_open_prefix_len(matched: Str): i64 = {
 def string_open_raw_flag(matched: Str, prefix_len: i64): i64 =
     if prefix_len < matched.len && ch_at(matched, prefix_len) == 114 { 1 } else { 0 }
 
-def string_open_hash_count(matched: Str, prefix_len: i64, raw: i64): i64 = {
-    let i = prefix_len + raw
-    let n = 0
-    for i < matched.len && ch_at(matched, i) == 35 {
-        let i = i + 1
-        let n = n + 1
-    }
-    n
-}
+def string_open_hash_count(matched: Str, prefix_len: i64, raw: i64): i64 =
+    string_open_hash_count_loop(matched, prefix_len + raw, 0)
+
+def string_open_hash_count_loop(matched: Str, i: i64, acc: i64): i64 =
+    if i >= matched.len { acc }
+    else if ch_at(matched, i) == 35 { string_open_hash_count_loop(matched, i + 1, acc + 1) }
+    else { acc }
 
 def push_string_state(ctx: LexerCtx, hashes: i64, raw: i64): LexerCtx = {
     let _ = vec_push(ctx.user_stack, StringState(hashes, raw) as i64)
     ctx
+}
+
+def count_hashes_from(src: i64, src_len: i64, pos: i64): i64 =
+    count_hashes_from_loop(src, src_len, pos, 0)
+
+def count_hashes_from_loop(src: i64, src_len: i64, pos: i64, acc: i64): i64 =
+    if pos >= src_len { acc }
+    else if load8(src, pos) == 35 { count_hashes_from_loop(src, src_len, pos + 1, acc + 1) }
+    else { acc }
+
+def string_open_with_parts(ctx: LexerCtx, prefix: Str, raw: i64, hashes: i64, open_len: i64): LexerCtx = {
+    let emit = vec_new()
+    let _ = vec_push(emit, StringStart(prefix, raw, hashes) as i64)
+    let next = lex_ctx_advance(ctx, open_len)
+    let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
+    let next = push_string_state(next, hashes, raw)
+    lex_push_mode(next, LEX_MODE_STRING())
+}
+
+def ident_or_string_open(ctx: LexerCtx, matched: Str): LexerCtx = {
+    let after = ctx.pos + matched.len
+    if after < ctx.src_len && load8(ctx.src, after) == 34 {
+        if matched.len == 1 && ch_at(matched, 0) == 114 {
+            string_open_with_parts(ctx, str_empty(), 1, 0, matched.len + 1)
+        } else {
+            string_open_with_parts(ctx, matched, 0, 0, matched.len + 1)
+        }
+    } else {
+        let hashes = count_hashes_from(ctx.src, ctx.src_len, after)
+        let quote_pos = after + hashes
+        if hashes > 0 && quote_pos < ctx.src_len && load8(ctx.src, quote_pos) == 34 {
+            if matched.len == 1 && ch_at(matched, 0) == 114 {
+                string_open_with_parts(ctx, str_empty(), 1, hashes, matched.len + hashes + 1)
+            } else if matched.len > 1 && ch_at(matched, matched.len - 1) == 114 {
+                string_open_with_parts(ctx, mk_str(matched.ptr, matched.len - 1), 1, hashes, matched.len + hashes + 1)
+            } else {
+                string_open_with_parts(ctx, matched, 0, hashes, matched.len + hashes + 1)
+            }
+        } else {
+            lex_ctx_emit(ctx, matched.len, Ident(matched))
+        }
+    }
 }
 
 def pop_string_state(ctx: LexerCtx): LexerCtx = {
@@ -170,16 +208,7 @@ def current_string_raw(ctx: LexerCtx): i64 =
     } else { 0 }
 
 def string_open(ctx: LexerCtx, matched: Str): LexerCtx = {
-    let prefix_len = string_open_prefix_len(matched)
-    let prefix = mk_str(matched.ptr, prefix_len)
-    let raw = string_open_raw_flag(matched, prefix_len)
-    let hashes = string_open_hash_count(matched, prefix_len, raw)
-    let emit = vec_new()
-    let _ = vec_push(emit, StringStart(prefix, raw, hashes) as i64)
-    let next = lex_ctx_advance(ctx, matched.len)
-    let next = lex_ctx_make(next.src, next.src_len, next.pos, next.line, next.col, next.mode, next.mode_stack, next.user_stack, emit, None)
-    let next = push_string_state(next, hashes, raw)
-    lex_push_mode(next, LEX_MODE_STRING())
+    string_open_with_parts(ctx, str_empty(), 0, matched.len - 1, matched.len)
 }
 
 def string_quote(ctx: LexerCtx, matched: Str): LexerCtx = {
@@ -264,7 +293,7 @@ def lex_init_patterns(): Vec = {
     let p2 = mk_str("(?://[^\\n]*(\r?\n[ \\t]*//[^\\n]*)*)", 32)
     let _ = vec_push(pats, lex_compile_pat(p2) as i64)
     // rule 3
-    let p3 = mk_str("(?:(?:\\i\\j*)?r?#*\")", 19)
+    let p3 = mk_str("(?:#*\")", 7)
     let _ = vec_push(pats, lex_compile_pat(p3) as i64)
     // rule 4
     let p4 = mk_str("(?:namespace(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?)", 45)
@@ -456,7 +485,7 @@ def lex_init_patterns(): Vec = {
     let p66 = mk_str("(?:;(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?)", 37)
     let _ = vec_push(pats, lex_compile_pat(p66) as i64)
     // rule 67
-    let p67 = mk_str("(?:@)", 5)
+    let p67 = mk_str("(?:@(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?)", 37)
     let _ = vec_push(pats, lex_compile_pat(p67) as i64)
     // rule 68
     let p68 = mk_str("(?:_)", 5)
@@ -465,19 +494,19 @@ def lex_init_patterns(): Vec = {
     let p69 = mk_str("(?:\\((?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?)", 38)
     let _ = vec_push(pats, lex_compile_pat(p69) as i64)
     // rule 70
-    let p70 = mk_str("(?:\\))", 6)
+    let p70 = mk_str("(?:(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?\\))", 38)
     let _ = vec_push(pats, lex_compile_pat(p70) as i64)
     // rule 71
     let p71 = mk_str("(?:\\{(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?)", 38)
     let _ = vec_push(pats, lex_compile_pat(p71) as i64)
     // rule 72
-    let p72 = mk_str("(?:\\})", 6)
+    let p72 = mk_str("(?:(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?\\})", 38)
     let _ = vec_push(pats, lex_compile_pat(p72) as i64)
     // rule 73
     let p73 = mk_str("(?:\\[(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?)", 38)
     let _ = vec_push(pats, lex_compile_pat(p73) as i64)
     // rule 74
-    let p74 = mk_str("(?:\\])", 6)
+    let p74 = mk_str("(?:(?:[ \\t]*\r?\n([ \\t]*\r?\n)*[ \\t]*)?\\])", 38)
     let _ = vec_push(pats, lex_compile_pat(p74) as i64)
     // rule 75
     let p75 = mk_str("(?:\")", 5)
@@ -663,7 +692,7 @@ def lex_action(rule: i64, ctx: LexerCtx, s: Str, span: Span): LexerCtx =
     else if rule == 26 { lex_ctx_emit(ctx, s.len, KwReturn) }
     else if rule == 27 { lex_ctx_emit(ctx, s.len, KwUnique) }
     else if rule == 28 { lex_ctx_emit(ctx, s.len, KwSend) }
-    else if rule == 29 { lex_ctx_emit(ctx, s.len, Ident(s)) }
+    else if rule == 29 { ident_or_string_open(ctx, s) }
     else if rule == 30 { lex_ctx_emit(ctx, s.len, FloatLit(s)) }
     else if rule == 31 { lex_ctx_emit(ctx, s.len, FloatLit(s)) }
     else if rule == 32 { lex_ctx_emit(ctx, s.len, IntLit(s)) }

@@ -14,8 +14,14 @@ union Bits {
 
 def pi: f32 = 3.1415926
 
-private def helper(x: i64): i64 = {
-    return x + 1
+private 
+def 
+helper(
+    x: i64
+): 
+i64 = {
+    return x +
+     1
 }
 
 def Vec2.norm(self): f32 = {
