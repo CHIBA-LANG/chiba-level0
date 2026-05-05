@@ -1,0 +1,8 @@
+namespace parser.error.break.extra.expr
+
+def break_extra(): i64 = {
+    for {
+        break 1 2
+    }
+    return 0
+}

@@ -1,0 +1,5 @@
+namespace parser.error.union.field.missing.type
+
+union Bits {
+    word:,
+}

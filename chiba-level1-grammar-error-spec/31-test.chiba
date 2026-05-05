@@ -1,0 +1,6 @@
+namespace parser.error.let.true.name
+
+def let_true_name(): i64 = {
+    let true = false
+    return 0
+}

@@ -1,0 +1,9 @@
+namespace parser.error.shift.missing.cont
+
+def shift_missing_cont(): i64 = {
+    return reset {
+        shift {
+            1
+        }
+    }
+}

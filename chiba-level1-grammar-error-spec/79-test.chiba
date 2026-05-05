@@ -1,0 +1,8 @@
+namespace parser.error.asm.missing.arrow
+
+def bad_asm_arrow(ptr: Ptr[u8]): i64 = unsafe {
+    let v = asm (ptr: rdi) : (rax) {
+        "xor rax, rax"
+    }
+    return v
+}

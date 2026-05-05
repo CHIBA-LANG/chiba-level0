@@ -1,0 +1,5 @@
+namespace parser.error.de.instead.of.def
+
+de misspelled_def(): i64 = {
+    return 0
+}

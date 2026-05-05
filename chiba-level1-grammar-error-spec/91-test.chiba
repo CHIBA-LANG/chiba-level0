@@ -1,0 +1,6 @@
+namespace parser.error.empty.attr.bad.item
+
+#[ ]
+de broken_after_empty_attr(): i64 = {
+    return 0
+}

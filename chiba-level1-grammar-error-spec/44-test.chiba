@@ -1,0 +1,6 @@
+namespace parser.error.attr.missing.rbracket
+
+#[derive(Debug)
+def bad_attr(): i64 = {
+    return 0
+}

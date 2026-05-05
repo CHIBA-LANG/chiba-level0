@@ -1,0 +1,5 @@
+namespace parser.error.modifier.order
+
+def private wrong_modifier_order(): i64 = {
+    return 0
+}

@@ -1,0 +1,5 @@
+namespace parser.error.type.args.leading.comma
+
+def type_args_leading_comma(xs: Result[, i64]): i64 = {
+    return 0
+}

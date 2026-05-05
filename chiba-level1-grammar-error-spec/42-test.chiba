@@ -1,0 +1,7 @@
+namespace parser.error.for.extra.semicolon
+
+def for_extra_semicolon(): i64 = {
+    for ; ; {
+        return 0
+    }
+}

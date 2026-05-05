@@ -1,0 +1,7 @@
+namespace parser.error.use.double.dot
+
+use demo..io.print
+
+def after_bad_use_dot(): i64 = {
+    return 0
+}

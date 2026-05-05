@@ -1,0 +1,5 @@
+namespace parser.error.type.args.missing.comma
+
+def type_args_missing_comma(xs: Result[Option[i64] Vec[i64]]): i64 = {
+    return 0
+}

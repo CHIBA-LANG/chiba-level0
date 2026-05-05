@@ -1,0 +1,7 @@
+namespace parser.error.use.group.double.comma
+
+use demo.io.{print,, println}
+
+def after_bad_group_use2(): i64 = {
+    return 0
+}

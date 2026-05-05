@@ -1,0 +1,6 @@
+namespace parser.error.record.missing.value
+
+def record_missing_value(): i64 = {
+    let point = { x:, y: 2 }
+    return 0
+}

@@ -1,0 +1,8 @@
+namespace parser.error.continue.extra.token
+
+def continue_extra(): i64 = {
+    for {
+        continue loop again
+    }
+    return 0
+}

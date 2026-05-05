@@ -1,0 +1,7 @@
+namespace parser.error.match.missing.expr
+
+def match_missing_expr(): i64 = {
+    match {
+        _ => 0
+    }
+}

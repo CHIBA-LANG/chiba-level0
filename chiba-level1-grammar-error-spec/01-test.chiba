@@ -1,0 +1,6 @@
+namespace parser.error.missing.let.rhs
+
+def missing_let_rhs(): i64 = {
+    let value =
+    return 0
+}

@@ -1,0 +1,6 @@
+namespace parser.error.same.line.double.let
+
+def same_line_double_let(): i64 = {
+    let a = 1 let b = 2
+    return a
+}

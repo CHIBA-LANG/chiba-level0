@@ -1,0 +1,7 @@
+namespace parser.error.missing.rbrace
+
+def missing_rbrace(): i64 = {
+    let x = 1
+    if x > 0 {
+        return x
+}

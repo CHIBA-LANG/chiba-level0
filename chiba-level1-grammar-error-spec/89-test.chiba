@@ -1,0 +1,7 @@
+namespace parser.error.use.extra.dot.before.star
+
+use demo.prelude..*
+
+def after_bad_star_use(): i64 = {
+    return 0
+}

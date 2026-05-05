@@ -1,0 +1,5 @@
+namespace parser.error.return.let
+
+def return_let(): i64 = {
+    return let x = 1
+}

@@ -1,0 +1,5 @@
+namespace parser.error.param.type.missing
+
+def param_type_missing(x: ): i64 = {
+    return 0
+}

@@ -1,0 +1,6 @@
+namespace parser.error.data.generic.missing.rbracket
+
+data Option[T {
+    Some(T)
+    None
+}

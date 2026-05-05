@@ -1,0 +1,5 @@
+namespace parser.error.fn.return.type.missing
+
+def missing_return_type(): = {
+    return 0
+}

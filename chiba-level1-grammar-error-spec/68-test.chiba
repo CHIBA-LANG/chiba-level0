@@ -1,0 +1,5 @@
+namespace parser.error.data.missing.name
+
+data {
+    Some(i64)
+}

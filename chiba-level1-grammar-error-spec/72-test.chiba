@@ -1,0 +1,6 @@
+namespace parser.error.union.missing.comma
+
+union Bits {
+    lo: u32
+    hi: u32,
+}

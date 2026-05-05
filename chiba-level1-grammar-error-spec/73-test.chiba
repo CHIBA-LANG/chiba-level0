@@ -1,0 +1,5 @@
+namespace parser.error.method.missing.receiver.type
+
+def .norm(self): i64 = {
+    return 0
+}
