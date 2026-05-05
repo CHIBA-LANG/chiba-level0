@@ -1,4 +1,4 @@
-namespace parser.error.data.missing.rbrace
+namespace parser.error.kwdata.missing.rbrace
 
 data Pair[T] {
     Pair(T, T)

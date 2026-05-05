@@ -1,4 +1,4 @@
-namespace lexer.spec.extern.asm
+namespace lexer.spec.externasm
 
 def puts(msg: cstr): i32 = extern "c"
 def cbx_entry(x: i64): i64 = extern "cbx"

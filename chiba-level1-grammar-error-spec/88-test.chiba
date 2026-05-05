@@ -1,4 +1,4 @@
-namespace parser.error.use.group.double.comma
+namespace parser.error.kwuse.group.double.comma
 
 use demo.io.{print,, println}
 

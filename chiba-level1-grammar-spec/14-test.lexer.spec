@@ -3,10 +3,8 @@
 [1:16 len=1] Dot
 [1:17 len=4] Ident("spec")
 [1:21 len=1] Dot
-[1:22 len=3] KwLet
-[1:25 len=1] Dot
-[1:26 len=8] Ident("destruct")
-[1:34 len=2] Newline("\n\n")
+[1:22 len=11] Ident("letdestruct")
+[1:33 len=2] Newline("\n\n")
 [3:1 len=3] KwDef
 [3:5 len=8] Ident("destruct")
 [3:13 len=1] LParen

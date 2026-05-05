@@ -1,4 +1,4 @@
-namespace parser.error.type.annotation.missing.rbracket
+namespace parser.error.kwtype.annotation.missing.rbracket
 
 def type_annotation_missing_rbracket(xs: Vec[Option[i64): i64 = {
     return 0

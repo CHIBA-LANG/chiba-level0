@@ -1,4 +1,4 @@
-namespace parser.error.same.line.double.let
+namespace parser.error.same.line.double.kwlet
 
 def same_line_double_let(): i64 = {
     let a = 1 let b = 2

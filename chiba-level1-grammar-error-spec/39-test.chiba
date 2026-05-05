@@ -1,4 +1,4 @@
-namespace parser.error.continue.extra.token
+namespace parser.error.kwcontinue.extra.token
 
 def continue_extra(): i64 = {
     for {

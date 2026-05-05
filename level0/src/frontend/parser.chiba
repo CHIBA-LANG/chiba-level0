@@ -666,7 +666,7 @@ def p_parse_primary(p: i64): Expr =
                 }
             } else { EVar(s) }
         }
-        _ => EUnit
+        _ => { let _ = p_advance(p) EUnit }
     }
 
 // '(' → unit, tuple, paren expr, or lambda
@@ -835,11 +835,18 @@ def p_peek_n2(p: i64): Token = {
 
 // ── Top-level program parser ──────────────────────────────────────────────────
 
+def item_is_empty(item: Item): i64 =
+    match item {
+        FunDef(name, _, _, _, _, _, _) => if name.len == 0 { 1 } else { 0 }
+        _ => 0
+    }
+
 def p_parse_items(p: i64, acc: List[Item]): List[Item] =
     if p_at_eof(p) != 0 { rev(acc) }
     else {
         let item = p_parse_item(p)
-        p_parse_items(p, Cons(item, acc))
+        if item_is_empty(item) != 0 { p_parse_items(p, acc) }
+        else { p_parse_items(p, Cons(item, acc)) }
     }
 
 def p_parse_item(p: i64): Item = {

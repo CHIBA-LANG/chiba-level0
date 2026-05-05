@@ -1,0 +1,34 @@
+namespace frontend.parserspec
+use metalstd.str.*
+use metalstd.vec.*
+use parser.chiba_level1.*
+
+def ast_to_string(ast: AST): Str = {
+    let out = str_new()
+    let _ = str_push_cstr(out, "AST")
+    out
+}
+
+def strip_trivia(tokens: Vec): Vec = tokens
+
+def parse_result_to_string(result: LabeledAST): Str = {
+    let out = str_new()
+    let _ = match result {
+        OK(ast, prefix) => {
+            let _ = str_push_cstr(out, "OK(")
+            let _ = str_push_str(out, ast_to_string(ast as AST))
+            str_push(out, 41)
+        }
+        Err(Some(ast), prefix) => {
+            let _ = str_push_cstr(out, "Err(Some(AST), consumed=")
+            let _ = str_append_i64(out, vec_len(prefix))
+            str_push(out, 41)
+        }
+        Err(None, prefix) => {
+            let _ = str_push_cstr(out, "Err(None, consumed=")
+            let _ = str_append_i64(out, vec_len(prefix))
+            str_push(out, 41)
+        }
+    }
+    out
+}

@@ -1,4 +1,4 @@
-namespace parser.error.use.extra.dot.before.star
+namespace parser.error.kwuse.extra.dot.before.star
 
 use demo.prelude..*
 

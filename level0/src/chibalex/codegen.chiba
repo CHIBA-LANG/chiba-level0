@@ -32,31 +32,34 @@ def codegen(file: ChibaLexFile, expanded: Vec): Str = {
     // ── 2.5. Mode constants ──────────────────────────────────────────────────
     emit_mode_consts(out, modes)
 
-    // ── 3. Footer content (Token type etc.) ──────────────────────────────────
+    // ── 3. Predeclare ctx type for user helpers ──────────────────────────────
+    emit_ctx_forward_type(out)
+
+    // ── 4. Footer content (Token type etc.) ──────────────────────────────────
     let _ = str_push_cstr(out, "\n// ── user definitions ──\n")
     let _ = str_append(out, file.footer)
     let _ = str_push_nl(out)
 
-    // ── 4. Span / TokenSpan ──────────────────────────────────────────────────
+    // ── 5. Remaining generated types ─────────────────────────────────────────
     emit_span_types(out, file)
 
-    // ── 5. Pattern compilation helpers ───────────────────────────────────────
+    // ── 6. Pattern compilation helpers ───────────────────────────────────────
     emit_pattern_helpers(out)
 
-    // ── 6. Init function ─────────────────────────────────────────────────────
+    // ── 7. Init function ─────────────────────────────────────────────────────
     emit_init_patterns(out, expanded)
 
-    // ── 6.5. Mode dispatch + ctx helpers ─────────────────────────────────────
+    // ── 7.5. Mode dispatch + ctx helpers ─────────────────────────────────────
     emit_rule_mode_dispatch(out, expanded, modes)
     emit_ctx_helpers(out, modes)
 
-    // ── 7. Action dispatch ───────────────────────────────────────────────────
+    // ── 8. Action dispatch ───────────────────────────────────────────────────
     emit_action_dispatch(out, expanded)
 
-    // ── 8. Lexer loop ────────────────────────────────────────────────────────
+    // ── 9. Lexer loop ────────────────────────────────────────────────────────
     emit_lexer_loop(out)
 
-    // ── 9. Entry point ───────────────────────────────────────────────────────
+    // ── 10. Entry point ──────────────────────────────────────────────────────
     emit_lex_all(out)
 
     out
@@ -151,6 +154,12 @@ def emit_mode_expr(out: Str, mode_name: Str): i64 = {
     0
 }
 
+def emit_ctx_forward_type(out: Str): i64 = {
+    let _ = str_push_cstr(out, "\n// ── generated ctx predecl ──\n")
+    let _ = str_push_cstr(out, "type LexerCtx { src: i64  src_len: i64  pos: i64  line: i64  col: i64  mode: i64  mode_stack: Vec  user_stack: Vec  emit: Vec  error: Option[i64] }\n")
+    0
+}
+
 // ── Emit Span / TokenSpan types ──────────────────────────────────────────────
 
 def emit_span_types(out: Str, file: ChibaLexFile): i64 = {
@@ -158,7 +167,6 @@ def emit_span_types(out: Str, file: ChibaLexFile): i64 = {
     let _ = emit_default_user_stack(out, file)
     let _ = str_push_cstr(out, "type Span { file: i64  line: i64  col: i64  len: i64 }\n")
     let _ = str_push_cstr(out, "type TokenSpan { token: Token  span: Span }\n")
-    let _ = str_push_cstr(out, "type LexerCtx { src: i64  src_len: i64  pos: i64  line: i64  col: i64  mode: i64  mode_stack: Vec  user_stack: Vec[UserStack]  emit: Vec  error: Option[i64] }\n")
     let _ = str_push_cstr(out, "type LexPosInfo { line: i64  col: i64 }\n")
     let _ = str_push_cstr(out, "type LexBest { rule: i64  end: i64 }\n")
     0

@@ -1706,6 +1706,41 @@ def emit_support_helpers(out: Str, token_names: Vec, bound_names: Vec): i64 = {
 def token_name_in_bound_list(name: Str, bound_names: Vec): i64 =
     token_name_in_vec(bound_names, name, 0)
 
+def known_token_arity(name: Str): i64 =
+    if streq(name, mk_str("StringStart", 11)) != 0 { 3 }
+    else if streq(name, mk_str("LineComment", 11)) != 0 { 1 }
+    else if streq(name, mk_str("Newline", 7)) != 0 { 1 }
+    else if streq(name, mk_str("Ident", 5)) != 0 { 1 }
+    else if streq(name, mk_str("IntLit", 6)) != 0 { 1 }
+    else if streq(name, mk_str("FloatLit", 8)) != 0 { 1 }
+    else if streq(name, mk_str("Atom", 4)) != 0 { 1 }
+    else if streq(name, mk_str("StringChunk", 11)) != 0 { 1 }
+    else { 0 }
+
+def token_match_arity(name: Str, is_bound: i64): i64 = {
+    let known = known_token_arity(name)
+    if known > 0 { known }
+    else if is_bound != 0 { 1 }
+    else { 0 }
+}
+
+def emit_token_pattern_fields(out: Str, arity: i64, is_bound: i64, i: i64): i64 =
+    if i >= arity { 0 }
+    else {
+        let _ = if i > 0 { str_push_cstr(out, ", ") } else { 0 }
+        let _ = if i == 0 && is_bound != 0 { str_push_cstr(out, "v") } else { str_push_cstr(out, "_") }
+        emit_token_pattern_fields(out, arity, is_bound, i + 1)
+    }
+
+def emit_token_constructor_pattern(out: Str, name: Str, arity: i64, is_bound: i64): i64 = {
+    let _ = str_append(out, name)
+    if arity > 0 {
+        let _ = str_push(out, 40)
+        let _ = emit_token_pattern_fields(out, arity, is_bound, 0)
+        str_push(out, 41)
+    } else { 0 }
+}
+
 // Generate: def match_token_<Name>(tokens: Vec, pos: i64): MatchResult = ...
 def emit_per_token_match_fns(out: Str, token_names: Vec, bound_names: Vec): i64 =
     emit_per_token_match_fns_loop(out, token_names, bound_names, 0)
@@ -1715,6 +1750,7 @@ def emit_per_token_match_fns_loop(out: Str, token_names: Vec, bound_names: Vec, 
     else {
         let name = vec_get(token_names, i) as Str
         let is_bound = token_name_in_bound_list(name, bound_names)
+        let arity = token_match_arity(name, is_bound)
         let _ = emit_indent(out, 0)
         let _ = str_push_cstr(out, "def match_token_")
         let _ = str_append(out, name)
@@ -1726,12 +1762,10 @@ def emit_per_token_match_fns_loop(out: Str, token_names: Vec, bound_names: Vec, 
         let _ = emit_indent(out, 2)
         let _ = str_push_cstr(out, "match ts.token {\n")
         let _ = emit_indent(out, 3)
-        let _ = str_append(out, name)
+        let _ = emit_token_constructor_pattern(out, name, arity, is_bound)
         if is_bound != 0 {
-            // Token with payload: extract the first field as i64
-            let _ = str_push_cstr(out, "(v) => MatchOK(v as i64, pos + 1, 0)\n")
+            let _ = str_push_cstr(out, " => MatchOK(v as i64, pos + 1, 0)\n")
         } else {
-            // Token without payload: return 0
             let _ = str_push_cstr(out, " => MatchOK(0 as i64, pos + 1, 0)\n")
         }
         let _ = emit_indent(out, 3)
@@ -1821,6 +1855,7 @@ def emit_token_is_dispatcher_if(out: Str, token_names: Vec, bound_names: Vec, i:
     else {
         let name = vec_get(token_names, i) as Str
         let is_bound = token_name_in_bound_list(name, bound_names)
+        let arity = token_match_arity(name, is_bound)
         let _ = emit_indent(out, 1)
         let _ = if i == 0 { str_push_cstr(out, "if streq(name, ") }
                 else { str_push_cstr(out, "else if streq(name, ") }
@@ -1829,12 +1864,8 @@ def emit_token_is_dispatcher_if(out: Str, token_names: Vec, bound_names: Vec, i:
         let _ = emit_indent(out, 2)
         let _ = str_push_cstr(out, "match ts.token {\n")
         let _ = emit_indent(out, 3)
-        let _ = str_append(out, name)
-        let _ = if is_bound != 0 {
-            str_push_cstr(out, "(_) => 1\n")
-        } else {
-            str_push_cstr(out, " => 1\n")
-        }
+        let _ = emit_token_constructor_pattern(out, name, arity, 0)
+        let _ = str_push_cstr(out, " => 1\n")
         let _ = emit_line_cstr(out, 3, c"_ => 0")
         let _ = emit_line_cstr(out, 2, c"}")
         let _ = emit_line_cstr(out, 1, c"}")

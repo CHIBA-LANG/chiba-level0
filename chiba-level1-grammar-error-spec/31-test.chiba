@@ -1,4 +1,4 @@
-namespace parser.error.let.true.name
+namespace parser.error.kwlet.true.name
 
 def let_true_name(): i64 = {
     let true = false

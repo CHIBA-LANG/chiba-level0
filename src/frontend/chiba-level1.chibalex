@@ -63,7 +63,7 @@ mode STRING
 
 @op_pipe_gt = "|>" @wsnl?
 @op_colon_eq = ":=" @wsnl?
-@op_dot_star = ".*" @wsnl?
+@op_dot_star = ".*"
 @op_dot_dot = ".." @wsnl?
 @op_fat_arrow = "=>" @wsnl?
 @op_thin_arrow = "->" @wsnl?
@@ -74,7 +74,7 @@ mode STRING
 @op_lt_lt = "<<" @wsnl?
 @op_gt_gt = ">>" @wsnl?
 @op_amp_amp = "&&" @wsnl?
-@op_pipe_pipe = "||" @wsnl?
+@op_pipe_pipe = "||"
 
 @op_eq = "=" @wsnl?
 @op_plus = "+" @wsnl?
@@ -86,7 +86,7 @@ mode STRING
 @op_gt = ">" @wsnl?
 @op_bang = "!" @wsnl?
 @op_amp = "&" @wsnl?
-@op_pipe = "|" @wsnl?
+@op_pipe = "|"
 @op_caret = "^" @wsnl?
 @op_colon = ":" @wsnl?
 @op_comma = "," @wsnl?
@@ -308,13 +308,15 @@ tokens STRING :-
         else { acc }
 
     def string_open_prefix_len(matched: Str): i64 = {
-        let n = matched.len
-        let i = 0
-        for i < n && ch_at(matched, i) != 114 && ch_at(matched, i) != 35 && ch_at(matched, i) != 34 {
-            let i = i + 1
-        }
-        i
+        string_open_prefix_len_loop(matched, 0)
     }
+
+    def string_open_prefix_len_loop(matched: Str, i: i64): i64 =
+        if i >= matched.len { i }
+        else if ch_at(matched, i) == 114 { i }
+        else if ch_at(matched, i) == 35 { i }
+        else if ch_at(matched, i) == 34 { i }
+        else { string_open_prefix_len_loop(matched, i + 1) }
 
     def string_open_raw_flag(matched: Str, prefix_len: i64): i64 =
         if prefix_len < matched.len && ch_at(matched, prefix_len) == 114 { 1 } else { 0 }

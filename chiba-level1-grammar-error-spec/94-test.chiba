@@ -1,4 +1,4 @@
-namespace parser.error.fn.return.type.missing
+namespace parser.error.fn.kwreturn.kwtype.missing
 
 def missing_return_type(): = {
     return 0

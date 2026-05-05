@@ -1,4 +1,4 @@
-namespace parser.error.return.let
+namespace parser.error.kwreturn.kwlet
 
 def return_let(): i64 = {
     return let x = 1

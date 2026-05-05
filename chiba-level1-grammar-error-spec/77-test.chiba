@@ -1,4 +1,4 @@
-namespace parser.error.asm.missing.rparen
+namespace parser.error.kwasm.missing.rparen
 
 def bad_asm(ptr: Ptr[u8]): i64 = unsafe {
     let v = asm (ptr: rdi : (rax) => {

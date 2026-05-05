@@ -1,4 +1,4 @@
-namespace parser.error.data.generic.missing.rbracket
+namespace parser.error.kwdata.generic.missing.rbracket
 
 data Option[T {
     Some(T)

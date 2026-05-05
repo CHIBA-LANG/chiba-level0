@@ -1,4 +1,4 @@
-namespace parser.error.use.group.leading.comma
+namespace parser.error.kwuse.group.leading.comma
 
 use demo.io.{, print}
 

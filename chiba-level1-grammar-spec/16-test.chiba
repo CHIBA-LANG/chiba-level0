@@ -1,4 +1,4 @@
-namespace lexer.spec.control.reset.shift
+namespace lexer.spec.control.resetshift
 
 def reset_shift(): i64 = {
     let value = reset :parse {

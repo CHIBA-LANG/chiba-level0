@@ -1,4 +1,4 @@
-namespace parser.error.type.args.missing.comma.simple
+namespace parser.error.kwtype.args.missing.comma.simple
 
 def type_args_missing_comma_simple(xs: Result[i64 bool]): i64 = {
     return 0

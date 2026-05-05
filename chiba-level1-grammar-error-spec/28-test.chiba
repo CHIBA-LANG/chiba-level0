@@ -1,4 +1,4 @@
-namespace parser.error.use.missing.rbrace
+namespace parser.error.kwuse.missing.rbrace
 
 use demo.io.{print, println
 

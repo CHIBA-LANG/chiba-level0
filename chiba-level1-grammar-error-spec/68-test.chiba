@@ -1,4 +1,4 @@
-namespace parser.error.data.missing.name
+namespace parser.error.kwdata.missing.name
 
 data {
     Some(i64)

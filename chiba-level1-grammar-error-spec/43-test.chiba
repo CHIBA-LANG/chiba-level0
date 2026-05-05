@@ -1,4 +1,4 @@
-namespace parser.error.for.bad.label.position
+namespace parser.error.kwfor.bad.label.position
 
 def for_bad_label_position(): i64 = {
     for done() :outer {

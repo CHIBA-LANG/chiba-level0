@@ -1,4 +1,4 @@
-namespace parser.error.use.double.dot
+namespace parser.error.kwuse.double.dot
 
 use demo..io.print
 

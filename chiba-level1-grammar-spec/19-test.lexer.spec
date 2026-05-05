@@ -3,9 +3,8 @@
 [1:16 len=1] Dot
 [1:17 len=4] Ident("spec")
 [1:21 len=1] Dot
-[1:22 len=6] KwExtern
-[1:28 len=1] Dot
-[1:29 len=5] KwAsm
+[1:22 len=9] Ident("externasm")
+[1:31 len=2] Newline("\n\n")
 [3:1 len=3] KwDef
 [3:5 len=4] Ident("puts")
 [3:9 len=1] LParen
@@ -61,7 +60,8 @@
 [7:18 len=2] Ident("u8")
 [7:21 len=1] Eq
 [7:23 len=3] Ident("ptr")
-[7:26 len=7] DotStar
+[7:26 len=2] DotStar
+[7:28 len=5] Newline("\n    ")
 [8:5 len=3] KwLet
 [8:9 len=1] Ident("v")
 [8:11 len=1] Eq

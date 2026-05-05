@@ -1,4 +1,4 @@
-namespace parser.error.break.extra.expr
+namespace parser.error.kwbreak.extra.expr
 
 def break_extra(): i64 = {
     for {

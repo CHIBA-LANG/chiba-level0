@@ -5,9 +5,8 @@
 [1:21 len=1] Dot
 [1:22 len=7] Ident("control")
 [1:29 len=1] Dot
-[1:30 len=5] KwReset
-[1:35 len=1] Dot
-[1:36 len=7] KwShift
+[1:30 len=10] Ident("resetshift")
+[1:40 len=2] Newline("\n\n")
 [3:1 len=3] KwDef
 [3:5 len=11] Ident("reset_shift")
 [3:16 len=1] LParen

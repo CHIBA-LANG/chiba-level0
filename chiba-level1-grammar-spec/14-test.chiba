@@ -1,4 +1,4 @@
-namespace lexer.spec.let.destruct
+namespace lexer.spec.letdestruct
 
 def destruct(point: Shape): i64 = {
     let (x, 

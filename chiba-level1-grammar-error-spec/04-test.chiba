@@ -1,4 +1,4 @@
-namespace parser.error.if.missing.condition
+namespace parser.error.kwif.missing.condition
 
 def if_missing_condition(): i64 = {
     if {

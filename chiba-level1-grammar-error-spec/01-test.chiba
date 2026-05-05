@@ -1,4 +1,4 @@
-namespace parser.error.missing.let.rhs
+namespace parser.error.missing.kwlet.rhs
 
 def missing_let_rhs(): i64 = {
     let value =

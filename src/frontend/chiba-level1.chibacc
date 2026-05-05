@@ -1,0 +1,961 @@
+#![CHIBACC]
+
+{
+    namespace parser.chiba_level1
+    use metalstd.option.*
+    use metalstd.vec.*
+}
+
+start source_file
+
+rule trivia ::= 
+    _:LineComment => 0
+    | _:Newline => 0
+    ;
+
+rule trivia_list ::= 
+    trivia trivia_list => 0
+    | => 0
+    ;
+
+rule source_file ::= 
+    _:trivia_list _:file_attr_list ns:namespace_decl _:trivia_list items:item_list _:trivia_list => SourceFile(ns, items)
+    | _:trivia_list _:file_attr_list items:item_list _:trivia_list => SourceFile(NamespaceNone, items)
+    ;
+
+rule file_attr_list ::= 
+    _:file_attr _:trivia_list rest:file_attr_list => 0
+    | => 0
+    ;
+
+rule file_attr ::= 
+    FileAttrStart _:attr_body RBracket => 0
+    | ItemAttrStart _:attr_body RBracket => 0
+    ;
+
+rule item_attr_list ::= 
+    _:item_attr _:trivia_list rest:item_attr_list => 0
+    | => 0
+    ;
+
+rule item_attr ::= 
+    ItemAttrStart _:attr_body RBracket => 0
+    ;
+
+rule attr_body ::= 
+    name:Ident rest:attr_body_after_ident => 0
+    ;
+
+rule attr_body_after_ident ::= 
+    LParen _:trivia_list args:attr_arg_list_opt _:trivia_list RParen => 0
+    | => 0
+    ;
+
+rule attr_arg_list_opt ::= 
+    name:Ident _:trivia_list tail:attr_arg_tail => 0
+    | => 0
+    ;
+
+rule attr_arg_tail ::= 
+    Comma _:trivia_list name:Ident _:trivia_list tail:attr_arg_tail => 0
+    | => 0
+    ;
+
+rule namespace_decl ::= 
+    KwNamespace path:path => Namespace(path)
+    ;
+
+rule path ::= 
+    head:path_name tail:path_tail => Path_Cons(head, tail)
+    ;
+
+rule path_name ::= 
+    name:Ident => name
+    ;
+
+rule path_tail ::= 
+    Dot rest:path => rest
+    | => Path_End
+    ;
+
+rule item_list ::= 
+    _:trivia_list _:use_decl _:trivia_list tail:item_list => tail
+    | _:trivia_list head:item _:trivia_list tail:item_list => Item_Cons(head, tail)
+    | => Item_End
+    ;
+
+rule item ::= 
+    _:item_attr_list _:private_opt core:item_core => core
+    ;
+
+rule item_core ::= 
+    defn:def_item => Item_Def(defn)
+    | ty:type_item => Item_Type(ty)
+    | data:data_item => Item_Data(data)
+    | un:union_item => Item_Union(un)
+    ;
+
+rule private_opt ::= 
+    KwPrivate => 0
+    | => 0
+    ;
+
+rule use_decl ::= 
+    KwUse Ident _:use_after_ident => 0
+    ;
+
+rule use_after_ident ::= 
+    DotStar => 0
+    | Dot _:use_after_dot => 0
+    | => 0
+    ;
+
+rule use_after_dot ::= 
+    Ident rest:use_after_ident => 0
+    | Star => 0
+    | LBrace _:use_name_list RBrace => 0
+    ;
+
+rule use_name_list ::= 
+    Ident rest:use_name_tail => 0
+    ;
+
+rule use_name_tail ::= 
+    Comma rest:use_name_list => 0
+    | => 0
+    ;
+
+rule def_item ::= 
+    KwDef name:def_name rest:def_after_name => DefItem2(name, rest)
+    ;
+
+rule def_name ::= 
+    name:Ident tail:def_name_tail => name
+    ;
+
+rule def_name_tail ::= 
+    Dot method:Ident => 0
+    | => 0
+    ;
+
+rule def_after_name ::= 
+    generics:opt_generics LParen params:param_list RParen Colon ret:type_expr Eq body:def_body => DefFun(generics, params, ret, body)
+    | Colon ret:type_expr Eq value:expr => DefConst(ret, value)
+    ;
+
+rule def_body ::= 
+    body:block_expr => body
+    | value:expr => value
+    ;
+
+rule type_item ::= 
+    KwType name:Ident Eq ty:type_expr => TypeItem(name, ty)
+    ;
+
+rule data_item ::= 
+    KwData name:Ident generics:opt_generics LBrace variants:data_variant_list RBrace => DataItem(name, generics, variants)
+    ;
+
+rule data_variant_list ::= 
+    _:trivia_list head:data_variant tail:data_variant_list => DataVariant_Cons(head, tail)
+    | => DataVariant_End
+    ;
+
+rule data_variant ::= 
+    name:Ident args:data_variant_args => DataVariant(name, args)
+    ;
+
+rule data_variant_args ::= 
+    LParen args:data_variant_arg_list RParen => args
+    | => TypeArg_End
+    ;
+
+rule data_variant_arg_list ::= 
+    _:trivia_list first:Ident rest:data_variant_arg_after_ident => DataVariantArg_Ident(first, rest)
+    | _:trivia_list first:Atom tail:type_arg_tail => TypeArg_Cons(Type_Atom(first), tail)
+    | => TypeArg_End
+    ;
+
+rule data_variant_arg_after_ident ::= 
+    Colon ty:type_expr tail:data_variant_field_tail => DataVariantArg_Field(ty, tail)
+    | tail:type_expr_tail rest:type_arg_tail => DataVariantArg_Type(tail, rest)
+    ;
+
+rule data_variant_field_tail ::= 
+    _:trivia_list Comma rest:data_variant_field_after_comma => rest
+    | => DataVariantField_End
+    ;
+
+rule data_variant_field_after_comma ::= 
+    _:trivia_list name:Ident Colon ty:type_expr tail:data_variant_field_tail => DataVariantField_Cons(name, ty, tail)
+    | => DataVariantField_End
+    ;
+
+rule union_item ::= 
+    KwUnion name:Ident LBrace fields:union_field_list RBrace => UnionItem(name, fields)
+    ;
+
+rule union_field_list ::= 
+    _:trivia_list head:union_field tail:union_field_tail => UnionField_Cons(head, tail)
+    | => UnionField_End
+    ;
+
+rule union_field_tail ::= 
+    _:trivia_list Comma rest:union_field_after_comma => rest
+    | => UnionField_End
+    ;
+
+rule union_field_after_comma ::= 
+    _:trivia_list head:union_field tail:union_field_tail => UnionField_Cons(head, tail)
+    | => UnionField_End
+    ;
+
+rule union_field ::= 
+    name:Ident Colon ty:type_expr => UnionField(name, ty)
+    ;
+
+rule opt_generics ::= 
+    LBracket names:generic_name_list RBracket => names
+    | => Generic_End
+    ;
+
+rule generic_name_list ::= 
+    head:Ident tail:generic_name_tail => Generic_Cons(head, tail)
+    ;
+
+rule generic_name_tail ::= 
+    Comma rest:generic_name_list => rest
+    | => Generic_End
+    ;
+
+rule param_list ::= 
+    _:trivia_list head:param tail:param_tail => Param_Cons(head, tail)
+    | => Param_End
+    ;
+
+rule param_tail ::= 
+    _:trivia_list Comma rest:param_list => rest
+    | => Param_End
+    ;
+
+rule param ::= 
+    name:Ident ty:param_type_opt => Param(name, ty)
+    ;
+
+rule param_type_opt ::= 
+    Colon ty:type_expr => ty
+    | => Type_Path(str_empty(), Type_Tail_End)
+    ;
+
+rule type_expr ::= 
+    head:Ident tail:type_expr_tail => Type_Path(head, tail)
+    | LParen RParen => Type_Unit
+    | atom:Atom => Type_Atom(atom)
+    ;
+
+rule type_expr_tail ::= 
+    Dot rest:type_expr => Type_Tail_Dot(rest)
+    | LBracket args:type_arg_list RBracket => Type_Tail_Generic(args)
+    | => Type_Tail_End
+    ;
+
+rule type_arg_list ::= 
+    _:trivia_list head:type_expr tail:type_arg_tail => TypeArg_Cons(head, tail)
+    ;
+
+rule type_arg_tail ::= 
+    _:trivia_list Comma rest:type_arg_list => rest
+    | => TypeArg_End
+    ;
+
+rule block_expr ::= 
+    LBrace _:trivia_list stmts:stmt_list _:trivia_list RBrace => Expr_Block(stmts, TailExpr_None)
+    ;
+
+rule stmt_list ::= 
+    _:trivia_list _:stmt_separator tail:stmt_list => tail
+    | _:trivia_list head:stmt rest:stmt_list_rest => Stmt_Cons(head, rest)
+    | => Stmt_End
+    ;
+
+rule stmt_list_rest ::= 
+    _:stmt_separator tail:stmt_list => tail
+    | => Stmt_End
+    ;
+
+rule stmt_separator ::= 
+    Newline => 0
+    | Semicolon => 0
+    ;
+
+rule tail_expr ::= 
+    value:expr => TailExpr_Some(value)
+    | => TailExpr_None
+    ;
+
+rule stmt ::= 
+    _:item_attr_list core:stmt_core => core
+    ;
+
+rule stmt_core ::= 
+    Semicolon => Stmt_Empty
+    | KwLet pat:pattern ty:let_type_opt Eq value:expr => Stmt_LetPatternTyped(pat, ty, value)
+    | KwReturn value:expr => Stmt_Return(value)
+    | f:for_stmt => f
+    | KwBreak label:loop_label_opt => Stmt_Break(label)
+    | KwContinue label:loop_label_opt => Stmt_Continue(label)
+    | value:expr => Stmt_Expr(value)
+    ;
+
+rule let_type_opt ::= 
+    Colon ty:type_expr => ty
+    | => Type_Path(str_empty(), Type_Tail_End)
+    ;
+
+rule for_stmt ::= 
+    KwFor rest:for_after_kw => rest
+    ;
+
+rule for_after_kw ::= 
+    body:block_expr => Stmt_For(LoopLabel_None, Expr_Bool(1), body)
+    | label:loop_label cond:expr body:block_expr => Stmt_For(label, cond, body)
+    | cond:expr body:block_expr => Stmt_For(LoopLabel_None, cond, body)
+    ;
+
+rule loop_label ::= 
+    Atom => LoopLabel_Some
+    ;
+
+rule loop_label_opt ::= 
+    label:loop_label => label
+    | => LoopLabel_None
+    ;
+
+rule string_lit ::= 
+    StringStart _:string_chunk_list StringEnd => Expr_String
+    ;
+
+rule string_chunk_list ::= 
+    StringChunk rest:string_chunk_list => 0
+    | StringExprStart value:expr StringExprEnd rest:string_chunk_list => 0
+    | => 0
+    ;
+
+rule closure_expr ::= 
+    LBrace body:closure_after_lbrace => body
+    ;
+
+rule closure_after_lbrace ::= 
+    Pipe params:closure_param_list Pipe _:trivia_list stmts:stmt_list tail:tail_expr _:trivia_list RBrace => Expr_Closure(params, Expr_Block(stmts, tail))
+    | PipePipe _:trivia_list stmts:stmt_list tail:tail_expr _:trivia_list RBrace => Expr_Closure(Param_End, Expr_Block(stmts, tail))
+    ;
+
+rule closure_param_list ::= 
+    head:closure_param tail:closure_param_tail => Param_Cons(head, tail)
+    | => Param_End
+    ;
+
+rule closure_param ::= 
+    name:Ident ty:closure_param_type => Param(name, ty)
+    ;
+
+rule closure_param_type ::= 
+    Colon ty:type_expr => ty
+    | => Type_Path(str_empty(), Type_Tail_End)
+    ;
+
+rule closure_param_tail ::= 
+    Comma rest:closure_param_list => rest
+    | => Param_End
+    ;
+
+rule if_expr ::= 
+    KwIf cond:if_cond then_block:block_expr else_branch:if_else_branch => Expr_If(cond, then_block, else_branch)
+    ;
+
+rule if_cond ::= 
+    KwLet pat:pattern Eq name:Ident LParen args:arg_list RParen => IfCond_Let(pat, Expr_Call(Expr_Name(name), args))
+    | name:Ident rest:if_cond_ident_rest => IfCond_Expr(Expr_IfCondIdent(name, rest))
+    | value:expr => IfCond_Expr(value)
+    ;
+
+rule if_cond_ident_rest ::= 
+    LParen args:arg_list RParen => IfCondIdent_Call(args)
+    | EqEq rhs:expr => IfCondIdent_Binary(OpEqEq, rhs)
+    | BangEq rhs:expr => IfCondIdent_Binary(OpBangEq, rhs)
+    | Lt rhs:expr => IfCondIdent_Binary(OpLt, rhs)
+    | Gt rhs:expr => IfCondIdent_Binary(OpGt, rhs)
+    | LtEq rhs:expr => IfCondIdent_Binary(OpLtEq, rhs)
+    | GtEq rhs:expr => IfCondIdent_Binary(OpGtEq, rhs)
+    | => IfCondIdent_Name
+    ;
+
+rule if_else_branch ::= 
+    KwElse next:if_else_after_else => next
+    ;
+
+rule if_else_after_else ::= 
+    nested:if_expr => nested
+    | block:block_expr => block
+    ;
+
+rule match_expr ::= 
+    KwMatch value:match_value LBrace arms:match_arm_list RBrace => Expr_Match(value, arms)
+    ;
+
+rule match_value ::= 
+    name:Ident rest:match_value_ident_rest => Expr_MatchIdent(name, rest)
+    | value:expr => value
+    ;
+
+rule match_value_ident_rest ::= 
+    LParen args:arg_list RParen => MatchIdent_Call(args)
+    | => MatchIdent_Name
+    ;
+
+rule reset_expr ::= 
+    KwReset label:control_label_opt body:block_expr => Expr_Reset(label, body)
+    ;
+
+rule shift_expr ::= 
+    KwShift label:control_label_opt name:Ident body:block_expr => Expr_Shift(label, name, body)
+    ;
+
+rule control_label_opt ::= 
+    Atom => ControlLabel_Some
+    | => ControlLabel_None
+    ;
+
+rule match_arm_list ::= 
+    _:trivia_list arm:match_arm rest:match_arm_list => MatchArm_Cons(arm, rest)
+    | => MatchArm_End
+    ;
+
+rule match_arm ::= 
+    pat:pattern guard:match_guard FatArrow value:expr => MatchArm(pat, guard, value)
+    ;
+
+rule match_guard ::= 
+    KwIf value:expr => MatchGuard_Some(value)
+    | => MatchGuard_None
+    ;
+
+rule extern_expr ::= 
+    KwExtern abi:string_lit => Expr_Extern(abi)
+    ;
+
+rule unsafe_expr ::= 
+    KwUnsafe body:block_expr => Expr_Unsafe(body)
+    ;
+
+rule asm_expr ::= 
+    KwAsm LParen inputs:asm_bind_list_opt RParen Colon LParen outputs:asm_output_list_opt RParen FatArrow LBrace body:asm_string_list RBrace => Expr_Asm(inputs, outputs, body)
+    ;
+
+rule asm_bind_list_opt ::= 
+    head:asm_bind tail:asm_bind_tail => AsmBind_Cons(head, tail)
+    | => AsmBind_End
+    ;
+
+rule asm_bind_tail ::= 
+    Comma rest:asm_bind_list_opt => rest
+    | => AsmBind_End
+    ;
+
+rule asm_bind ::= 
+    name:Ident Colon reg:Ident => AsmBind(name, reg)
+    ;
+
+rule asm_output_list_opt ::= 
+    head:Ident tail:asm_output_tail => AsmOutput_Cons(head, tail)
+    | => AsmOutput_End
+    ;
+
+rule asm_output_tail ::= 
+    Comma rest:asm_output_list_opt => rest
+    | => AsmOutput_End
+    ;
+
+rule asm_string_list ::= 
+    _:trivia_list line:string_lit rest:asm_string_list => AsmString_Cons(line, rest)
+    | => AsmString_End
+    ;
+
+rule pattern ::= 
+    name:Ident rest:pattern_after_ident => Pattern_IdentStart(name, rest)
+    | atom:pattern_atom_no_ident => atom
+    ;
+
+rule pattern_after_ident ::= 
+    At inner:pattern_atom => PatternAfterIdent_Bind(inner)
+    | tail:pattern_ident_tail => PatternAfterIdent_Atom(tail)
+    ;
+
+rule pattern_atom ::= 
+    name:Ident rest:pattern_after_ident => Pattern_IdentStart(name, rest)
+    | atom:pattern_atom_no_ident => atom
+    ;
+
+rule pattern_atom_no_ident ::= 
+    atom:Atom => Pattern_Atom(atom)
+    | lit:IntLit => Pattern_Int(lit)
+    | KwTrue => Pattern_Bool(1)
+    | KwFalse => Pattern_Bool(0)
+    | LParen body:pattern_paren_body RParen => body
+    | LBrace fields:pattern_record_fields_opt RBrace => Pattern_Record(fields)
+    ;
+
+rule pattern_ident_tail ::= 
+    LParen args:pattern_list_opt RParen => PatternIdent_Call(args)
+    | => PatternIdent_Name
+    ;
+
+rule pattern_paren_body ::= 
+    first:pattern tail:pattern_tuple_tail => Pattern_Paren(first, tail)
+    | => Pattern_ParenEmpty
+    ;
+
+rule pattern_tuple_tail ::= 
+    Comma rest:pattern_list_opt => rest
+    | => PatternList_End
+    ;
+
+rule pattern_list_opt ::= 
+    _:trivia_list head:pattern tail:pattern_list_tail => PatternList_Cons(head, tail)
+    | => PatternList_End
+    ;
+
+rule pattern_list_tail ::= 
+    _:trivia_list Comma rest:pattern_list_opt => rest
+    | => PatternList_End
+    ;
+
+rule pattern_record_fields_opt ::= 
+    _:trivia_list head:pattern_record_field tail:pattern_record_tail => PatternRecord_Cons(head, tail)
+    | => PatternRecord_End
+    ;
+
+rule pattern_record_tail ::= 
+    _:trivia_list Comma rest:pattern_record_fields_opt => rest
+    | => PatternRecord_End
+    ;
+
+rule pattern_record_field ::= 
+    name:Ident value:pattern_record_field_value => PatternRecordField(name, value)
+    ;
+
+rule pattern_record_field_value ::= 
+    Colon value:pattern => value
+    | => Pattern_IdentStart(str_empty(), PatternAfterIdent_Atom(PatternIdent_Name))
+    ;
+
+rule paren_expr ::= 
+    LParen body:paren_after_lparen => body
+    ;
+
+rule paren_after_lparen ::= 
+    RParen tail:paren_empty_tail => tail
+    | first:Ident rest:paren_after_ident => Expr_ParenIdent(first, rest)
+    | values:expr_list_opt RParen => Expr_Paren(values)
+    ;
+
+rule paren_empty_tail ::= 
+    Colon ret:type_expr FatArrow body:lambda_body => Expr_Closure(Param_End, body)
+    | => Expr_Paren(ExprList_End)
+    ;
+
+rule paren_after_ident ::= 
+    Colon ty:type_expr tail:closure_param_tail RParen _:lambda_return_arrow body:lambda_body => ParenIdent_Lambda(ty, tail, body)
+    | Comma rest:expr_list_after_comma RParen => ParenIdent_Tuple(rest)
+    | op:paren_binary_op rhs:expr RParen => ParenIdent_Binary(op, rhs)
+    | RParen => ParenIdent_Name
+    ;
+
+rule lambda_return_arrow ::= 
+    Colon ret:type_expr FatArrow => ret
+    ;
+
+rule lambda_body ::= 
+    body:block_expr => body
+    | value:expr => value
+    ;
+
+rule paren_binary_op ::= 
+    Star => OpMul
+    | Slash => OpDiv
+    | Percent => OpMod
+    | Plus => OpAdd
+    | Minus => OpSub
+    | EqEq => OpEqEq
+    | BangEq => OpBangEq
+    | Lt => OpLt
+    | Gt => OpGt
+    | LtEq => OpLtEq
+    | GtEq => OpGtEq
+    | Amp => OpBitAnd
+    | Caret => OpBitXor
+    | Pipe => OpBitOr
+    | AmpAmp => OpAnd
+    | PipePipe => OpOr
+    | PipeGt => OpPipeGt
+    | LtLt => OpShl
+    | GtGt => OpShr
+    ;
+
+rule list_expr ::= 
+    LBracket values:expr_list_opt RBracket => Expr_List(values)
+    ;
+
+rule record_expr ::= 
+    LBrace body:record_body RBrace => Expr_Record(body)
+    ;
+
+rule record_body ::= 
+    first:Ident tail:record_body_after_ident => Record_First(first, tail)
+    | => Record_Fields(RecordField_End)
+    ;
+
+rule record_body_after_ident ::= 
+    Pipe fields:record_field_list_opt => Record_Update(Expr_Name(str_empty()), fields)
+    | Comma rest:record_field_after_comma => RecordTail_Shorthand(rest)
+    | value:record_field_value tail:record_field_tail => RecordTail_Field(value, tail)
+    ;
+
+rule record_field_list_opt ::= 
+    _:trivia_list head:record_field tail:record_field_tail => RecordField_Cons(head, tail)
+    | => RecordField_End
+    ;
+
+rule record_field_tail ::= 
+    _:trivia_list Comma rest:record_field_after_comma => rest
+    | => RecordField_End
+    ;
+
+rule record_field_after_comma ::= 
+    _:trivia_list head:record_field tail:record_field_tail => RecordField_Cons(head, tail)
+    | => RecordField_End
+    ;
+
+rule record_field ::= 
+    name:Ident tail:record_field_value => RecordField(name, tail)
+    ;
+
+rule record_field_value ::= 
+    Colon value:expr => value
+    | => Expr_Name(str_empty())
+    ;
+
+rule expr_list_opt ::= 
+    _:trivia_list head:expr tail:expr_list_tail => ExprList_Cons(head, tail)
+    | => ExprList_End
+    ;
+
+rule expr_list_tail ::= 
+    _:trivia_list Comma rest:expr_list_after_comma => rest
+    | => ExprList_End
+    ;
+
+rule expr_list_after_comma ::= 
+    _:trivia_list head:expr tail:expr_list_tail => ExprList_Cons(head, tail)
+    | => ExprList_End
+    ;
+
+rule ident_expr ::= 
+    name:Ident tail:ident_tail => Expr_IdentTail(name, tail)
+    ;
+
+rule ident_tail ::= 
+    LParen args:arg_list RParen closure:ident_call_closure => IdentTail_Call(args, closure)
+    | => IdentTail_None
+    ;
+
+rule ident_call_closure ::= 
+    _:item_attr_list c:closure_expr => IdentCallClosure_Some(c)
+    | => IdentCallClosure_None
+    ;
+
+rule expr ::= pratt {
+    prefix (100) {
+        n:IntLit => Expr_Int(n) ;
+        n:FloatLit => Expr_Float(n) ;
+        id:ident_expr => id ;
+        a:Atom => Expr_Atom(a) ;
+        KwTrue => Expr_Bool(1) ;
+        KwFalse => Expr_Bool(0) ;
+        p:paren_expr => p ;
+        l:list_expr => l ;
+        r:record_expr => r ;
+        Minus e:expr => Expr_Prefix(Prefix_Neg, e) ;
+        Bang e:expr => Expr_Prefix(Prefix_Not, e) ;
+        s:string_lit => s ;
+        i:if_expr => i ;
+        m:match_expr => m ;
+        r:reset_expr => r ;
+        sh:shift_expr => sh ;
+        e:extern_expr => e ;
+        u:unsafe_expr => u ;
+        a:asm_expr => a ;
+    }
+
+    infix(95, 96) {
+        Dot field:Ident => Expr_Field($lhs, field) ;
+        DotStar => Expr_Deref($lhs) ;
+        LParen args:arg_list RParen => Expr_Call($lhs, args) ;
+        LBracket args:expr_list_opt RBracket => Expr_Index($lhs, args) ;
+    }
+
+    infix(85, 86) {
+        LtLt rhs:expr => Expr_Binary(OpShl, $lhs, rhs) ;
+        GtGt rhs:expr => Expr_Binary(OpShr, $lhs, rhs) ;
+        KwAs ty:type_expr => Expr_Cast($lhs, ty) ;
+    }
+
+    infix(90, 91) {
+        Star rhs:expr => Expr_Binary(OpMul, $lhs, rhs) ;
+        Slash rhs:expr => Expr_Binary(OpDiv, $lhs, rhs) ;
+        Percent rhs:expr => Expr_Binary(OpMod, $lhs, rhs) ;
+    }
+
+    infix(80, 81) {
+        Plus rhs:expr => Expr_Binary(OpAdd, $lhs, rhs) ;
+        Minus rhs:expr => Expr_Binary(OpSub, $lhs, rhs) ;
+    }
+
+    infix(70, 71) {
+        EqEq rhs:expr => Expr_Binary(OpEqEq, $lhs, rhs) ;
+        BangEq rhs:expr => Expr_Binary(OpBangEq, $lhs, rhs) ;
+        Lt rhs:expr => Expr_Binary(OpLt, $lhs, rhs) ;
+        Gt rhs:expr => Expr_Binary(OpGt, $lhs, rhs) ;
+        LtEq rhs:expr => Expr_Binary(OpLtEq, $lhs, rhs) ;
+        GtEq rhs:expr => Expr_Binary(OpGtEq, $lhs, rhs) ;
+    }
+
+    infix(68, 69) {
+        DotDot rhs:range_rhs => Expr_Binary(OpRange, $lhs, rhs) ;
+    }
+
+    infix(65, 66) {
+        Amp rhs:expr => Expr_Binary(OpBitAnd, $lhs, rhs) ;
+    }
+
+    infix(64, 65) {
+        Caret rhs:expr => Expr_Binary(OpBitXor, $lhs, rhs) ;
+    }
+
+    infix(63, 64) {
+        Pipe rhs:expr => Expr_Binary(OpBitOr, $lhs, rhs) ;
+    }
+
+    infix(55, 56) {
+        AmpAmp rhs:expr => Expr_Binary(OpAnd, $lhs, rhs) ;
+    }
+
+    infix(50, 51) {
+        PipePipe rhs:expr => Expr_Binary(OpOr, $lhs, rhs) ;
+    }
+
+    infix(60, 61) {
+        PipeGt rhs:expr => Expr_Binary(OpPipeGt, $lhs, rhs) ;
+    }
+
+    infix(10, 10) {
+        ColonEq rhs:expr => Expr_Assign($lhs, rhs) ;
+    }
+} ;
+
+rule range_rhs ::= 
+    n:IntLit => Expr_Int(n)
+    | n:FloatLit => Expr_Float(n)
+    ;
+
+rule arg_list ::= 
+    _:trivia_list head:expr tail:arg_tail => Arg_Cons(head, tail)
+    | => Arg_End
+    ;
+
+rule arg_tail ::= 
+    _:trivia_list Comma rest:arg_list => rest
+    | => Arg_End
+    ;
+
+{
+    data AST {
+        SourceFile(AST, AST),
+        Namespace(Str),
+        NamespaceNone,
+
+        Path_Cons(Str, AST),
+        Path_End,
+
+        Item_Cons(AST, AST),
+        Item_End,
+        Item_Def(AST),
+        Item_Type(AST),
+        Item_Data(AST),
+        Item_Union(AST),
+
+        DefItem(Str, AST, AST, AST, AST),
+        DefItem2(Str, AST),
+        DefFun(AST, AST, AST, AST),
+        DefConst(AST, AST),
+        TypeItem(Str, AST),
+        DataItem(Str, AST, AST),
+        DataVariant_Cons(AST, AST),
+        DataVariant_End,
+        DataVariant(Str, AST),
+        DataVariantArg_Ident(Str, AST),
+        DataVariantArg_Field(AST, AST),
+        DataVariantArg_Type(AST, AST),
+        DataVariantField_Cons(Str, AST, AST),
+        DataVariantField_End,
+        UnionItem(Str, AST),
+        UnionField_Cons(AST, AST),
+        UnionField_End,
+        UnionField(Str, AST),
+        Generic_Cons(Str, AST),
+        Generic_End,
+        Param(Str, AST),
+        Param_Cons(AST, AST),
+        Param_End,
+
+        Type_Path(Str, AST),
+        Type_Tail_Dot(AST),
+        Type_Tail_Generic(AST),
+        Type_Tail_End,
+        Type_Unit,
+        Type_Atom(Str),
+        TypeArg_Cons(AST, AST),
+        TypeArg_End,
+
+        Expr_Block(AST, AST),
+        Expr_Closure(AST, AST),
+        Expr_If(AST, AST, AST),
+        IfCond_Let(AST, AST),
+        IfCond_Expr(AST),
+        Expr_IfCondIdent(Str, AST),
+        IfCondIdent_Call(AST),
+        IfCondIdent_Binary(AST, AST),
+        IfCondIdent_Name,
+        Expr_Match(AST, AST),
+        Expr_MatchIdent(Str, AST),
+        MatchIdent_Call(AST),
+        MatchIdent_Name,
+        Expr_Reset(AST, AST),
+        Expr_Shift(AST, Str, AST),
+        ControlLabel_Some,
+        ControlLabel_None,
+        MatchArm_Cons(AST, AST),
+        MatchArm_End,
+        MatchArm(AST, AST, AST),
+        MatchGuard_Some(AST),
+        MatchGuard_None,
+        Expr_Extern(AST),
+        Expr_Unsafe(AST),
+        Expr_Asm(AST, AST, AST),
+        AsmBind_Cons(AST, AST),
+        AsmBind_End,
+        AsmBind(Str, Str),
+        AsmOutput_Cons(Str, AST),
+        AsmOutput_End,
+        AsmString_Cons(AST, AST),
+        AsmString_End,
+        Pattern_IdentStart(Str, AST),
+        PatternAfterIdent_Bind(AST),
+        PatternAfterIdent_Atom(AST),
+        PatternIdent_Call(AST),
+        PatternIdent_Name,
+        Pattern_Atom(Str),
+        Pattern_Int(Str),
+        Pattern_Bool(i64),
+        Pattern_Paren(AST, AST),
+        Pattern_ParenEmpty,
+        PatternList_Cons(AST, AST),
+        PatternList_End,
+        Pattern_Record(AST),
+        PatternRecord_Cons(AST, AST),
+        PatternRecord_End,
+        PatternRecordField(Str, AST),
+        Expr_Paren(AST),
+        Expr_ParenIdent(Str, AST),
+        ParenIdent_Lambda(AST, AST, AST),
+        ParenIdent_Tuple(AST),
+        ParenIdent_Binary(AST, AST),
+        ParenIdent_Name,
+        Expr_List(AST),
+        Expr_Record(AST),
+        Record_First(Str, AST),
+        RecordTail_Field(AST, AST),
+        RecordTail_Shorthand(AST),
+        Record_Update(AST, AST),
+        Record_Fields(AST),
+        RecordField_Cons(AST, AST),
+        RecordField_End,
+        RecordField(Str, AST),
+        ExprList_Cons(AST, AST),
+        ExprList_End,
+        TailExpr_Some(AST),
+        TailExpr_None,
+
+        Stmt_Cons(AST, AST),
+        Stmt_End,
+        Stmt_Empty,
+        Stmt_Let(Str, AST),
+        Stmt_LetPattern(AST, AST),
+        Stmt_LetPatternTyped(AST, AST, AST),
+        Stmt_Assign(AST, AST),
+        Stmt_For(AST, AST, AST),
+        Stmt_Break(AST),
+        Stmt_Continue(AST),
+        LoopLabel_Some,
+        LoopLabel_None,
+        Stmt_Return(AST),
+        Stmt_Expr(AST),
+
+        Arg_Cons(AST, AST),
+        Arg_End,
+
+        Expr_Int(Str),
+        Expr_Float(Str),
+        Expr_Atom(Str),
+        Expr_String,
+        Expr_Bool(i64),
+        Expr_Name(Str),
+        Expr_IdentTail(Str, AST),
+        IdentTail_Call(AST, AST),
+        IdentTail_None,
+        IdentCallClosure_Some(AST),
+        IdentCallClosure_None,
+        Expr_Prefix(AST, AST),
+        Expr_Binary(AST, AST, AST),
+        Expr_Field(AST, Str),
+        Expr_Deref(AST),
+        Expr_Cast(AST, AST),
+        Expr_Assign(AST, AST),
+        Expr_Call(AST, AST),
+        Expr_CallBlock(AST, AST),
+        Expr_Index(AST, AST),
+
+        Prefix_Neg,
+        Prefix_Not,
+        OpMul,
+        OpDiv,
+        OpMod,
+        OpShl,
+        OpShr,
+        OpAdd,
+        OpSub,
+        OpEqEq,
+        OpBangEq,
+        OpLt,
+        OpGt,
+        OpLtEq,
+        OpGtEq,
+        OpRange,
+        OpBitAnd,
+        OpBitXor,
+        OpBitOr,
+        OpAnd,
+        OpOr,
+        OpPipeGt,
+    }
+}

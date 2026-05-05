@@ -1,4 +1,4 @@
-namespace parser.error.for.extra.semicolon
+namespace parser.error.kwfor.extra.semicolon
 
 def for_extra_semicolon(): i64 = {
     for ; ; {

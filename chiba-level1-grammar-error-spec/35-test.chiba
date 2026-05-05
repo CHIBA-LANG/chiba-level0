@@ -1,4 +1,4 @@
-namespace parser.error.duplicate.private
+namespace parser.error.duplicate.kwprivate
 
 private private def duplicate_private(): i64 = {
     return 0

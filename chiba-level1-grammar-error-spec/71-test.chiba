@@ -1,4 +1,4 @@
-namespace parser.error.union.field.missing.type
+namespace parser.error.kwunion.field.missing.kwtype
 
 union Bits {
     word:,
