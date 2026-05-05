@@ -91,7 +91,7 @@ rule item ::=
 rule item_core ::= 
     defn:def_item => Item_Def(defn)
     | ty:type_item => Item_Type(ty)
-    | data:data_item => Item_Data(data)
+    | dat:data_item => Item_Adt(dat)
     | un:union_item => Item_Union(un)
     ;
 
@@ -153,16 +153,16 @@ rule type_item ::=
     ;
 
 rule data_item ::= 
-    KwData name:Ident generics:opt_generics LBrace variants:data_variant_list RBrace => DataItem(name, generics, variants)
+    KwData name:Ident generics:opt_generics LBrace variants:data_variant_list RBrace => AdtItem(name, generics, variants)
     ;
 
 rule data_variant_list ::= 
-    _:trivia_list head:data_variant tail:data_variant_list => DataVariant_Cons(head, tail)
-    | => DataVariant_End
+    _:trivia_list head:data_variant tail:data_variant_list => AdtVariant_Cons(head, tail)
+    | => AdtVariant_End
     ;
 
 rule data_variant ::= 
-    name:Ident args:data_variant_args => DataVariant(name, args)
+    name:Ident args:data_variant_args => AdtVariant(name, args)
     ;
 
 rule data_variant_args ::= 
@@ -171,24 +171,24 @@ rule data_variant_args ::=
     ;
 
 rule data_variant_arg_list ::= 
-    _:trivia_list first:Ident rest:data_variant_arg_after_ident => DataVariantArg_Ident(first, rest)
+    _:trivia_list first:Ident rest:data_variant_arg_after_ident => AdtVariantArg_Ident(first, rest)
     | _:trivia_list first:Atom tail:type_arg_tail => TypeArg_Cons(Type_Atom(first), tail)
     | => TypeArg_End
     ;
 
 rule data_variant_arg_after_ident ::= 
-    Colon ty:type_expr tail:data_variant_field_tail => DataVariantArg_Field(ty, tail)
-    | tail:type_expr_tail rest:type_arg_tail => DataVariantArg_Type(tail, rest)
+    Colon _:trivia_list ty:type_expr tail:data_variant_field_tail => AdtVariantArg_Field(ty, tail)
+    | tail:type_expr_tail rest:type_arg_tail => AdtVariantArg_Type(tail, rest)
     ;
 
 rule data_variant_field_tail ::= 
     _:trivia_list Comma rest:data_variant_field_after_comma => rest
-    | => DataVariantField_End
+    | => AdtVariantField_End
     ;
 
 rule data_variant_field_after_comma ::= 
-    _:trivia_list name:Ident Colon ty:type_expr tail:data_variant_field_tail => DataVariantField_Cons(name, ty, tail)
-    | => DataVariantField_End
+    _:trivia_list name:Ident Colon _:trivia_list ty:type_expr tail:data_variant_field_tail => AdtVariantField_Cons(name, ty, tail)
+    | => AdtVariantField_End
     ;
 
 rule union_item ::= 
@@ -211,7 +211,7 @@ rule union_field_after_comma ::=
     ;
 
 rule union_field ::= 
-    name:Ident Colon ty:type_expr => UnionField(name, ty)
+    name:Ident Colon _:trivia_list ty:type_expr => UnionField(name, ty)
     ;
 
 rule opt_generics ::= 
@@ -791,7 +791,7 @@ rule arg_tail ::=
         Item_End,
         Item_Def(AST),
         Item_Type(AST),
-        Item_Data(AST),
+        Item_Adt(AST),
         Item_Union(AST),
 
         DefItem(Str, AST, AST, AST, AST),
@@ -799,15 +799,15 @@ rule arg_tail ::=
         DefFun(AST, AST, AST, AST),
         DefConst(AST, AST),
         TypeItem(Str, AST),
-        DataItem(Str, AST, AST),
-        DataVariant_Cons(AST, AST),
-        DataVariant_End,
-        DataVariant(Str, AST),
-        DataVariantArg_Ident(Str, AST),
-        DataVariantArg_Field(AST, AST),
-        DataVariantArg_Type(AST, AST),
-        DataVariantField_Cons(Str, AST, AST),
-        DataVariantField_End,
+        AdtItem(Str, AST, AST),
+        AdtVariant_Cons(AST, AST),
+        AdtVariant_End,
+        AdtVariant(Str, AST),
+        AdtVariantArg_Ident(Str, AST),
+        AdtVariantArg_Field(AST, AST),
+        AdtVariantArg_Type(AST, AST),
+        AdtVariantField_Cons(Str, AST, AST),
+        AdtVariantField_End,
         UnionItem(Str, AST),
         UnionField_Cons(AST, AST),
         UnionField_End,

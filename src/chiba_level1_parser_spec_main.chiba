@@ -19,8 +19,6 @@ def print_usage(): i64 = {
 
 #[entry]
 def main(argc: i64, argv: i64): i64 = {
-    let _ = write_fd(1, "parser-spec-main\n", 17)
-    let _ = str_append_i64(str_new(), argc)
     if argc < 2 {
         let _ = print_usage()
         1

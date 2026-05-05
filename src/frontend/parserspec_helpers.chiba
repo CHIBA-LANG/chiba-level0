@@ -7,9 +7,364 @@ use parser.chiba_level1.*
 
 def asttostring(ast: AST): Str = {
     let out = str_new()
-    let _ = str_push_cstr(out, "AST")
+    let _ = astwrite(out, ast)
     out
 }
+
+def astopen(out: Str, name: i64): i64 = {
+    let _ = str_push_cstr(out, name)
+    str_push(out, 40)
+}
+
+def astclose(out: Str): i64 = str_push(out, 41)
+
+def astcomma(out: Str): i64 = str_push(out, 44)
+
+def astindentloop(out: Str, i: i64, depth: i64): i64 =
+    if i >= depth { 0 }
+    else {
+        let _ = str_push_cstr(out, "  ")
+        astindentloop(out, i + 1, depth)
+    }
+
+def astindent(out: Str, depth: i64): i64 = astindentloop(out, 0, depth)
+
+def astnewline(out: Str, depth: i64): i64 = {
+    let _ = str_push(out, 10)
+    astindent(out, depth)
+}
+
+def astcloseblock(out: Str, depth: i64): i64 = {
+    let _ = astnewline(out, depth)
+    astclose(out)
+}
+
+def aststr(out: Str, value: Str): i64 = {
+    let _ = str_push(out, 34)
+    let _ = str_push_str(out, value)
+    str_push(out, 34)
+}
+
+def astleaf(out: Str, name: i64): i64 = str_push_cstr(out, name)
+
+def astnode1(out: Str, depth: i64, name: i64, a: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, a, child_depth)
+    astcloseblock(out, depth)
+}
+
+def astnode2(out: Str, depth: i64, name: i64, a: AST, b: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, a, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, b, child_depth)
+    astcloseblock(out, depth)
+}
+
+def astnode3(out: Str, depth: i64, name: i64, a: AST, b: AST, c: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, a, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, b, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, c, child_depth)
+    astcloseblock(out, depth)
+}
+
+def astnode4(out: Str, depth: i64, name: i64, a: AST, b: AST, c: AST, d: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, a, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, b, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, c, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, d, child_depth)
+    astcloseblock(out, depth)
+}
+
+def aststr1(out: Str, depth: i64, name: i64, a: Str): i64 = {
+    let _ = astopen(out, name)
+    let _ = astnewline(out, depth + 1)
+    let _ = aststr(out, a)
+    astcloseblock(out, depth)
+}
+
+def aststr2(out: Str, depth: i64, name: i64, a: Str, b: Str): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, a)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, b)
+    astcloseblock(out, depth)
+}
+
+def aststr_ast(out: Str, depth: i64, name: i64, a: Str, b: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, a)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, b, child_depth)
+    astcloseblock(out, depth)
+}
+
+def aststr_ast_ast(out: Str, depth: i64, name: i64, a: Str, b: AST, c: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, a)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, b, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, c, child_depth)
+    astcloseblock(out, depth)
+}
+
+def ast_ast_str(out: Str, depth: i64, name: i64, a: AST, b: Str): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, a, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, b)
+    astcloseblock(out, depth)
+}
+
+def ast_ast_str_ast(out: Str, depth: i64, name: i64, a: AST, b: Str, c: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, a, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, b)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, c, child_depth)
+    astcloseblock(out, depth)
+}
+
+def aststr_ast_ast_ast_ast(out: Str, depth: i64, name: i64, a: Str, b: AST, c: AST, d: AST, e: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, a)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, b, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, c, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, d, child_depth)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, e, child_depth)
+    astcloseblock(out, depth)
+}
+
+def asti64(out: Str, depth: i64, name: i64, n: i64): i64 = {
+    let _ = astopen(out, name)
+    let _ = astnewline(out, depth + 1)
+    let _ = str_append_i64(out, n)
+    astcloseblock(out, depth)
+}
+
+def astwrite(out: Str, ast: AST): i64 = astwriteat(out, ast, 0)
+
+def astwriteat(out: Str, ast: AST, depth: i64): i64 =
+    if (ast as i64) == 0 { astleaf(out, "Null") } else { match ast {
+        SourceFile(ns, items) => astnode2(out, depth, "SourceFile", ns, items)
+        Namespace(path) => astnode1(out, depth, "Namespace", path)
+        NamespaceNone => astleaf(out, "NamespaceNone")
+        Path_Cons(head, tail) => aststr_ast(out, depth, "Path_Cons", head, tail)
+        Path_End => astleaf(out, "Path_End")
+        Item_Cons(head, tail) => astnode2(out, depth, "Item_Cons", head, tail)
+        Item_End => astleaf(out, "Item_End")
+        Item_Def(defn) => astnode1(out, depth, "Item_Def", defn)
+        Item_Type(ty) => astnode1(out, depth, "Item_Type", ty)
+        Item_Adt(dat) => astnode1(out, depth, "Item_Adt", dat)
+        Item_Union(un) => astnode1(out, depth, "Item_Union", un)
+        DefItem(name, generics, params, ret, body) => aststr_ast_ast_ast_ast(out, depth, "DefItem", name, generics, params, ret, body)
+        DefItem2(name, rest) => aststr_ast(out, depth, "DefItem2", name, rest)
+        DefFun(generics, params, ret, body) => astnode4(out, depth, "DefFun", generics, params, ret, body)
+        DefConst(ret, value) => astnode2(out, depth, "DefConst", ret, value)
+        TypeItem(name, ty) => aststr_ast(out, depth, "TypeItem", name, ty)
+        AdtItem(name, generics, variants) => aststr_ast_ast(out, depth, "AdtItem", name, generics, variants)
+        AdtVariant_Cons(head, tail) => astnode2(out, depth, "AdtVariant_Cons", head, tail)
+        AdtVariant_End => astleaf(out, "AdtVariant_End")
+        AdtVariant(name, args) => aststr_ast(out, depth, "AdtVariant", name, args)
+        AdtVariantArg_Ident(name, rest) => aststr_ast(out, depth, "AdtVariantArg_Ident", name, rest)
+        AdtVariantArg_Field(ty, tail) => astnode2(out, depth, "AdtVariantArg_Field", ty, tail)
+        AdtVariantArg_Type(tail, rest) => astnode2(out, depth, "AdtVariantArg_Type", tail, rest)
+        AdtVariantField_Cons(name, ty, tail) => aststr_ast_ast(out, depth, "AdtVariantField_Cons", name, ty, tail)
+        AdtVariantField_End => astleaf(out, "AdtVariantField_End")
+        UnionItem(name, fields) => aststr_ast(out, depth, "UnionItem", name, fields)
+        UnionField_Cons(head, tail) => astnode2(out, depth, "UnionField_Cons", head, tail)
+        UnionField_End => astleaf(out, "UnionField_End")
+        UnionField(name, ty) => aststr_ast(out, depth, "UnionField", name, ty)
+        Generic_Cons(name, tail) => aststr_ast(out, depth, "Generic_Cons", name, tail)
+        Generic_End => astleaf(out, "Generic_End")
+        Param(name, ty) => aststr_ast(out, depth, "Param", name, ty)
+        Param_Cons(head, tail) => astnode2(out, depth, "Param_Cons", head, tail)
+        Param_End => astleaf(out, "Param_End")
+        Type_Path(name, tail) => aststr_ast(out, depth, "Type_Path", name, tail)
+        Type_Tail_Dot(rest) => astnode1(out, depth, "Type_Tail_Dot", rest)
+        Type_Tail_Generic(args) => astnode1(out, depth, "Type_Tail_Generic", args)
+        Type_Tail_End => astleaf(out, "Type_Tail_End")
+        Type_Unit => astleaf(out, "Type_Unit")
+        Type_Atom(atom) => aststr1(out, depth, "Type_Atom", atom)
+        TypeArg_Cons(head, tail) => astnode2(out, depth, "TypeArg_Cons", head, tail)
+        TypeArg_End => astleaf(out, "TypeArg_End")
+        Expr_Block(stmts, tail) => astnode2(out, depth, "Expr_Block", stmts, tail)
+        Expr_Closure(params, body) => astnode2(out, depth, "Expr_Closure", params, body)
+        Expr_If(cond, then_block, else_branch) => astnode3(out, depth, "Expr_If", cond, then_block, else_branch)
+        IfCond_Let(pat, value) => astnode2(out, depth, "IfCond_Let", pat, value)
+        IfCond_Expr(value) => astnode1(out, depth, "IfCond_Expr", value)
+        Expr_IfCondIdent(name, rest) => aststr_ast(out, depth, "Expr_IfCondIdent", name, rest)
+        IfCondIdent_Call(args) => astnode1(out, depth, "IfCondIdent_Call", args)
+        IfCondIdent_Binary(op, rhs) => astnode2(out, depth, "IfCondIdent_Binary", op, rhs)
+        IfCondIdent_Name => astleaf(out, "IfCondIdent_Name")
+        Expr_Match(value, arms) => astnode2(out, depth, "Expr_Match", value, arms)
+        Expr_MatchIdent(name, rest) => aststr_ast(out, depth, "Expr_MatchIdent", name, rest)
+        MatchIdent_Call(args) => astnode1(out, depth, "MatchIdent_Call", args)
+        MatchIdent_Name => astleaf(out, "MatchIdent_Name")
+        Expr_Reset(label, body) => astnode2(out, depth, "Expr_Reset", label, body)
+        Expr_Shift(label, name, body) => ast_ast_str_ast(out, depth, "Expr_Shift", label, name, body)
+        ControlLabel_Some => astleaf(out, "ControlLabel_Some")
+        ControlLabel_None => astleaf(out, "ControlLabel_None")
+        MatchArm_Cons(head, tail) => astnode2(out, depth, "MatchArm_Cons", head, tail)
+        MatchArm_End => astleaf(out, "MatchArm_End")
+        MatchArm(pat, guard, value) => astnode3(out, depth, "MatchArm", pat, guard, value)
+        MatchGuard_Some(value) => astnode1(out, depth, "MatchGuard_Some", value)
+        MatchGuard_None => astleaf(out, "MatchGuard_None")
+        Expr_Extern(abi) => astnode1(out, depth, "Expr_Extern", abi)
+        Expr_Unsafe(body) => astnode1(out, depth, "Expr_Unsafe", body)
+        Expr_Asm(inputs, outputs, body) => astnode3(out, depth, "Expr_Asm", inputs, outputs, body)
+        AsmBind_Cons(head, tail) => astnode2(out, depth, "AsmBind_Cons", head, tail)
+        AsmBind_End => astleaf(out, "AsmBind_End")
+        AsmBind(name, reg) => aststr2(out, depth, "AsmBind", name, reg)
+        AsmOutput_Cons(name, tail) => aststr_ast(out, depth, "AsmOutput_Cons", name, tail)
+        AsmOutput_End => astleaf(out, "AsmOutput_End")
+        AsmString_Cons(head, tail) => astnode2(out, depth, "AsmString_Cons", head, tail)
+        AsmString_End => astleaf(out, "AsmString_End")
+        Pattern_IdentStart(name, rest) => aststr_ast(out, depth, "Pattern_IdentStart", name, rest)
+        PatternAfterIdent_Bind(inner) => astnode1(out, depth, "PatternAfterIdent_Bind", inner)
+        PatternAfterIdent_Atom(tail) => astnode1(out, depth, "PatternAfterIdent_Atom", tail)
+        PatternIdent_Call(args) => astnode1(out, depth, "PatternIdent_Call", args)
+        PatternIdent_Name => astleaf(out, "PatternIdent_Name")
+        Pattern_Atom(atom) => aststr1(out, depth, "Pattern_Atom", atom)
+        Pattern_Int(n) => aststr1(out, depth, "Pattern_Int", n)
+        Pattern_Bool(n) => asti64(out, depth, "Pattern_Bool", n)
+        Pattern_Paren(first, tail) => astnode2(out, depth, "Pattern_Paren", first, tail)
+        Pattern_ParenEmpty => astleaf(out, "Pattern_ParenEmpty")
+        PatternList_Cons(head, tail) => astnode2(out, depth, "PatternList_Cons", head, tail)
+        PatternList_End => astleaf(out, "PatternList_End")
+        Pattern_Record(fields) => astnode1(out, depth, "Pattern_Record", fields)
+        PatternRecord_Cons(head, tail) => astnode2(out, depth, "PatternRecord_Cons", head, tail)
+        PatternRecord_End => astleaf(out, "PatternRecord_End")
+        PatternRecordField(name, value) => aststr_ast(out, depth, "PatternRecordField", name, value)
+        Expr_Paren(values) => astnode1(out, depth, "Expr_Paren", values)
+        Expr_ParenIdent(name, rest) => aststr_ast(out, depth, "Expr_ParenIdent", name, rest)
+        ParenIdent_Lambda(ty, params, body) => astnode3(out, depth, "ParenIdent_Lambda", ty, params, body)
+        ParenIdent_Tuple(values) => astnode1(out, depth, "ParenIdent_Tuple", values)
+        ParenIdent_Binary(op, rhs) => astnode2(out, depth, "ParenIdent_Binary", op, rhs)
+        ParenIdent_Name => astleaf(out, "ParenIdent_Name")
+        Expr_List(values) => astnode1(out, depth, "Expr_List", values)
+        Expr_Record(body) => astnode1(out, depth, "Expr_Record", body)
+        Record_First(name, tail) => aststr_ast(out, depth, "Record_First", name, tail)
+        RecordTail_Field(value, tail) => astnode2(out, depth, "RecordTail_Field", value, tail)
+        RecordTail_Shorthand(rest) => astnode1(out, depth, "RecordTail_Shorthand", rest)
+        Record_Update(base, fields) => astnode2(out, depth, "Record_Update", base, fields)
+        Record_Fields(fields) => astnode1(out, depth, "Record_Fields", fields)
+        RecordField_Cons(head, tail) => astnode2(out, depth, "RecordField_Cons", head, tail)
+        RecordField_End => astleaf(out, "RecordField_End")
+        RecordField(name, value) => aststr_ast(out, depth, "RecordField", name, value)
+        ExprList_Cons(head, tail) => astnode2(out, depth, "ExprList_Cons", head, tail)
+        ExprList_End => astleaf(out, "ExprList_End")
+        TailExpr_Some(value) => astnode1(out, depth, "TailExpr_Some", value)
+        TailExpr_None => astleaf(out, "TailExpr_None")
+        Stmt_Cons(head, tail) => astnode2(out, depth, "Stmt_Cons", head, tail)
+        Stmt_End => astleaf(out, "Stmt_End")
+        Stmt_Empty => astleaf(out, "Stmt_Empty")
+        Stmt_Let(name, value) => aststr_ast(out, depth, "Stmt_Let", name, value)
+        Stmt_LetPattern(pat, value) => astnode2(out, depth, "Stmt_LetPattern", pat, value)
+        Stmt_LetPatternTyped(pat, ty, value) => astnode3(out, depth, "Stmt_LetPatternTyped", pat, ty, value)
+        Stmt_Assign(lhs, rhs) => astnode2(out, depth, "Stmt_Assign", lhs, rhs)
+        Stmt_For(label, cond, body) => astnode3(out, depth, "Stmt_For", label, cond, body)
+        Stmt_Break(label) => astnode1(out, depth, "Stmt_Break", label)
+        Stmt_Continue(label) => astnode1(out, depth, "Stmt_Continue", label)
+        LoopLabel_Some => astleaf(out, "LoopLabel_Some")
+        LoopLabel_None => astleaf(out, "LoopLabel_None")
+        Stmt_Return(value) => astnode1(out, depth, "Stmt_Return", value)
+        Stmt_Expr(value) => astnode1(out, depth, "Stmt_Expr", value)
+        Arg_Cons(head, tail) => astnode2(out, depth, "Arg_Cons", head, tail)
+        Arg_End => astleaf(out, "Arg_End")
+        Expr_Int(n) => aststr1(out, depth, "Expr_Int", n)
+        Expr_Float(n) => aststr1(out, depth, "Expr_Float", n)
+        Expr_Atom(atom) => aststr1(out, depth, "Expr_Atom", atom)
+        Expr_String => astleaf(out, "Expr_String")
+        Expr_Bool(n) => asti64(out, depth, "Expr_Bool", n)
+        Expr_Name(name) => aststr1(out, depth, "Expr_Name", name)
+        Expr_IdentTail(name, tail) => aststr_ast(out, depth, "Expr_IdentTail", name, tail)
+        IdentTail_Call(args, closure) => astnode2(out, depth, "IdentTail_Call", args, closure)
+        IdentTail_None => astleaf(out, "IdentTail_None")
+        IdentCallClosure_Some(value) => astnode1(out, depth, "IdentCallClosure_Some", value)
+        IdentCallClosure_None => astleaf(out, "IdentCallClosure_None")
+        Expr_Prefix(op, value) => astnode2(out, depth, "Expr_Prefix", op, value)
+        Expr_Binary(op, lhs, rhs) => astnode3(out, depth, "Expr_Binary", op, lhs, rhs)
+        Expr_Field(value, field) => ast_ast_str(out, depth, "Expr_Field", value, field)
+        Expr_Deref(value) => astnode1(out, depth, "Expr_Deref", value)
+        Expr_Cast(value, ty) => astnode2(out, depth, "Expr_Cast", value, ty)
+        Expr_Assign(lhs, rhs) => astnode2(out, depth, "Expr_Assign", lhs, rhs)
+        Expr_Call(callee, args) => astnode2(out, depth, "Expr_Call", callee, args)
+        Expr_CallBlock(callee, block) => astnode2(out, depth, "Expr_CallBlock", callee, block)
+        Expr_Index(value, args) => astnode2(out, depth, "Expr_Index", value, args)
+        Prefix_Neg => astleaf(out, "Prefix_Neg")
+        Prefix_Not => astleaf(out, "Prefix_Not")
+        OpMul => astleaf(out, "OpMul")
+        OpDiv => astleaf(out, "OpDiv")
+        OpMod => astleaf(out, "OpMod")
+        OpShl => astleaf(out, "OpShl")
+        OpShr => astleaf(out, "OpShr")
+        OpAdd => astleaf(out, "OpAdd")
+        OpSub => astleaf(out, "OpSub")
+        OpEqEq => astleaf(out, "OpEqEq")
+        OpBangEq => astleaf(out, "OpBangEq")
+        OpLt => astleaf(out, "OpLt")
+        OpGt => astleaf(out, "OpGt")
+        OpLtEq => astleaf(out, "OpLtEq")
+        OpGtEq => astleaf(out, "OpGtEq")
+        OpRange => astleaf(out, "OpRange")
+        OpBitAnd => astleaf(out, "OpBitAnd")
+        OpBitXor => astleaf(out, "OpBitXor")
+        OpBitOr => astleaf(out, "OpBitOr")
+        OpAnd => astleaf(out, "OpAnd")
+        OpOr => astleaf(out, "OpOr")
+        OpPipeGt => astleaf(out, "OpPipeGt")
+    } }
 
 def istrivia(tok: Token): i64 =
     match tok {
@@ -148,7 +503,9 @@ def parseresulttostring(result: LabeledAST): Str = {
     let _ = match result {
         OK(ast, prefix) => {
             let _ = str_push_cstr(out, "OK(")
-            let _ = str_push_str(out, asttostring(ast as AST))
+            let _ = astnewline(out, 1)
+            let _ = astwriteat(out, ast as AST, 1)
+            let _ = astnewline(out, 0)
             str_push(out, 41)
         }
         Err(ast, prefix) => {
