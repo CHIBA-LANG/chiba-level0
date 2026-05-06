@@ -95,7 +95,9 @@ def str_grow(s: Str): i64 = {
     let old_cap = s.cap
     let old_buf = s.ptr
     let old_len = s.len
-    let new_cap = if old_cap == 0 { 64 } else { old_cap * 2 }
+    let doubled = if old_cap == 0 { 64 } else { old_cap * 2 }
+    let min_cap = old_len + 1
+    let new_cap = if doubled < min_cap { min_cap } else { doubled }
     let new_buf = heap_alloc(new_cap)
     let _ = if old_len > 0 { memcpy(new_buf, old_buf, old_len) } else { 0 }
     let _ = str_set_ptr(s, new_buf)

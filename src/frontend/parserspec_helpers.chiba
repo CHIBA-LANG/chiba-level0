@@ -1,5 +1,6 @@
 namespace frontend.parserspec
 use metalstd.mem.*
+use metalstd.option.*
 use metalstd.str.*
 use metalstd.vec.*
 use lexer.chiba_level1.*
@@ -507,7 +508,90 @@ def parserprecheckloop(tokens: Vec, i: i64): i64 =
 
 def parserprecheck(tokens: Vec): i64 = parserprecheckloop(tokens, 0)
 
-def parseresulttostring(result: LabeledAST): Str = {
+def parser_error_reason(tokens: Vec, prefix: Vec): Str = {
+    if vec_len(prefix) <= 0 {
+        mk_str("parse failed before consuming any token", 39)
+    } else if vec_len(prefix) >= vec_len(tokens) {
+        mk_str("input ended while parser still expected more structure", 54)
+    } else {
+        mk_str("unexpected token or incomplete construct", 40)
+    }
+}
+
+def parser_error_final_reason(tokens: Vec, prefix: Vec): Str = {
+    if vec_len(prefix) >= vec_len(tokens) {
+        mk_str("final failure at end of input", 29)
+    } else {
+        mk_str("final failure at next unconsumed token", 38)
+    }
+}
+
+def parser_append_escaped_char(out: Str, ch: i64): i64 =
+    if ch == 10 { str_push_cstr(out, "\\n") }
+    else if ch == 13 { str_push_cstr(out, "\\r") }
+    else if ch == 9 { str_push_cstr(out, "\\t") }
+    else if ch == 34 { str_push_cstr(out, "\\\"") }
+    else if ch == 92 { str_push_cstr(out, "\\\\") }
+    else { str_push(out, ch) }
+
+def parser_append_escaped_str_loop(out: Str, s: Str, i: i64): i64 =
+    if i >= s.len { 0 }
+    else {
+        let _ = parser_append_escaped_char(out, load8(s.ptr, i))
+        parser_append_escaped_str_loop(out, s, i + 1)
+    }
+
+def parser_append_quoted_str(out: Str, s: Str): i64 = {
+    let _ = str_push(out, 34)
+    let _ = parser_append_escaped_str_loop(out, s, 0)
+    str_push(out, 34)
+}
+
+def parser_span_to_str(out: Str, sp: Span): i64 = {
+    let _ = str_push(out, 91)
+    let _ = str_append_i64(out, sp.line)
+    let _ = str_push(out, 58)
+    let _ = str_append_i64(out, sp.col)
+    let _ = str_push_cstr(out, " len=")
+    let _ = str_append_i64(out, sp.len)
+    str_push(out, 93)
+}
+
+def parser_token_kind_to_str(out: Str, tok: Token): i64 =
+    match tok {
+        Eof => str_push_cstr(out, "Eof")
+        LexError(ch) => {
+            let _ = str_push_cstr(out, "LexError(")
+            let _ = str_append_i64(out, ch)
+            str_push(out, 41)
+        }
+        _ => str_push_cstr(out, "Token")
+    }
+
+def parser_error_token_to_str(tokens: Vec, i: i64): Str = {
+    let out = str_new()
+    if i < 0 || i >= vec_len(tokens) {
+        let _ = str_push_cstr(out, "<none>")
+        out
+    } else {
+        let ts = vec_get(tokens, i) as TokenSpan
+        let _ = parser_span_to_str(out, ts.span)
+        let _ = str_push_sp(out)
+        let _ = parser_token_kind_to_str(out, ts.token)
+        out
+    }
+}
+
+def append_str_loop(out: Str, s: Str, i: i64): i64 =
+    if i >= s.len { 0 }
+    else {
+        let _ = str_push(out, load8(s.ptr, i))
+        append_str_loop(out, s, i + 1)
+    }
+
+def append_str(out: Str, s: Str): i64 = append_str_loop(out, s, 0)
+
+def parseresulttostringwithtokens(result: LabeledAST, tokens: Vec): Str = {
     let out = str_new()
     let _ = match result {
         OK(ast, prefix) => {
@@ -518,10 +602,49 @@ def parseresulttostring(result: LabeledAST): Str = {
             str_push(out, 41)
         }
         Err(ast, prefix) => {
-            let _ = str_push_cstr(out, "Err(consumed=")
-            let _ = str_append_i64(out, vec_len(prefix))
+            let consumed = vec_len(prefix)
+            let next_tok = parser_error_token_to_str(tokens, consumed)
+            let prev_tok = parser_error_token_to_str(tokens, consumed - 1)
+            let _ = str_push_cstr(out, "Err(")
+            let _ = astnewline(out, 1)
+            let _ = astindent(out, 1)
+            let _ = str_push_cstr(out, "consumed=")
+            let _ = str_append_i64(out, consumed)
+            let _ = str_push(out, 44)
+            let _ = astnewline(out, 1)
+            let _ = astindent(out, 1)
+            let _ = str_push_cstr(out, "reason=")
+            let _ = parser_append_quoted_str(out, parser_error_reason(tokens, prefix))
+            let _ = str_push(out, 44)
+            let _ = astnewline(out, 1)
+            let _ = astindent(out, 1)
+            let _ = str_push_cstr(out, "final_reason=")
+            let _ = parser_append_quoted_str(out, parser_error_final_reason(tokens, prefix))
+            let _ = str_push(out, 44)
+            let _ = astnewline(out, 1)
+            let _ = astindent(out, 1)
+            let _ = str_push_cstr(out, "prev_token=")
+            let _ = append_str(out, prev_tok)
+            let _ = str_push(out, 44)
+            let _ = astnewline(out, 1)
+            let _ = astindent(out, 1)
+            let _ = str_push_cstr(out, "next_token=")
+            let _ = append_str(out, next_tok)
+            let _ = match ast {
+                Some(partial) => {
+                    let _ = str_push(out, 44)
+                    let _ = astnewline(out, 1)
+                    let _ = astindent(out, 1)
+                    let _ = str_push_cstr(out, "partial_ast=")
+                    astwriteat(out, partial as AST, 1)
+                }
+                None => 0
+            }
+            let _ = astnewline(out, 0)
             str_push(out, 41)
         }
     }
     out
 }
+
+def parseresulttostring(result: LabeledAST): Str = parseresulttostringwithtokens(result, vec_new())
