@@ -1,0 +1,11 @@
+namespace bootstrap.wat.tailcall
+
+def countdown(n: i64): i64 = {
+    if n == 0 {
+        return 0
+    } else {
+        return countdown(n - 1)
+    }
+}
+
+def run_tailcall(): i64 = countdown(4)

@@ -22,4 +22,6 @@ timeout 20 ./target/debug/level1c.o wat chiba-level1-grammar-spec/01-test.chiba 
 vp exec node tools/node/run-wat.mjs .scratch/level1c-01.wat
 timeout 20 ./target/debug/level1c.o wat supports/bootstrap/wat-loop-smoke.chiba > .scratch/wat-loop-smoke.wat
 vp exec node tools/node/run-wat.mjs .scratch/wat-loop-smoke.wat
+timeout 20 ./target/debug/level1c.o wat supports/bootstrap/wat-tailcall-smoke.chiba > .scratch/wat-tailcall-smoke.wat
+vp exec node tools/node/run-wat.mjs .scratch/wat-tailcall-smoke.wat
 ```

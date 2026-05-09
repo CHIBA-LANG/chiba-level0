@@ -185,6 +185,15 @@ def wat_binary_instr(op: Str): i64 =
     else if streq(op, mk_str(">=", 2)) != 0 { "i64.ge_s" }
     else { "unreachable ;; unsupported-binary" }
 
+def wat_binary_is_compare(op: Str): i64 =
+    if streq(op, mk_str("==", 2)) != 0 { 1 }
+    else if streq(op, mk_str("!=", 2)) != 0 { 1 }
+    else if streq(op, mk_str("<", 1)) != 0 { 1 }
+    else if streq(op, mk_str(">", 1)) != 0 { 1 }
+    else if streq(op, mk_str("<=", 2)) != 0 { 1 }
+    else if streq(op, mk_str(">=", 2)) != 0 { 1 }
+    else { 0 }
+
 def wat_emit_expr_list(out: Str, depth: i64, args: CirExprList): i64 =
     match args {
         CirExprEnd => 0
@@ -203,6 +212,35 @@ def wat_emit_stmt_list(out: Str, depth: i64, stmts: CirStmtList): i64 =
         }
     }
 
+def wat_emit_return_expr(out: Str, depth: i64, value: CirExpr): i64 =
+    match value {
+        L1OpCall(callee, args) => {
+            let _ = wat_emit_expr_list(out, depth, args)
+            match callee {
+                L1OpRef(L1RefGlobal(name)) => {
+                    let _ = wat_indent(out, depth)
+                    let _ = str_push_cstr(out, "return_call ")
+                    let _ = wat_func_name(out, name)
+                    str_push(out, 10)
+                }
+                L1OpRef(L1RefUnresolved(name)) => {
+                    let _ = wat_indent(out, depth)
+                    let _ = str_push_cstr(out, "return_call ")
+                    let _ = wat_func_name(out, name)
+                    str_push(out, 10)
+                }
+                _ => {
+                    let _ = wat_emit_expr(out, depth, value)
+                    wat_line(out, depth, "return")
+                }
+            }
+        }
+        _ => {
+            let _ = wat_emit_expr(out, depth, value)
+            wat_line(out, depth, "return")
+        }
+    }
+
 def wat_emit_stmt(out: Str, depth: i64, stmt: CirStmt): i64 =
     match stmt {
         L1StmtLet(binder, value) => {
@@ -216,10 +254,7 @@ def wat_emit_stmt(out: Str, depth: i64, stmt: CirStmt): i64 =
             let _ = wat_emit_expr(out, depth, value)
             wat_line(out, depth, "drop")
         }
-        L1StmtReturn(value) => {
-            let _ = wat_emit_expr(out, depth, value)
-            wat_line(out, depth, "return")
-        }
+        L1StmtReturn(value) => wat_emit_return_expr(out, depth, value)
         L1StmtAssign(_, _) => wat_line(out, depth, "unreachable ;; assign unsupported")
         L1StmtFor(_, cond, body) => {
             let _ = wat_line(out, depth, "block")
@@ -279,13 +314,15 @@ def wat_emit_expr(out: Str, depth: i64, expr: CirExpr): i64 =
                 wat_line(out, depth, "i64.sub")
             } else {
                 let _ = wat_emit_expr(out, depth, value)
-                wat_line(out, depth, "i64.eqz")
+                let _ = wat_line(out, depth, "i64.eqz")
+                wat_line(out, depth, "i64.extend_i32_u")
             }
         }
         L1OpBinary(op, lhs, rhs) => {
             let _ = wat_emit_expr(out, depth, lhs)
             let _ = wat_emit_expr(out, depth, rhs)
-            wat_line(out, depth, wat_binary_instr(op))
+            let _ = wat_line(out, depth, wat_binary_instr(op))
+            if wat_binary_is_compare(op) != 0 { wat_line(out, depth, "i64.extend_i32_u") } else { 0 }
         }
         L1OpRef(L1RefLocal(id, _)) => {
             let _ = wat_indent(out, depth)

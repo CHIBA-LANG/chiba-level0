@@ -114,6 +114,14 @@ def cir_lower_ident_tail(name: Str, tail: AST): CirExpr =
         _ => cir_l0_unsupported(tail, mk_str("ident tail unsupported", 22))
     }
 
+def cir_lower_if_cond_ident(name: Str, rest: AST): CirExpr =
+    match rest {
+        IfCondIdent_Call(args) => L0OpCall(L0OpName(name), cir_lower_expr_list(args))
+        IfCondIdent_Binary(op, rhs) => L0OpBinary(cir_lower_binary_op(op), L0OpName(name), cir_lower_expr(rhs))
+        IfCondIdent_Name => L0OpName(name)
+        _ => cir_l0_unsupported(rest, mk_str("if cond ident unsupported", 25))
+    }
+
 def cir_lower_prefix_op(op: AST): Str =
     match op {
         Prefix_Neg => mk_str("-", 1)
@@ -155,6 +163,7 @@ def cir_lower_expr(ast: AST): CirExpr =
         Expr_Closure(params, body) => L0OpClosure(cir_lower_params(params), cir_lower_expr(body))
         Expr_If(cond, then_block, else_branch) => L0OpIf(cir_lower_expr(cond), cir_lower_expr(then_block), cir_lower_expr(else_branch))
         IfCond_Expr(value) => cir_lower_expr(value)
+        Expr_IfCondIdent(name, rest) => cir_lower_if_cond_ident(name, rest)
         Expr_Match(value, arms) => L0OpMatch(cir_lower_expr(value), cir_lower_match_arms(arms))
         Expr_Reset(label, body) => L0OpReset(cir_lower_control_label(label), cir_lower_expr(body))
         Expr_Shift(label, name, body) => L0OpShift(cir_lower_control_label(label), name, cir_lower_expr(body))

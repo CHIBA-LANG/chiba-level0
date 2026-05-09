@@ -203,7 +203,6 @@ def alpha_item(item: CirItem, ctx: AlphaCtx): CirItem =
             let old_env = alpha_env_get(ctx)
             let id = alpha_fresh(ctx)
             let binder = cir_binder(id, name)
-            let _ = alpha_env_push_ctx(ctx, name, id)
             let params2 = alpha_param_list(params, ctx)
             let body2 = alpha_expr(body, ctx)
             let _ = alpha_env_set(ctx, old_env)
