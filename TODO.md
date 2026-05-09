@@ -116,18 +116,24 @@
 	- **验收**: 25 个 grammar spec 正向 OK；错误 spec Err；关键 AST 节点一致；continuation smoke tests 通过；记录 seed hash、wasm hash、toolchain version。
 	- **并行**: 不并行。
 
+### 最终验收标准
+- [ ] 有没有正确的使用 nanopass 思想：每个pass只干一件事
+- [ ] 有没有实现 nodejs runner 并能够运行示例程序（需要准备一系列程序涉及到你实现的所有的功能并运行）
+
 ## Second Bootstrap: level-1 wasm 接管 generators + Optimized CPS Core
 
+level-1 在重构的时候请不要再像level-0一样动不动就引入 i64 这种 opaque 和 internal mutability, 请参考spec我对mutable的控制，这个时候你可以把创建文件夹 level-1b 然后把 src 挪进去，并重新开一个 src，从头使用level-1的崭新的整洁的语法写出符合level-1 spec的代码!
+
 - [ ] **Bootstrap Pass C00: wasm chibalex rewrite**
-	- **TODO**: 用第一次 bootstrap 出来的 `level1c.wasm` 编译/运行新的 chibalex。
+	- **TODO**: 用第一次 bootstrap 出来的 `level1c.wasm` 按照旧的编写新的 regex + chibalex。
 	- **DESC**: chibalex 输入输出清楚，是第一批自驱目标。新版 chibalex 可以用 language-level continuation primitive 写 speculative scan、rollback、longest-match 或错误恢复，但 continuation 不能跨 world/thread。
-	- **验收**: wasm chibalex 读取 `src/frontend/chiba-level1.chibalex` 并生成 lexer；token stream 与 native chibalex 一致；至少一个 lexer backtracking/recovery 用例通过 multi-resume continuation smoke test。
+	- **验收**: wasm chibalex 读取 `src/frontend/chiba-level1.chibalex` （也需要重写） 并生成 lexer；token stream 与 native chibalex 一致；至少一个 lexer backtracking/recovery 用例通过 multi-resume continuation smoke test。
 	- **并行**: 不并行。
 
 - [ ] **Bootstrap Pass C01: wasm chibacc rewrite**
-	- **TODO**: 用 `level1c.wasm` 编译/运行新的 chibacc，包括 `.chibacc` meta-parser、grammar IR、parser codegen。
+	- **TODO**: 用 `level1c.wasm` 编写新的 chibacc，包括 `.chibacc` meta-parser、grammar IR、parser codegen。
 	- **DESC**: chibacc 是语法演化核心，放在 chibalex 之后迁移。新版 chibacc 应直接用 continuation primitive 表达 parser alternatives、Pratt recovery、局部 retry 和 diagnostic recovery。
-	- **验收**: wasm chibacc 能处理 simple/pratt/recovery 样例；生成 parser 行为与 native chibacc 一致；multi-resume parser alternative 与 recovery 用例有 golden output。
+	- **验收**: wasm chibacc 能处理 simple/pratt/recovery 样例；生成 parser 行为与 native chibacc 一致；multi-resume parser alternative 与 recovery 用例有 golden output。（现有的level1.chibacc也要重写）
 	- **并行**: 不并行。
 
 - [ ] **Bootstrap Pass C02: wasm alpha + continuation semantic driver**
@@ -173,6 +179,8 @@
 	- **DESC**: 这是并行编译的边界。跨 namespace 的 body 编译只读 summary，不读对方函数体。summary 必须足够支撑 name resolve 和 definition-time typecheck。
 	- **验收**: 任意 namespace 可独立加载依赖 namespace 的 `.chiba.meta` / in-memory summary；修改非导出函数体不改变 summary hash；修改导出签名会改变 summary hash。
 	- **并行**: namespace 级并行；依赖环只允许在 signature 层形成 SCC，SCC 内做确定性合并。
+
+
 
 - [ ] **Pass 02: TopDef / Kind Check**
 	- **TODO**: 检查顶层定义 kind：函数、extern、static、type、data、union、method-style `def Type.method`、generic header、row bound header、`via` 可见路径 shape。
