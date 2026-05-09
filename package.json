@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "run:wat": "node tools/node/run-wat.mjs",
-    "smoke:bootstrap": "node tools/node/run-bootstrap-smokes.mjs"
+    "smoke:bootstrap": "node tools/node/run-bootstrap-smokes.mjs",
+    "smoke:parser-compare": "node tools/node/run-parser-compare.mjs"
   },
   "dependencies": {
     "@emnapi/wasi-threads": "latest",
