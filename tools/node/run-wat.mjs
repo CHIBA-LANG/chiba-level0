@@ -2,6 +2,26 @@ import fs from "node:fs/promises";
 import process from "node:process";
 import wabtInit from "wabt";
 
+const WABT_FEATURES = {
+  exceptions: true,
+  mutable_globals: true,
+  sat_float_to_int: true,
+  sign_extension: true,
+  simd: true,
+  threads: true,
+  function_references: true,
+  multi_value: true,
+  tail_call: true,
+  bulk_memory: true,
+  reference_types: true,
+  annotations: true,
+  code_metadata: true,
+  gc: true,
+  memory64: true,
+  extended_const: true,
+  relaxed_simd: true,
+};
+
 async function readInput() {
   const path = process.argv[2];
   if (path && path !== "-") {
@@ -28,7 +48,7 @@ try {
   const raw = await readInput();
   const wat = extractModule(raw);
   const wabt = await wabtInit();
-  const parsed = wabt.parseWat("bootstrap.wat", wat);
+  const parsed = wabt.parseWat("bootstrap.wat", wat, WABT_FEATURES);
   parsed.resolveNames();
   parsed.validate();
   const { buffer } = parsed.toBinary({ write_debug_names: true });
