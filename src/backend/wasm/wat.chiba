@@ -42,16 +42,26 @@ def wat_emit_local_decl(out: Str, id: i64): i64 = {
     str_push(out, 10)
 }
 
-def wat_collect_params(out: Str, params: CirParamList): i64 =
+def wat_emit_params(out: Str, params: CirParamList): i64 =
     match params {
         CirParamEnd => 0
         CirParamCons(param, rest) => {
             let _ = match param {
-                L1Param(binder, _) => wat_emit_local_decl(out, binder.id)
+                L1Param(binder, _) => {
+                    let _ = str_push_cstr(out, " (param ")
+                    let _ = wat_local_name(out, binder.id)
+                    str_push_cstr(out, " i64)")
+                }
                 L0Param(_, _) => 0
             }
-            wat_collect_params(out, rest)
+            wat_emit_params(out, rest)
         }
+    }
+
+def wat_params_empty(params: CirParamList): i64 =
+    match params {
+        CirParamEnd => 1
+        _ => 0
     }
 
 def wat_collect_expr_locals(out: Str, expr: CirExpr): i64 =
@@ -67,7 +77,7 @@ def wat_collect_expr_locals(out: Str, expr: CirExpr): i64 =
         }
         L1OpMatch(value, _) => wat_collect_expr_locals(out, value)
         L1OpClosure(params, body) => {
-            let _ = wat_collect_params(out, params)
+            let _ = wat_emit_params(out, params)
             wat_collect_expr_locals(out, body)
         }
         L1OpReset(_, body) => wat_collect_expr_locals(out, body)
@@ -269,9 +279,9 @@ def wat_emit_func(out: Str, item: CirItem, export_main: i64): i64 =
         L1ItemDef(binder, params, _, body) => {
             let _ = str_push_cstr(out, "  (func ")
             let _ = wat_func_name(out, binder.name)
+            let _ = wat_emit_params(out, params)
             let _ = str_push_cstr(out, " (result i64)")
             let _ = str_push(out, 10)
-            let _ = wat_collect_params(out, params)
             let _ = wat_collect_expr_locals(out, body)
             let _ = wat_emit_expr(out, 2, body)
             let _ = str_push_cstr(out, "  )")
@@ -290,8 +300,12 @@ def wat_emit_items(out: Str, items: CirItemList, exported: i64): i64 =
     match items {
         CirItemEnd => 0
         CirItemCons(item, rest) => {
-            let _ = wat_emit_func(out, item, if exported == 0 { 1 } else { 0 })
-            wat_emit_items(out, rest, 1)
+            let export_now = match item {
+                L1ItemDef(_, params, _, _) => if exported == 0 { wat_params_empty(params) } else { 0 }
+                _ => 0
+            }
+            let _ = wat_emit_func(out, item, export_now)
+            wat_emit_items(out, rest, if export_now != 0 { 1 } else { exported })
         }
     }
 
