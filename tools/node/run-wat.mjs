@@ -2,8 +2,10 @@ import fs from "node:fs/promises";
 import process from "node:process";
 import wabtInit from "wabt";
 
-const WABT_FEATURES = {
-  exceptions: true,
+// Keep this profile aligned with https://webassembly.org/features/:
+// Chrome, Firefox, Safari, and Node.js must support selected features without
+// runtime flags; Wasmtime/WasmEdge may require their documented wasm flags.
+const WABT_PORTABLE_FEATURES = {
   mutable_globals: true,
   sat_float_to_int: true,
   sign_extension: true,
@@ -14,12 +16,8 @@ const WABT_FEATURES = {
   tail_call: true,
   bulk_memory: true,
   reference_types: true,
-  annotations: true,
-  code_metadata: true,
   gc: true,
-  memory64: true,
   extended_const: true,
-  relaxed_simd: true,
 };
 
 async function readInput() {
@@ -48,7 +46,7 @@ try {
   const raw = await readInput();
   const wat = extractModule(raw);
   const wabt = await wabtInit();
-  const parsed = wabt.parseWat("bootstrap.wat", wat, WABT_FEATURES);
+  const parsed = wabt.parseWat("bootstrap.wat", wat, WABT_PORTABLE_FEATURES);
   parsed.resolveNames();
   parsed.validate();
   const { buffer } = parsed.toBinary({ write_debug_names: true });
