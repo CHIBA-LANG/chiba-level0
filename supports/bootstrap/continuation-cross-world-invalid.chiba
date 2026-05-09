@@ -1,0 +1,7 @@
+namespace bootstrap.continuation.crossworld
+
+def invalid_cross_world(): i64 = reset {
+    shift k {
+        __world_resume(k)
+    }
+}

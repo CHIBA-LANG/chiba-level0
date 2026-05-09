@@ -1,0 +1,9 @@
+namespace bootstrap.continuation.nested
+
+def nested_shift(): i64 = reset {
+    reset {
+        shift k {
+            k(11)
+        }
+    }
+}

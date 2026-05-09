@@ -94,9 +94,24 @@ const LEVEL1C_CASES = [
     expect: ["check ok", "0"],
   },
   {
+    name: "level1c check continuation nested reset",
+    args: ["check", "supports/bootstrap/continuation-nested.chiba"],
+    expect: ["check ok", "0"],
+  },
+  {
+    name: "level1c check continuation multi resume",
+    args: ["check", "supports/bootstrap/continuation-multi-resume.chiba"],
+    expect: ["check ok", "0"],
+  },
+  {
     name: "level1c check continuation invalid",
     args: ["check", "supports/bootstrap/continuation-invalid.chiba"],
     expect: ["shift outside reset", "3"],
+  },
+  {
+    name: "level1c check continuation cross world invalid",
+    args: ["check", "supports/bootstrap/continuation-cross-world-invalid.chiba"],
+    expect: ["continuation crosses world/thread boundary", "3"],
   },
 ];
 

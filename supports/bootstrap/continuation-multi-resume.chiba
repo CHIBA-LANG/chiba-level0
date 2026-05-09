@@ -1,0 +1,8 @@
+namespace bootstrap.continuation.multi
+
+def multi_resume(): i64 = reset {
+    shift k {
+        let first = k(1)
+        k(2)
+    }
+}
