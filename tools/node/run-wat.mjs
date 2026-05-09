@@ -23,11 +23,23 @@ const WABT_PORTABLE_FEATURES = {
 function parseArgs() {
   let path = null;
   let invoke = null;
+  const wasiArgs = [];
+  const wasiEnv = {};
   let i = 2;
   while (i < process.argv.length) {
     const arg = process.argv[i];
     if (arg === "--invoke") {
       invoke = process.argv[i + 1] || null;
+      i += 2;
+    } else if (arg === "--arg") {
+      wasiArgs.push(process.argv[i + 1] || "");
+      i += 2;
+    } else if (arg === "--env") {
+      const env = process.argv[i + 1] || "";
+      const split = env.indexOf("=");
+      if (split >= 0) {
+        wasiEnv[env.slice(0, split)] = env.slice(split + 1);
+      }
       i += 2;
     } else if (!path) {
       path = arg;
@@ -36,11 +48,11 @@ function parseArgs() {
       i += 1;
     }
   }
-  return { path, invoke };
+  return { path, invoke, wasiArgs, wasiEnv };
 }
 
-async function readInput() {
-  const { path } = parseArgs();
+async function readInput(args) {
+  const { path } = args;
   if (path && path !== "-") {
     return fs.readFile(path, "utf8");
   }
@@ -61,7 +73,7 @@ function extractModule(text) {
   return text.slice(start, end + 2);
 }
 
-async function makeImports(wat) {
+async function makeImports(wat, args) {
   const imports = {
     env: {
       js_log(value) {
@@ -75,8 +87,8 @@ async function makeImports(wat) {
     const { WASI } = await import("node:wasi");
     const wasi = new WASI({
       version: "preview1",
-      args: [],
-      env: {},
+      args: ["run-wat", ...args.wasiArgs],
+      env: args.wasiEnv,
       preopens: {
         ".": ".",
       },
@@ -98,23 +110,23 @@ function selectExport(exports, invoke) {
 }
 
 try {
-  const { invoke } = parseArgs();
-  const raw = await readInput();
+  const args = parseArgs();
+  const { invoke } = args;
+  const raw = await readInput(args);
   const wat = extractModule(raw);
   const wabt = await wabtInit();
   const parsed = wabt.parseWat("bootstrap.wat", wat, WABT_PORTABLE_FEATURES);
   parsed.resolveNames();
   parsed.validate();
   const { buffer } = parsed.toBinary({ write_debug_names: true });
-  const { imports, wasi } = await makeImports(wat);
+  const { imports, wasi } = await makeImports(wat, args);
   const instance = await WebAssembly.instantiate(buffer, imports);
   const exports = instance.instance.exports;
   const exportName = selectExport(exports, invoke);
 
   if (wasi && exportName === "_start") {
     const status = wasi.start(instance.instance);
-    console.log(String(status || 0));
-    process.exit(0);
+    process.exit(Number(status || 0));
   }
 
   if (wasi && typeof exports._initialize === "function") {

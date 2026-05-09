@@ -28,8 +28,9 @@ function runWatFile(test) {
     "--no-warnings",
     "tools/node/run-wat.mjs",
     test.file,
+    ...(test.args || []),
   ]);
-  return checkOutput(test.name, result, test.expect);
+  return checkOutput(test.name, result, test.expect, test.status || 0);
 }
 
 function runLevel1c(test) {
@@ -66,6 +67,18 @@ const WAT_CASES = [
     name: "wasi file read",
     file: "supports/bootstrap/wat-wasi-file-read-smoke.wat",
     expect: ["66"],
+  },
+  {
+    name: "wasi args env",
+    file: "supports/bootstrap/wat-wasi-args-env-smoke.wat",
+    args: ["--arg", "alpha", "--arg", "beta", "--env", "CHIBA_WASI_SMOKE=ok"],
+    expect: ["301"],
+  },
+  {
+    name: "wasi exit status",
+    file: "supports/bootstrap/wat-wasi-exit-status-smoke.wat",
+    expect: [],
+    status: 7,
   },
   {
     name: "default _start",
