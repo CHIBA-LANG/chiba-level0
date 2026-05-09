@@ -13,6 +13,7 @@ timeout 120 ./chibac_amd64-unknown-linux_chiba_dev.o --project . --entry chiba_l
 timeout 120 ./chibac_amd64-unknown-linux_chiba_dev.o --project . --entry chiba_level1_parser_spec_main.chiba --output parser_spec_runner.o
 vp run smoke:bootstrap
 vp run smoke:parser-compare
+vp run smoke:parser-errors
 vp exec node tools/node/run-wat.mjs supports/bootstrap/wat-env-import-smoke.wat
 vp exec node tools/node/run-wat.mjs supports/bootstrap/wat-wasi-import-smoke.wat
 timeout 20 ./target/debug/level1c.o --help
