@@ -63,6 +63,11 @@ const WAT_CASES = [
     expect: ["B04 wasi smoke ok", "0"],
   },
   {
+    name: "wasi file read",
+    file: "supports/bootstrap/wat-wasi-file-read-smoke.wat",
+    expect: ["66"],
+  },
+  {
     name: "default _start",
     file: "supports/bootstrap/wat-start-smoke.wat",
     expect: ["12"],

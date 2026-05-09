@@ -77,7 +77,9 @@ async function makeImports(wat) {
       version: "preview1",
       args: [],
       env: {},
-      preopens: {},
+      preopens: {
+        ".": ".",
+      },
     });
     return { imports: { ...wasi.getImportObject(), ...imports }, wasi };
   }
