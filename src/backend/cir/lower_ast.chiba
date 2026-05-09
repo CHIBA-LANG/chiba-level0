@@ -3,6 +3,10 @@ use metalstd.str.*
 use parser.chiba_level1.*
 use backend.cir.ir.*
 
+data CirLowerBlockResult {
+    CirLowerBlockResult(CirStmtList, CirExpr)
+}
+
 def cir_lower_control_label(ast: AST): CirControlLabel =
     match ast {
         ControlLabel_Some => CirLabelImplicit
@@ -42,6 +46,30 @@ def cir_lower_tail(ast: AST): CirExpr =
         TailExpr_Some(value) => cir_lower_expr(value)
         TailExpr_None => L0OpUnit
         _ => cir_l0_unsupported(ast, mk_str("tail unsupported", 16))
+    }
+
+def cir_lower_block_parts(stmts: AST, tail: AST): CirLowerBlockResult =
+    match tail {
+        TailExpr_Some(value) => CirLowerBlockResult(cir_lower_stmts(stmts), cir_lower_expr(value))
+        TailExpr_None => cir_lower_block_parts_no_tail(stmts)
+        _ => CirLowerBlockResult(cir_lower_stmts(stmts), cir_lower_tail(tail))
+    }
+
+def cir_lower_block_parts_no_tail(stmts: AST): CirLowerBlockResult =
+    match stmts {
+        Stmt_End => CirLowerBlockResult(CirStmtEnd, L0OpUnit)
+        Stmt_Cons(head, Stmt_End) =>
+            match head {
+                Stmt_Expr(value) => CirLowerBlockResult(CirStmtEnd, cir_lower_expr(value))
+                _ => CirLowerBlockResult(CirStmtCons(cir_lower_stmt(head), CirStmtEnd), L0OpUnit)
+            }
+        Stmt_Cons(head, rest) => {
+            let lowered_head = cir_lower_stmt(head)
+            match cir_lower_block_parts_no_tail(rest) {
+                CirLowerBlockResult(rest2, tail2) => CirLowerBlockResult(CirStmtCons(lowered_head, rest2), tail2)
+            }
+        }
+        _ => CirLowerBlockResult(cir_lower_stmts(stmts), L0OpUnit)
     }
 
 def cir_lower_pattern_let(pat: AST, value: CirExpr): CirStmt =
@@ -120,7 +148,10 @@ def cir_lower_binary_op(op: AST): Str =
 
 def cir_lower_expr(ast: AST): CirExpr =
     match ast {
-        Expr_Block(stmts, tail) => L0OpBlock(cir_lower_stmts(stmts), cir_lower_tail(tail))
+        Expr_Block(stmts, tail) =>
+            match cir_lower_block_parts(stmts, tail) {
+                CirLowerBlockResult(stmts2, tail2) => L0OpBlock(stmts2, tail2)
+            }
         Expr_Closure(params, body) => L0OpClosure(cir_lower_params(params), cir_lower_expr(body))
         Expr_If(cond, then_block, else_branch) => L0OpIf(cir_lower_expr(cond), cir_lower_expr(then_block), cir_lower_expr(else_branch))
         IfCond_Expr(value) => cir_lower_expr(value)

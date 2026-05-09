@@ -1,0 +1,307 @@
+namespace backend.wasm.wat
+use metalstd.str.*
+use backend.cir.ir.*
+
+def wat_indent_loop(out: Str, i: i64, depth: i64): i64 =
+    if i >= depth { 0 }
+    else {
+        let _ = str_push_cstr(out, "  ")
+        wat_indent_loop(out, i + 1, depth)
+    }
+
+def wat_indent(out: Str, depth: i64): i64 =
+    wat_indent_loop(out, 0, depth)
+
+def wat_line(out: Str, depth: i64, text: i64): i64 = {
+    let _ = wat_indent(out, depth)
+    let _ = str_push_cstr(out, text)
+    str_push(out, 10)
+}
+
+def wat_line_str(out: Str, depth: i64, prefix: i64, value: Str): i64 = {
+    let _ = wat_indent(out, depth)
+    let _ = str_push_cstr(out, prefix)
+    let _ = str_append(out, value)
+    str_push(out, 10)
+}
+
+def wat_local_name(out: Str, id: i64): i64 = {
+    let _ = str_push_cstr(out, "$v")
+    str_append_i64(out, id)
+}
+
+def wat_func_name(out: Str, name: Str): i64 = {
+    let _ = str_push(out, 36)
+    str_append(out, name)
+}
+
+def wat_emit_local_decl(out: Str, id: i64): i64 = {
+    let _ = str_push_cstr(out, "    (local ")
+    let _ = wat_local_name(out, id)
+    let _ = str_push_cstr(out, " i64)")
+    str_push(out, 10)
+}
+
+def wat_collect_params(out: Str, params: CirParamList): i64 =
+    match params {
+        CirParamEnd => 0
+        CirParamCons(param, rest) => {
+            let _ = match param {
+                L1Param(binder, _) => wat_emit_local_decl(out, binder.id)
+                L0Param(_, _) => 0
+            }
+            wat_collect_params(out, rest)
+        }
+    }
+
+def wat_collect_expr_locals(out: Str, expr: CirExpr): i64 =
+    match expr {
+        L1OpBlock(stmts, tail) => {
+            let _ = wat_collect_stmt_locals(out, stmts)
+            wat_collect_expr_locals(out, tail)
+        }
+        L1OpIf(cond, then_expr, else_expr) => {
+            let _ = wat_collect_expr_locals(out, cond)
+            let _ = wat_collect_expr_locals(out, then_expr)
+            wat_collect_expr_locals(out, else_expr)
+        }
+        L1OpMatch(value, _) => wat_collect_expr_locals(out, value)
+        L1OpClosure(params, body) => {
+            let _ = wat_collect_params(out, params)
+            wat_collect_expr_locals(out, body)
+        }
+        L1OpReset(_, body) => wat_collect_expr_locals(out, body)
+        L1OpShift(_, binder, body) => {
+            let _ = wat_emit_local_decl(out, binder.id)
+            wat_collect_expr_locals(out, body)
+        }
+        L1OpCall(callee, args) => {
+            let _ = wat_collect_expr_locals(out, callee)
+            wat_collect_expr_list_locals(out, args)
+        }
+        L1OpField(value, _) => wat_collect_expr_locals(out, value)
+        L1OpAssign(lhs, rhs) => {
+            let _ = wat_collect_expr_locals(out, lhs)
+            wat_collect_expr_locals(out, rhs)
+        }
+        L1OpPrefix(_, value) => wat_collect_expr_locals(out, value)
+        L1OpBinary(_, lhs, rhs) => {
+            let _ = wat_collect_expr_locals(out, lhs)
+            wat_collect_expr_locals(out, rhs)
+        }
+        _ => 0
+    }
+
+def wat_collect_expr_list_locals(out: Str, args: CirExprList): i64 =
+    match args {
+        CirExprEnd => 0
+        CirExprCons(head, tail) => {
+            let _ = wat_collect_expr_locals(out, head)
+            wat_collect_expr_list_locals(out, tail)
+        }
+    }
+
+def wat_collect_stmt_locals(out: Str, stmts: CirStmtList): i64 =
+    match stmts {
+        CirStmtEnd => 0
+        CirStmtCons(stmt, rest) => {
+            let _ = match stmt {
+                L1StmtLet(binder, value) => {
+                    let _ = wat_emit_local_decl(out, binder.id)
+                    wat_collect_expr_locals(out, value)
+                }
+                L1StmtLetPattern(_, value) => wat_collect_expr_locals(out, value)
+                L1StmtAssign(lhs, rhs) => {
+                    let _ = wat_collect_expr_locals(out, lhs)
+                    wat_collect_expr_locals(out, rhs)
+                }
+                L1StmtExpr(value) => wat_collect_expr_locals(out, value)
+                L1StmtReturn(value) => wat_collect_expr_locals(out, value)
+                L1StmtFor(_, cond, body) => {
+                    let _ = wat_collect_expr_locals(out, cond)
+                    wat_collect_expr_locals(out, body)
+                }
+                _ => 0
+            }
+            wat_collect_stmt_locals(out, rest)
+        }
+    }
+
+def wat_binary_instr(op: Str): i64 =
+    if streq(op, mk_str("+", 1)) != 0 { "i64.add" }
+    else if streq(op, mk_str("-", 1)) != 0 { "i64.sub" }
+    else if streq(op, mk_str("*", 1)) != 0 { "i64.mul" }
+    else if streq(op, mk_str("/", 1)) != 0 { "i64.div_s" }
+    else if streq(op, mk_str("%", 1)) != 0 { "i64.rem_s" }
+    else if streq(op, mk_str("==", 2)) != 0 { "i64.eq" }
+    else if streq(op, mk_str("!=", 2)) != 0 { "i64.ne" }
+    else if streq(op, mk_str("<", 1)) != 0 { "i64.lt_s" }
+    else if streq(op, mk_str(">", 1)) != 0 { "i64.gt_s" }
+    else if streq(op, mk_str("<=", 2)) != 0 { "i64.le_s" }
+    else if streq(op, mk_str(">=", 2)) != 0 { "i64.ge_s" }
+    else { "unreachable ;; unsupported-binary" }
+
+def wat_emit_expr_list(out: Str, depth: i64, args: CirExprList): i64 =
+    match args {
+        CirExprEnd => 0
+        CirExprCons(head, tail) => {
+            let _ = wat_emit_expr(out, depth, head)
+            wat_emit_expr_list(out, depth, tail)
+        }
+    }
+
+def wat_emit_stmt_list(out: Str, depth: i64, stmts: CirStmtList): i64 =
+    match stmts {
+        CirStmtEnd => 0
+        CirStmtCons(stmt, rest) => {
+            let _ = wat_emit_stmt(out, depth, stmt)
+            wat_emit_stmt_list(out, depth, rest)
+        }
+    }
+
+def wat_emit_stmt(out: Str, depth: i64, stmt: CirStmt): i64 =
+    match stmt {
+        L1StmtLet(binder, value) => {
+            let _ = wat_emit_expr(out, depth, value)
+            let _ = wat_indent(out, depth)
+            let _ = str_push_cstr(out, "local.set ")
+            let _ = wat_local_name(out, binder.id)
+            str_push(out, 10)
+        }
+        L1StmtExpr(value) => {
+            let _ = wat_emit_expr(out, depth, value)
+            wat_line(out, depth, "drop")
+        }
+        L1StmtReturn(value) => {
+            let _ = wat_emit_expr(out, depth, value)
+            wat_line(out, depth, "return")
+        }
+        L1StmtAssign(_, _) => wat_line(out, depth, "unreachable ;; assign unsupported")
+        L1StmtFor(_, _, _) => wat_line(out, depth, "unreachable ;; for unsupported")
+        L1StmtLetPattern(_, _) => wat_line(out, depth, "unreachable ;; let-pattern unsupported")
+        L1StmtUnsupported(_, _) => wat_line(out, depth, "unreachable ;; stmt unsupported")
+        _ => wat_line(out, depth, "unreachable ;; non-l1 stmt")
+    }
+
+def wat_emit_expr(out: Str, depth: i64, expr: CirExpr): i64 =
+    match expr {
+        L1OpBlock(stmts, tail) => {
+            let _ = wat_emit_stmt_list(out, depth, stmts)
+            wat_emit_expr(out, depth, tail)
+        }
+        L1OpIf(cond, then_expr, else_expr) => {
+            let _ = wat_emit_expr(out, depth, cond)
+            let _ = wat_line(out, depth, "i64.const 0")
+            let _ = wat_line(out, depth, "i64.ne")
+            let _ = wat_line(out, depth, "if (result i64)")
+            let _ = wat_emit_expr(out, depth + 1, then_expr)
+            let _ = wat_line(out, depth, "else")
+            let _ = wat_emit_expr(out, depth + 1, else_expr)
+            wat_line(out, depth, "end")
+        }
+        L1OpCall(callee, args) => {
+            let _ = wat_emit_expr_list(out, depth, args)
+            match callee {
+                L1OpRef(L1RefGlobal(name)) => {
+                    let _ = wat_indent(out, depth)
+                    let _ = str_push_cstr(out, "call ")
+                    let _ = wat_func_name(out, name)
+                    str_push(out, 10)
+                }
+                L1OpRef(L1RefUnresolved(name)) => {
+                    let _ = wat_indent(out, depth)
+                    let _ = str_push_cstr(out, "call ")
+                    let _ = wat_func_name(out, name)
+                    str_push(out, 10)
+                }
+                _ => wat_line(out, depth, "unreachable ;; indirect call unsupported")
+            }
+        }
+        L1OpPrefix(op, value) => {
+            if streq(op, mk_str("-", 1)) != 0 {
+                let _ = wat_line(out, depth, "i64.const 0")
+                let _ = wat_emit_expr(out, depth, value)
+                wat_line(out, depth, "i64.sub")
+            } else {
+                let _ = wat_emit_expr(out, depth, value)
+                wat_line(out, depth, "i64.eqz")
+            }
+        }
+        L1OpBinary(op, lhs, rhs) => {
+            let _ = wat_emit_expr(out, depth, lhs)
+            let _ = wat_emit_expr(out, depth, rhs)
+            wat_line(out, depth, wat_binary_instr(op))
+        }
+        L1OpRef(L1RefLocal(id, _)) => {
+            let _ = wat_indent(out, depth)
+            let _ = str_push_cstr(out, "local.get ")
+            let _ = wat_local_name(out, id)
+            str_push(out, 10)
+        }
+        L1OpRef(L1RefGlobal(name)) => {
+            let _ = wat_indent(out, depth)
+            let _ = str_push_cstr(out, "call ")
+            let _ = wat_func_name(out, name)
+            str_push(out, 10)
+        }
+        L1OpRef(L1RefUnresolved(name)) => {
+            let _ = wat_indent(out, depth)
+            let _ = str_push_cstr(out, "call ")
+            let _ = wat_func_name(out, name)
+            str_push(out, 10)
+        }
+        L1OpInt(n) => wat_line_str(out, depth, "i64.const ", n)
+        L1OpBool(v) => {
+            let _ = wat_indent(out, depth)
+            let _ = str_push_cstr(out, "i64.const ")
+            let _ = str_append_i64(out, v)
+            str_push(out, 10)
+        }
+        L1OpUnit => wat_line(out, depth, "i64.const 0")
+        L1OpReset(_, body) => wat_emit_expr(out, depth, body)
+        L1OpShift(_, _, _) => wat_line(out, depth, "unreachable ;; shift requires cps lowering")
+        L1OpUnsupported(_, _) => wat_line(out, depth, "unreachable ;; expr unsupported")
+        _ => wat_line(out, depth, "unreachable ;; wat expr unsupported")
+    }
+
+def wat_emit_func(out: Str, item: CirItem, export_main: i64): i64 =
+    match item {
+        L1ItemDef(binder, params, _, body) => {
+            let _ = str_push_cstr(out, "  (func ")
+            let _ = wat_func_name(out, binder.name)
+            let _ = str_push_cstr(out, " (result i64)")
+            let _ = str_push(out, 10)
+            let _ = wat_collect_params(out, params)
+            let _ = wat_collect_expr_locals(out, body)
+            let _ = wat_emit_expr(out, 2, body)
+            let _ = str_push_cstr(out, "  )")
+            let _ = str_push(out, 10)
+            if export_main != 0 {
+                let _ = str_push_cstr(out, "  (export \"main\" (func ")
+                let _ = wat_func_name(out, binder.name)
+                let _ = str_push_cstr(out, "))")
+                str_push(out, 10)
+            } else { 0 }
+        }
+        _ => 0
+    }
+
+def wat_emit_items(out: Str, items: CirItemList, exported: i64): i64 =
+    match items {
+        CirItemEnd => 0
+        CirItemCons(item, rest) => {
+            let _ = wat_emit_func(out, item, if exported == 0 { 1 } else { 0 })
+            wat_emit_items(out, rest, 1)
+        }
+    }
+
+def wat_emit_module(module: CirModule): Str = {
+    let out = str_new()
+    let _ = str_push_cstr(out, "(module\n")
+    let _ = match module {
+        L1Module(_, items) => wat_emit_items(out, items, 0)
+        _ => 0
+    }
+    let _ = str_push_cstr(out, ")\n")
+    out
+}
