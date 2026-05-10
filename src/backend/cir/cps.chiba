@@ -11,7 +11,7 @@ def cir_l5_has_control_args(args: CirExprList): i64 =
 def cir_l5_has_control_expr(expr: CirExpr): i64 =
     match expr {
         L4OpUsage(value, _) => cir_l5_has_control_expr(value)
-        L3OpAnswerEffect(value, _, _) => cir_l5_has_control_expr(value)
+        L3OpAnswerControl(value, _, _) => cir_l5_has_control_expr(value)
         L2OpTyped(value, _) => cir_l5_has_control_expr(value)
         L1OpReset(_, body) => 1 + cir_l5_has_control_expr(body)
         L1OpShift(_, _, body) => 1 + cir_l5_has_control_expr(body)

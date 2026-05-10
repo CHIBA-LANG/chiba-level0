@@ -134,7 +134,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c nanopass grammar 01",
     args: ["nanopass", "chiba-level1-grammar-spec/01-test.chiba"],
-    expect: ["L8ValidatedCoreModule", "L8ValidatedCoreOp", "L7CoreOp", "L6OpClosureEnv", "L5OpCps", "L4OpUsage", "L3OpAnswerEffect", "validation ok", "0"],
+    expect: ["L8ValidatedCoreModule", "L8ValidatedCoreOp", "L7CoreOp", "L6OpClosureEnv", "L5OpCps", "L4OpUsage", "L3OpAnswerControl", "validation ok", "0"],
   },
   {
     name: "level1c nanopass string slice core",
@@ -154,7 +154,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c cps continuation multi resume",
     args: ["cps", "supports/bootstrap/continuation-multi-resume.chiba"],
-    expect: ["L5Module", "L5OpContinuationPackage", "L5OpCps", "L4OpUsage", "effect control", "0"],
+    expect: ["L5Module", "L5OpContinuationPackage", "L5OpCps", "L4OpUsage", "control-boundary", "0"],
   },
   {
     name: "level1c check continuation valid",

@@ -9,7 +9,7 @@
 
 约束：generics 走 monomorphize，但不是 C++ 老模板式“定义期不检查”。level-1 generics 是 checked structural templates：定义期在抽象参数下检查一次，实例化期只兑现 concrete shape / method / operator / dispatch obligation，并生成 specialization。
 
-约束：language-level delimited continuation 是 day-0 能力，不是后置优化项。level-1 compiler、chibalex、chibacc 可以直接用 `reset` / `shift` 或等价 primitive 写 lowering、回溯和错误恢复。continuation 可 multi-resume，但跨 world/thread capture 或 resume 永远非法；multi-resume 必须经过 answer type、effect/replay-safety 和 usage analysis 检查。
+约束：language-level delimited continuation 是 day-0 能力，不是后置优化项。level-1 compiler、chibalex、chibacc 可以直接用 `reset` / `shift` 或等价 primitive 写 lowering、回溯和错误恢复。continuation 可 multi-resume，但跨 world/thread capture 或 resume 永远非法；multi-resume 必须经过 answer type、replay-safety 和 usage analysis 检查。
 
 ## Bootstrap 非目标
 
@@ -88,7 +88,7 @@
 
 - [x] **Bootstrap Pass B02: level-1 Nanopass CIR Entry**
 	- **TODO**: 决定 level-0 wasm emitter 消费 CIR、BIR，还是 BIR-adjacent 简化 IR。
-	- **DESC**: 修正：level-0 只作为 seed/reference，不继续扩展长期后端。level-1 自举源码在 `src/`，先建立 nanopass CIR：同一个 CIR 大 ADT 中保留 `L0*` surface core、`L1*` alpha core、后续 typed/effect/CPS/closure/core 节点族。第一跳 wasm 后端消费 level-1 自己验证后的 Core/CIR 子集，而不是 level-0 BIR。
+	- **DESC**: 修正：level-0 只作为 seed/reference，不继续扩展长期后端。level-1 自举源码在 `src/`，先建立 nanopass CIR：同一个 CIR 大 ADT 中保留 `L0*` surface core、`L1*` alpha core、后续 typed/answer-control/CPS/closure/core 节点族。第一跳 wasm 后端消费 level-1 自己验证后的 Core/CIR 子集，而不是 level-0 BIR。
 	- **验收**: `src/backend/cir` 有 nanopass ADT 和 pass 边界；至少有 alpha-conv pass 骨架；不支持 AST/CIR 节点能进入显式 unsupported/diagnostic，而不是落回 opaque `i64`。
 	- **并行**: 不并行。
 
@@ -145,10 +145,10 @@
 	- **并行**: 不并行；先稳定 surface，再迁移实现。
 
 - [ ] **Pre-C02: real typed nanopass spine past L1**
-	- **TODO**: 把当前只到 `L1Alpha` 的 nanopass 继续拆到 `L2Typed`、`L3EffectAnswer`、`L4Usage`、`L5Cps`、`L6Closure`、`L7Core`、`L8ValidatedCore`。
+	- **TODO**: 把当前只到 `L1Alpha` 的 nanopass 继续拆到 `L2Typed`、`L3AnswerControl`、`L4Usage`、`L5Cps`、`L6Closure`、`L7Core`、`L8ValidatedCore`。
 	- **DESC**: 每个 pass 只做一件事，并且产物进入新的 ADT/节点族，而不是 side script 检查后继续让 WAT emitter 直接吃 L1。
-	- **PROGRESS**: 已建立 L2-L8 ADT 节点族、独立 pass 文件和 `level1c.o nanopass` dump smoke；L7/L8 现在递归标注表达式节点，并在 bootstrap smoke 中断言 string/slice 与 continuation package Core facts。当前仍是保守骨架，尚未满足真实 type/effect/CPS/Core 语义。
-	- **验收**: CIR/Core 中能 dump `L2*` typed refs、`L3*` answer/effect facts、`L5*` CPS continuation、`L6*` closure/env、`L7Core*` wasm-gc 节点；每层至少有一个 golden smoke。
+	- **PROGRESS**: 已建立 L2-L8 ADT 节点族、独立 pass 文件和 `level1c.o nanopass` dump smoke；L7/L8 现在递归标注表达式节点，并在 bootstrap smoke 中断言 string/slice 与 continuation package Core facts。当前仍是保守骨架，尚未满足真实 type/answer-control/CPS/Core 语义。
+	- **验收**: CIR/Core 中能 dump `L2*` typed refs、`L3*` answer/control-boundary facts、`L5*` CPS continuation、`L6*` closure/env、`L7Core*` wasm-gc 节点；每层至少有一个 golden smoke。
 	- **并行**: 函数体级并行暂不实现；设计上保留 arena/symbol id 边界。
 
 - [ ] **Pre-C03: L2 type/method/row semantic implementation**
@@ -158,10 +158,10 @@
 	- **验收**: `.method(call)`、row identity、namespace 多文件、Ref/Atomic invalid cases 不再只靠 JS gate；`level1c.o check` 能稳定接受/拒绝同一组 semantic fixtures。
 	- **并行**: 暂不并行；错误排序必须确定。
 
-- [ ] **Pre-C04: continuation answer/effect + one-pass CPS**
-	- **TODO**: 实现 answer type check、continuation kind check、effect/replay-safety check、one-pass CPS transformation 和 administrative continuation beta-reduction。
+- [ ] **Pre-C04: continuation answer/control + one-pass CPS**
+	- **TODO**: 实现 answer type check、continuation kind check、replay-safety check、one-pass CPS transformation 和 administrative continuation beta-reduction。
 	- **DESC**: `reset`/`shift` 不能停留在 check gate；chibalex/chibacc 的 backtracking/recovery 要能落到同一 CPS core。
-	- **PROGRESS**: `level1c.o cps` 已能把 continuation fixture dump 到 L5 CPS/continuation package，并由 bootstrap smoke 与 wasm bridge 覆盖；当前仍是骨架 CPS，不含完整 answer/effect/replay-safety 与 beta-reduction。
+	- **PROGRESS**: `level1c.o cps` 已能把 continuation fixture dump 到 L5 CPS/continuation package，并由 bootstrap smoke 与 wasm bridge 覆盖；当前仍是骨架 CPS，不含完整 answer/control/replay-safety 与 beta-reduction。
 	- **验收**: simple reset/shift、nested reset、multi-resume Scheme smoke、lexer backtracking、parser alternative/recovery 都能 dump CPS；answer mismatch、multi-resume 捕获不可 replay state、跨 world/thread continuation 稳定报错。
 	- **并行**: 不并行；先保证语义正确和 dump 稳定。
 
@@ -225,7 +225,7 @@
 - [ ] `level-1b` 可以由当前 level-0 seed 编译，并在 node/WASI runner 下运行。
 - [ ] `level-1b` 源码能完整表达 level-0 当前承担的核心工具链：regex、chibalex、chibacc、metalstd surface、compiler semantic driver、wasm-gc backend skeleton。
 - [ ] 非 `#![Metal]` 的 level-1b 源码不新增 opaque pointer `i64` 风格接口，Metal的也全体采用 Ptr， 然后还得有unsafe 检查，非metal没有开unsafe块不能碰 unsaferef 和 ptr；`Ref`/`UnsafeRef`/`Ptr`/`Atomic` 的使用符合 spec。
-- [ ] nanopass pipeline 不止停在 L1：至少 `L2Typed`、`L3EffectAnswer`、`L5Cps`、`L6Closure`、`L7Core`、`L8ValidatedCore` 有真实 ADT、dump 和 smoke。
+- [ ] nanopass pipeline 不止停在 L1：至少 `L2Typed`、`L3AnswerControl`、`L5Cps`、`L6Closure`、`L7Core`、`L8ValidatedCore` 有真实 ADT、dump 和 smoke。
 - [ ] WAT emitter 只吃 validated Core；semantic fallback/hole 不再作为普通成功路径。
 - [ ] `String == Array[u8]`、`str == Slice[u8]` 的真实 runtime contract 支撑 lexer/parser/diagnostic/file IO。
 - [ ] wasm chibalex-mini 和 chibacc-mini 能在 node 下运行并与 native generator/runner golden 对拍。
@@ -252,7 +252,7 @@ level-1 在重构的时候请不要再像level-0一样动不动就引入 i64 这
 	- **并行**: 不并行。
 
 - [ ] **Bootstrap Pass C02: wasm alpha + continuation semantic driver**
-	- **TODO**: 在 level-1 wasm 内接管 alpha conversion、answer type check、continuation kind check、effect/replay-safety check 的单线程版本。
+	- **TODO**: 在 level-1 wasm 内接管 alpha conversion、answer type check、continuation kind check、replay-safety check 的单线程版本。
 	- **DESC**: 这是 language-level continuation day-0 的语义 gate。所有 binder 先 alpha-renamed；`reset` / `shift` 必须通过 answer type；continuation 分为 linear / multi-resume；跨 world/thread capture 或 resume 直接报错；multi-resume 只能捕获 replay-safe state 或 reset-local rollback region。
 	- **验收**: alpha dump 稳定；answer type mismatch、multi-resume 捕获不可 replay 资源、跨 world/thread continuation 都能稳定报错；合法 parser backtracking 用例通过。
 	- **并行**: 不并行。
@@ -330,10 +330,10 @@ level-1 在重构的时候请不要再像level-0一样动不动就引入 i64 这
 - [ ] **Pass 07: Answer / Continuation Kind Check**
 	- **TODO**: 检查 `reset` / `shift` answer type、implicit reset、continuation kind、resume count contract、multi-resume replay-safety。
 	- **DESC**: language-level continuation 是 day-0。continuation kind 至少区分 linear 与 multi-resume；multi-resume 用于 lexer/parser/compiler backtracking 与 recovery。跨 world/thread 的 capture 或 resume 永远非法。multi-resume 只能捕获 replay-safe state，或捕获由 reset-local rollback region 管理的局部可回滚状态。
-	- **验收**: simple reset/shift、nested reset、multi-resume parser alternative 通过；answer type mismatch、multi-resume 捕获 FFI/UnsafeRef/world-local/Atomic side effect、跨 world/thread continuation 都能报错。
+	- **验收**: simple reset/shift、nested reset、multi-resume parser alternative 通过；answer type mismatch、multi-resume 捕获 FFI/UnsafeRef/world-local/Atomic mutation、跨 world/thread continuation 都能报错。
 	- **并行**: 函数体级并行；跨函数 continuation escape 摘要按 call graph SCC 调度。
 
-- [ ] **Pass 08: Effect / World / Send / Escape Check**
+- [ ] **Pass 08: World / Send / Escape / Capability Check**
 	- **TODO**: 检查 `return`、`break`、`continue`、loop tag、tail position、escape/promotion、`send`/`!send`、world boundary、thread boundary、world-local、`UnsafeRef`、Atomic。
 	- **DESC**: 这里把 continuation 与并发/世界边界彻底隔开：continuation 默认不能 send，不能跨 thread/world；ordinary closure 的 send 分类与 captured values 相关；escape 规则先保守，允许后续放宽。
 	- **验收**: 非法 escape、非法 send/capture、错误 loop tag、world-local 泄漏、Atomic capability 错误都能报错；TypedAst 标注 tail-call sites 和 arena/promotion facts。
@@ -361,7 +361,7 @@ level-1 在重构的时候请不要再像level-0一样动不动就引入 i64 这
 	- **TODO**: 用 meta-continuation 做 CPS lowering，并在变换过程中 beta-reduce administrative redex。
 	- **DESC**: 这是 level-1 中端核心。普通表达式求值顺序产生的 administrative continuation 默认不实体化；只有 call/switch/prompt/control/multi-resume 等语义控制点进入 CPS Core。这个 pass 支撑 compiler lowering、chibalex backtracking、chibacc recovery 的共同实现模型。
 	- **验收**: atom lowering 不产生额外 continuation；single-use administrative continuation 被直接 beta-reduce；`reset` / `shift` 和 multi-resume continuation 在 CPS dump 中保留清晰语义节点。
-	- **并行**: 函数体级并行；只读 typed/effect/usage facts。
+	- **并行**: 函数体级并行；只读 typed/answer-control/usage facts。
 
 - [ ] **Pass 13: Usage Analysis 1: CPS Core**
 	- **TODO**: 在 CPS Core 上重新统计 continuation、lambda、closure、function value 的 `0 | 1 | many` 使用情况。
@@ -468,7 +468,7 @@ level-1 在重构的时候请不要再像level-0一样动不动就引入 i64 这
 	- **验收**: 这些阶段耗时应远低于 body typecheck + specialization + emit。
 
 - [ ] **namespace 并行区**
-	- **TODO**: NameResolve、Alpha、PatternElab、HM+Row、Answer/ContinuationKind、Effect/World/Send/Escape、Usage、OnePassCPS、ContinuationSimplify、Closure/Lambda、GenericDefinitionCheck、CoreLower、WatEmit 都按 namespace 或 body 分发。
+	- **TODO**: NameResolve、Alpha、PatternElab、HM+Row、Answer/ContinuationKind、World/Send/Escape/Capability、Usage、OnePassCPS、ContinuationSimplify、Closure/Lambda、GenericDefinitionCheck、CoreLower、WatEmit 都按 namespace 或 body 分发。
 	- **验收**: 在 8 核机器上，多 namespace 项目 CPU 利用率明显高于单核；输出顺序仍确定。
 
 - [ ] **specialization 并行区**

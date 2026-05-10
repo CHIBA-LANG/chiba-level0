@@ -10,7 +10,7 @@ Examples:
 
 - `L0OpIf(...)`: surface/control-preserving node before alpha conversion.
 - `L1OpIf(...)`: alpha-converted node with binder/name ids resolved.
-- Future `L2*`, `L3*`, ... families can represent typed, effect-checked,
+- Future `L2*`, `L3*`, ... families can represent typed, answer/control-checked,
   answer-checked, CPS, closure-converted, and Wasm-GC Core stages.
 
 ## Direction
@@ -21,7 +21,7 @@ The first level-1 path is:
 generated parser AST
   -> L0 CIR surface core
   -> L1 CIR alpha core
-  -> later typed/effect/answer/usage/CPS/closure/Core nanopasses
+  -> later typed/answer-control/usage/CPS/closure/Core nanopasses
   -> Wasm-GC wat/object
 ```
 

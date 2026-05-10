@@ -65,12 +65,12 @@ def cir_show_type(out: Str, depth: i64, ty: CirType): i64 =
         CirTySliceU8 => cir_show_line(out, depth, "type Slice[u8]")
     }
 
-def cir_show_effect(out: Str, depth: i64, eff: CirEffect): i64 =
-    match eff {
-        CirEffPure => cir_show_line(out, depth, "effect pure")
-        CirEffIO => cir_show_line(out, depth, "effect io")
-        CirEffControl => cir_show_line(out, depth, "effect control")
-        CirEffUnknown => cir_show_line(out, depth, "effect unknown")
+def cir_show_control_boundary(out: Str, depth: i64, boundary: CirControlBoundary): i64 =
+    match boundary {
+        CirControlNone => cir_show_line(out, depth, "control-boundary none")
+        CirControlReset => cir_show_line(out, depth, "control-boundary reset")
+        CirControlShift => cir_show_line(out, depth, "control-boundary shift")
+        CirControlDelimited => cir_show_line(out, depth, "control-boundary delimited")
     }
 
 def cir_show_usage(out: Str, depth: i64, usage: CirUsage): i64 =
@@ -406,10 +406,10 @@ def cir_show_expr(out: Str, depth: i64, expr: CirExpr): i64 =
             let _ = cir_show_type(out, depth + 1, ty)
             cir_show_expr(out, depth + 1, value)
         }
-        L3OpAnswerEffect(value, answer, effect) => {
-            let _ = cir_show_line(out, depth, "L3OpAnswerEffect")
+        L3OpAnswerControl(value, answer, boundary) => {
+            let _ = cir_show_line(out, depth, "L3OpAnswerControl")
             let _ = cir_show_type(out, depth + 1, answer)
-            let _ = cir_show_effect(out, depth + 1, effect)
+            let _ = cir_show_control_boundary(out, depth + 1, boundary)
             cir_show_expr(out, depth + 1, value)
         }
         L4OpUsage(value, usage) => {

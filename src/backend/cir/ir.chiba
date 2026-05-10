@@ -39,11 +39,11 @@ data CirType {
     CirTySliceU8
 }
 
-data CirEffect {
-    CirEffPure,
-    CirEffIO,
-    CirEffControl,
-    CirEffUnknown
+data CirControlBoundary {
+    CirControlNone,
+    CirControlReset,
+    CirControlShift,
+    CirControlDelimited
 }
 
 data CirUsage {
@@ -241,7 +241,7 @@ data CirExpr {
     L1OpUnit,
 
     L2OpTyped(CirExpr, CirType),
-    L3OpAnswerEffect(CirExpr, CirType, CirEffect),
+    L3OpAnswerControl(CirExpr, CirType, CirControlBoundary),
     L4OpUsage(CirExpr, CirUsage),
     L5OpCps(CirExpr, CirUsage),
     L5OpContinuationPackage(CirBinder, CirUsage, CirExpr),

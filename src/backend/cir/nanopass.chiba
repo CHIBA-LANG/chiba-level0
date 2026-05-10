@@ -3,7 +3,7 @@ use backend.cir.alpha.*
 use backend.cir.closure.*
 use backend.cir.core.*
 use backend.cir.cps.*
-use backend.cir.effect_answer.*
+use backend.cir.answer_control.*
 use backend.cir.ir.*
 use backend.cir.lower_ast.*
 use backend.cir.typed.*
@@ -15,7 +15,7 @@ def cir_nanopass_l2(ast: AST): CirModule =
     cir_typed_module(alpha_module(cir_lower_module(ast)))
 
 def cir_nanopass_l3(ast: AST): CirModule =
-    cir_effect_answer_module(cir_nanopass_l2(ast))
+    cir_answer_control_module(cir_nanopass_l2(ast))
 
 def cir_nanopass_l4(ast: AST): CirModule =
     cir_usage_module(cir_nanopass_l3(ast))
