@@ -54,6 +54,17 @@ def cir_show_ref(out: Str, depth: i64, r: CirRef): i64 =
         L1RefUnresolved(name) => cir_show_str_line(out, depth, "L1RefUnresolved", name)
     }
 
+def cir_show_type(out: Str, depth: i64, ty: CirType): i64 =
+    match ty {
+        CirTyUnknown => cir_show_line(out, depth, "type unknown")
+        CirTyI64 => cir_show_line(out, depth, "type i64")
+        CirTyBool => cir_show_line(out, depth, "type bool")
+        CirTyUnit => cir_show_line(out, depth, "type unit")
+        CirTyString => cir_show_line(out, depth, "type String")
+        CirTyStr => cir_show_line(out, depth, "type str")
+        CirTySliceU8 => cir_show_line(out, depth, "type Slice[u8]")
+    }
+
 def cir_show_unsupported(out: Str, depth: i64, reason: CirUnsupported): i64 =
     match reason {
         CirUnsupportedAst(text) => cir_show_str_line(out, depth, "unsupported-ast", text)
@@ -105,12 +116,21 @@ def cir_show_stmt(out: Str, depth: i64, stmt: CirStmt): i64 =
             let _ = cir_show_binder_line(out, depth, "L1StmtLet", binder)
             cir_show_expr(out, depth + 1, value)
         }
+        L2StmtLet(binder, ty, value) => {
+            let _ = cir_show_binder_line(out, depth, "L2StmtLet", binder)
+            let _ = cir_show_type(out, depth + 1, ty)
+            cir_show_expr(out, depth + 1, value)
+        }
         L0StmtLetPattern(_, value) => {
             let _ = cir_show_line(out, depth, "L0StmtLetPattern")
             cir_show_expr(out, depth + 1, value)
         }
         L1StmtLetPattern(_, value) => {
             let _ = cir_show_line(out, depth, "L1StmtLetPattern")
+            cir_show_expr(out, depth + 1, value)
+        }
+        L2StmtLetPattern(_, value) => {
+            let _ = cir_show_line(out, depth, "L2StmtLetPattern")
             cir_show_expr(out, depth + 1, value)
         }
         L0StmtAssign(lhs, rhs) => {
@@ -123,6 +143,11 @@ def cir_show_stmt(out: Str, depth: i64, stmt: CirStmt): i64 =
             let _ = cir_show_expr(out, depth + 1, lhs)
             cir_show_expr(out, depth + 1, rhs)
         }
+        L2StmtAssign(lhs, rhs) => {
+            let _ = cir_show_line(out, depth, "L2StmtAssign")
+            let _ = cir_show_expr(out, depth + 1, lhs)
+            cir_show_expr(out, depth + 1, rhs)
+        }
         L0StmtExpr(value) => {
             let _ = cir_show_line(out, depth, "L0StmtExpr")
             cir_show_expr(out, depth + 1, value)
@@ -131,12 +156,20 @@ def cir_show_stmt(out: Str, depth: i64, stmt: CirStmt): i64 =
             let _ = cir_show_line(out, depth, "L1StmtExpr")
             cir_show_expr(out, depth + 1, value)
         }
+        L2StmtExpr(value) => {
+            let _ = cir_show_line(out, depth, "L2StmtExpr")
+            cir_show_expr(out, depth + 1, value)
+        }
         L0StmtReturn(value) => {
             let _ = cir_show_line(out, depth, "L0StmtReturn")
             cir_show_expr(out, depth + 1, value)
         }
         L1StmtReturn(value) => {
             let _ = cir_show_line(out, depth, "L1StmtReturn")
+            cir_show_expr(out, depth + 1, value)
+        }
+        L2StmtReturn(value) => {
+            let _ = cir_show_line(out, depth, "L2StmtReturn")
             cir_show_expr(out, depth + 1, value)
         }
         L0StmtFor(_, cond, body) => {
@@ -149,12 +182,21 @@ def cir_show_stmt(out: Str, depth: i64, stmt: CirStmt): i64 =
             let _ = cir_show_expr(out, depth + 1, cond)
             cir_show_expr(out, depth + 1, body)
         }
+        L2StmtFor(_, cond, body) => {
+            let _ = cir_show_line(out, depth, "L2StmtFor")
+            let _ = cir_show_expr(out, depth + 1, cond)
+            cir_show_expr(out, depth + 1, body)
+        }
         L0StmtUnsupported(_, reason) => {
             let _ = cir_show_line(out, depth, "L0StmtUnsupported")
             cir_show_unsupported(out, depth + 1, reason)
         }
         L1StmtUnsupported(_, reason) => {
             let _ = cir_show_line(out, depth, "L1StmtUnsupported")
+            cir_show_unsupported(out, depth + 1, reason)
+        }
+        L2StmtUnsupported(_, reason) => {
+            let _ = cir_show_line(out, depth, "L2StmtUnsupported")
             cir_show_unsupported(out, depth + 1, reason)
         }
     }
@@ -329,6 +371,11 @@ def cir_show_expr(out: Str, depth: i64, expr: CirExpr): i64 =
         L1OpString => cir_show_line(out, depth, "L1OpString")
         L0OpUnit => cir_show_line(out, depth, "L0OpUnit")
         L1OpUnit => cir_show_line(out, depth, "L1OpUnit")
+        L2OpTyped(value, ty) => {
+            let _ = cir_show_line(out, depth, "L2OpTyped")
+            let _ = cir_show_type(out, depth + 1, ty)
+            cir_show_expr(out, depth + 1, value)
+        }
         L0OpUnsupported(_, reason) => {
             let _ = cir_show_line(out, depth, "L0OpUnsupported")
             cir_show_unsupported(out, depth + 1, reason)
@@ -354,6 +401,11 @@ def cir_show_items(out: Str, depth: i64, items: CirItemList): i64 =
                     let _ = cir_show_params(out, depth + 1, params)
                     cir_show_expr(out, depth + 1, body)
                 }
+                L2ItemDef(binder, params, _, body) => {
+                    let _ = cir_show_binder_line(out, depth, "L2ItemDef", binder)
+                    let _ = cir_show_params(out, depth + 1, params)
+                    cir_show_expr(out, depth + 1, body)
+                }
                 L0ItemExtern(name, params, _, import) => {
                     let _ = cir_show_str_line(out, depth, "L0ItemExtern", name)
                     cir_show_params(out, depth + 1, params)
@@ -364,12 +416,21 @@ def cir_show_items(out: Str, depth: i64, items: CirItemList): i64 =
                     cir_show_params(out, depth + 1, params)
                     cir_show_extern_import(out, depth + 1, import)
                 }
+                L2ItemExtern(binder, params, _, import) => {
+                    let _ = cir_show_binder_line(out, depth, "L2ItemExtern", binder)
+                    cir_show_params(out, depth + 1, params)
+                    cir_show_extern_import(out, depth + 1, import)
+                }
                 L0ItemUnsupported(_, reason) => {
                     let _ = cir_show_line(out, depth, "L0ItemUnsupported")
                     cir_show_unsupported(out, depth + 1, reason)
                 }
                 L1ItemUnsupported(_, reason) => {
                     let _ = cir_show_line(out, depth, "L1ItemUnsupported")
+                    cir_show_unsupported(out, depth + 1, reason)
+                }
+                L2ItemUnsupported(_, reason) => {
+                    let _ = cir_show_line(out, depth, "L2ItemUnsupported")
                     cir_show_unsupported(out, depth + 1, reason)
                 }
             }
@@ -385,6 +446,10 @@ def cir_show_module_into(out: Str, module: CirModule): i64 =
         }
         L1Module(_, items) => {
             let _ = cir_show_line(out, 0, "L1Module")
+            cir_show_items(out, 1, items)
+        }
+        L2Module(_, items) => {
+            let _ = cir_show_line(out, 0, "L2Module")
             cir_show_items(out, 1, items)
         }
     }

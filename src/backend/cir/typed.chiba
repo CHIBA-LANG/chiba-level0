@@ -1,0 +1,120 @@
+namespace backend.cir.typed
+use metalstd.str.*
+use parser.chiba_level1.*
+use backend.cir.ir.*
+
+def cir_type_is_i64(ty: CirType): i64 =
+    match ty {
+        CirTyI64 => 1
+        _ => 0
+    }
+
+def cir_type_of_binary(op: Str, lhs: CirType, rhs: CirType): CirType =
+    if cir_type_is_i64(lhs) != 0 && cir_type_is_i64(rhs) != 0 {
+        if streq(op, mk_str("==", 2)) != 0 { CirTyBool }
+        else if streq(op, mk_str("!=", 2)) != 0 { CirTyBool }
+        else if streq(op, mk_str("<", 1)) != 0 { CirTyBool }
+        else if streq(op, mk_str(">", 1)) != 0 { CirTyBool }
+        else if streq(op, mk_str("<=", 2)) != 0 { CirTyBool }
+        else if streq(op, mk_str(">=", 2)) != 0 { CirTyBool }
+        else { CirTyI64 }
+    } else { CirTyUnknown }
+
+def cir_typed_expr_type(expr: CirExpr): CirType =
+    match expr {
+        L2OpTyped(_, ty) => ty
+        L1OpInt(_) => CirTyI64
+        L1OpBool(_) => CirTyBool
+        L1OpString => CirTyString
+        L1OpUnit => CirTyUnit
+        L1OpIndex(_, _) => CirTySliceU8
+        _ => CirTyUnknown
+    }
+
+def cir_typed_expr_list(args: CirExprList): CirExprList =
+    match args {
+        CirExprEnd => CirExprEnd
+        CirExprCons(head, tail) => CirExprCons(cir_typed_expr(head), cir_typed_expr_list(tail))
+    }
+
+def cir_typed_stmt_list(stmts: CirStmtList): CirStmtList =
+    match stmts {
+        CirStmtEnd => CirStmtEnd
+        CirStmtCons(stmt, rest) => CirStmtCons(cir_typed_stmt(stmt), cir_typed_stmt_list(rest))
+    }
+
+def cir_typed_stmt(stmt: CirStmt): CirStmt =
+    match stmt {
+        L1StmtLet(binder, value) => {
+            let value2 = cir_typed_expr(value)
+            L2StmtLet(binder, cir_typed_expr_type(value2), value2)
+        }
+        L1StmtLetPattern(pat, value) => L2StmtLetPattern(pat, cir_typed_expr(value))
+        L1StmtAssign(lhs, rhs) => L2StmtAssign(cir_typed_expr(lhs), cir_typed_expr(rhs))
+        L1StmtExpr(value) => L2StmtExpr(cir_typed_expr(value))
+        L1StmtReturn(value) => L2StmtReturn(cir_typed_expr(value))
+        L1StmtFor(label, cond, body) => L2StmtFor(label, cir_typed_expr(cond), cir_typed_expr(body))
+        L1StmtUnsupported(ast, reason) => L2StmtUnsupported(ast, reason)
+        _ => stmt
+    }
+
+def cir_typed_expr(expr: CirExpr): CirExpr =
+    match expr {
+        L1OpBlock(stmts, tail) => {
+            let tail2 = cir_typed_expr(tail)
+            L2OpTyped(L1OpBlock(cir_typed_stmt_list(stmts), tail2), cir_typed_expr_type(tail2))
+        }
+        L1OpIf(cond, then_expr, else_expr) => {
+            let then2 = cir_typed_expr(then_expr)
+            L2OpTyped(L1OpIf(cir_typed_expr(cond), then2, cir_typed_expr(else_expr)), cir_typed_expr_type(then2))
+        }
+        L1OpMatch(value, arms) => L2OpTyped(L1OpMatch(cir_typed_expr(value), arms), CirTyUnknown)
+        L1OpClosure(params, body) => L2OpTyped(L1OpClosure(params, cir_typed_expr(body)), CirTyUnknown)
+        L1OpReset(label, body) => {
+            let body2 = cir_typed_expr(body)
+            L2OpTyped(L1OpReset(label, body2), cir_typed_expr_type(body2))
+        }
+        L1OpShift(label, binder, body) => L2OpTyped(L1OpShift(label, binder, cir_typed_expr(body)), CirTyUnknown)
+        L1OpCall(callee, args) => L2OpTyped(L1OpCall(cir_typed_expr(callee), cir_typed_expr_list(args)), CirTyUnknown)
+        L1OpField(value, field) => L2OpTyped(L1OpField(cir_typed_expr(value), field), CirTyUnknown)
+        L1OpIndex(value, args) => L2OpTyped(L1OpIndex(cir_typed_expr(value), cir_typed_expr_list(args)), CirTySliceU8)
+        L1OpAssign(lhs, rhs) => {
+            let rhs2 = cir_typed_expr(rhs)
+            L2OpTyped(L1OpAssign(cir_typed_expr(lhs), rhs2), cir_typed_expr_type(rhs2))
+        }
+        L1OpPrefix(op, value) => L2OpTyped(L1OpPrefix(op, cir_typed_expr(value)), CirTyI64)
+        L1OpBinary(op, lhs, rhs) => {
+            let lhs2 = cir_typed_expr(lhs)
+            let rhs2 = cir_typed_expr(rhs)
+            L2OpTyped(L1OpBinary(op, lhs2, rhs2), cir_type_of_binary(op, cir_typed_expr_type(lhs2), cir_typed_expr_type(rhs2)))
+        }
+        L1OpRef(_) => L2OpTyped(expr, CirTyUnknown)
+        L1OpInt(_) => L2OpTyped(expr, CirTyI64)
+        L1OpFloat(_) => L2OpTyped(expr, CirTyUnknown)
+        L1OpAtom(_) => L2OpTyped(expr, CirTyUnknown)
+        L1OpBool(_) => L2OpTyped(expr, CirTyBool)
+        L1OpString => L2OpTyped(expr, CirTyString)
+        L1OpUnit => L2OpTyped(expr, CirTyUnit)
+        L1OpUnsupported(_, _) => L2OpTyped(expr, CirTyUnknown)
+        _ => expr
+    }
+
+def cir_typed_items(items: CirItemList): CirItemList =
+    match items {
+        CirItemEnd => CirItemEnd
+        CirItemCons(item, rest) => {
+            let item2 = match item {
+                L1ItemDef(binder, params, ret, body) => L2ItemDef(binder, params, ret, cir_typed_expr(body))
+                L1ItemExtern(binder, params, ret, import) => L2ItemExtern(binder, params, ret, import)
+                L1ItemUnsupported(ast, reason) => L2ItemUnsupported(ast, reason)
+                _ => item
+            }
+            CirItemCons(item2, cir_typed_items(rest))
+        }
+    }
+
+def cir_typed_module(module: CirModule): CirModule =
+    match module {
+        L1Module(header, items) => L2Module(header, cir_typed_items(items))
+        _ => module
+    }

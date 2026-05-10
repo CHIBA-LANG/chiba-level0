@@ -28,6 +28,16 @@ data CirRef {
     L1RefUnresolved(Str)
 }
 
+data CirType {
+    CirTyUnknown,
+    CirTyI64,
+    CirTyBool,
+    CirTyUnit,
+    CirTyString,
+    CirTyStr,
+    CirTySliceU8
+}
+
 data CirUnsupported {
     CirUnsupportedAst(Str),
     CirUnsupportedPass(Str)
@@ -47,7 +57,8 @@ type CirExternImport {
 
 data CirModule {
     L0Module(AST, CirItemList),
-    L1Module(AST, CirItemList)
+    L1Module(AST, CirItemList),
+    L2Module(AST, CirItemList)
 }
 
 data CirItemList {
@@ -58,10 +69,13 @@ data CirItemList {
 data CirItem {
     L0ItemDef(Str, CirParamList, AST, CirExpr),
     L1ItemDef(CirBinder, CirParamList, AST, CirExpr),
+    L2ItemDef(CirBinder, CirParamList, AST, CirExpr),
     L0ItemExtern(Str, CirParamList, AST, CirExternImport),
     L1ItemExtern(CirBinder, CirParamList, AST, CirExternImport),
+    L2ItemExtern(CirBinder, CirParamList, AST, CirExternImport),
     L0ItemUnsupported(AST, CirUnsupported),
-    L1ItemUnsupported(AST, CirUnsupported)
+    L1ItemUnsupported(AST, CirUnsupported),
+    L2ItemUnsupported(AST, CirUnsupported)
 }
 
 data CirParamList {
@@ -82,18 +96,25 @@ data CirStmtList {
 data CirStmt {
     L0StmtLet(Str, CirExpr),
     L1StmtLet(CirBinder, CirExpr),
+    L2StmtLet(CirBinder, CirType, CirExpr),
     L0StmtLetPattern(AST, CirExpr),
     L1StmtLetPattern(AST, CirExpr),
+    L2StmtLetPattern(AST, CirExpr),
     L0StmtAssign(CirExpr, CirExpr),
     L1StmtAssign(CirExpr, CirExpr),
+    L2StmtAssign(CirExpr, CirExpr),
     L0StmtExpr(CirExpr),
     L1StmtExpr(CirExpr),
+    L2StmtExpr(CirExpr),
     L0StmtReturn(CirExpr),
     L1StmtReturn(CirExpr),
+    L2StmtReturn(CirExpr),
     L0StmtFor(AST, CirExpr, CirExpr),
     L1StmtFor(AST, CirExpr, CirExpr),
+    L2StmtFor(AST, CirExpr, CirExpr),
     L0StmtUnsupported(AST, CirUnsupported),
-    L1StmtUnsupported(AST, CirUnsupported)
+    L1StmtUnsupported(AST, CirUnsupported),
+    L2StmtUnsupported(AST, CirUnsupported)
 }
 
 data CirExprList {
@@ -167,6 +188,8 @@ data CirExpr {
     L1OpString,
     L0OpUnit,
     L1OpUnit,
+
+    L2OpTyped(CirExpr, CirType),
 
     L0OpUnsupported(AST, CirUnsupported),
     L1OpUnsupported(AST, CirUnsupported)
