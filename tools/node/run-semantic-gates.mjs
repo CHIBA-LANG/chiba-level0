@@ -301,6 +301,10 @@ function checkMemory() {
   assert(name, errors.some((err) => err.includes("load ordering")), "invalid Atomic.load ordering was not rejected");
   assert(name, errors.some((err) => err.includes("store ordering")), "invalid Atomic.store ordering was not rejected");
   assert(name, errors.some((err) => err.includes("Ref[Array")), "Ref[Array[T]] element assignment was not rejected");
+  const checkedValid = run("./target/debug/level1c.o", ["check", path.join(ROOT, "refs_atomic_valid.chiba")]);
+  assert(name, checkedValid.status === 0 && checkedValid.stdout.includes("check ok"), checkedValid.stdout || checkedValid.stderr);
+  const checkedInvalid = run("./target/debug/level1c.o", ["check", path.join(ROOT, "refs_atomic_invalid.chiba")]);
+  assert(name, checkedInvalid.status === 0 && checkedInvalid.stderr.includes("top-level Ref requires #[world_local]"), checkedInvalid.stdout || checkedInvalid.stderr);
   pass(name);
 }
 

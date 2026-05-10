@@ -166,6 +166,16 @@ const LEVEL1C_CASES = [
     args: ["check", "supports/bootstrap/continuation-cross-world-invalid.chiba"],
     expect: ["continuation crosses world/thread boundary", "3"],
   },
+  {
+    name: "level1c check Ref Atomic valid",
+    args: ["check", "supports/semantic-gates/refs_atomic_valid.chiba"],
+    expect: ["check ok", "0"],
+  },
+  {
+    name: "level1c check Ref Atomic invalid",
+    args: ["check", "supports/semantic-gates/refs_atomic_invalid.chiba"],
+    expect: ["top-level Ref requires #[world_local]", "3"],
+  },
 ];
 
 const GENERATED_WAT_CASES = [
