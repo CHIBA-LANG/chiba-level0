@@ -159,6 +159,11 @@ const LEVEL1C_CASES = [
     args: ["nanopass", "supports/bootstrap/continuation-multi-resume.chiba"],
     expect: ["L8ValidatedCoreModule", "L7CoreOp", "core-op continuation-package", "L5OpContinuationPackage", "validation ok", "0"],
     expectSequence: [[
+      "L4OpUsage",
+      "usage many",
+      "L3OpAnswerControl",
+      "control-boundary delimited",
+    ], [
       "L3OpAnswerControl",
       "control-boundary delimited",
       "L1OpReset",
