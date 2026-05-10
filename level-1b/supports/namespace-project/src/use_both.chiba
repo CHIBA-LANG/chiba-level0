@@ -1,0 +1,5 @@
+namespace main
+use semantic.gates.parts.*
+
+#[entry]
+def main(): i64 = left() + right()
