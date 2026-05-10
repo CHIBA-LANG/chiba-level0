@@ -1,0 +1,28 @@
+#![CHIBALEX]
+
+{
+    namespace level1b.chibalexmini.basic
+    use metalstd.str.*
+}
+
+@ws = $WS+
+@intlit = $ASCII_DIGIT+
+@ident = $XID_START $XID_CONTINUE*
+
+tokens :-
+    @ws       ;
+    "let"     { KwLet }
+    @intlit   { IntLit(s) }
+    @ident    { Ident(s) }
+    "="       { Eq }
+
+{
+    data Token {
+        IntLit(Str),
+        Ident(Str),
+        KwLet,
+        Eq,
+        LexError(i64),
+        Eof,
+    }
+}

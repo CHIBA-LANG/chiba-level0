@@ -194,6 +194,7 @@
 - [ ] **Pre-C09: level-1b regex + chibalex bootstrap slice**
 	- **TODO**: 在 level-1b 写最小 regex IR、scanner runtime、chibalex parser/codegen，先覆盖 chibalex 自身需要的 token 子集。
 	- **DESC**: C00 的第一刀必须有可运行闭环，而不是一次性重写完整 chibalex。
+	- **PROGRESS**: 已固定 `level-1b/supports/chibalex-mini` 三个 lexer spec fixtures，并用 `vp run level1b:chibalex-mini` 对 native chibalex 生成结果做 token/golden smoke；level-1b 自身 regex/parser/codegen 尚未实现。
 	- **验收**: wasm chibalex-mini 能读 3-5 个 lexer spec，生成 lexer 或 token stream；与 native chibalex/lexer runner golden 对拍；至少一个 longest-match/backtracking/recovery 用例使用 multi-resume continuation。
 	- **并行**: 不并行。
 

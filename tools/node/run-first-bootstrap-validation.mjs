@@ -56,6 +56,7 @@ run("parser error smoke", process.execPath, ["tools/node/run-parser-error-smoke.
 run("semantic gates", process.execPath, ["tools/node/run-semantic-gates.mjs"]);
 run("level-1b smoke", process.execPath, ["tools/node/run-level1b-smoke.mjs"]);
 run("level-1b namespace", process.execPath, ["tools/node/run-level1b-namespace-smoke.mjs"]);
+run("level-1b chibalex mini", process.execPath, ["tools/node/run-level1b-chibalex-mini.mjs"]);
 run("level-1b std surface", process.execPath, ["tools/node/run-level1b-std-surface.mjs"]);
 
 const artifacts = [
