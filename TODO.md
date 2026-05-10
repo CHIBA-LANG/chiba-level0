@@ -131,7 +131,7 @@
 
 这一段是 C00 之前的硬门槛：只有当 `level-1b` 能用 level-0 seed 编译、用 node 运行，并完整表达 level-0 当前承担的 generator/runtime/compiler 子集时，才算真正开始 Second Bootstrap。这里仍允许 `level-1b` 复用 level-0 的标准库实现作为过渡，但新写的 `level-1b` 源码不能继续扩散 opaque `i64`、隐式 mutable、非 `#![Metal]` 的低层写法。
 
-- [ ] **Pre-C00: level-1b source tree + build contract**
+- [x] **Pre-C00: level-1b source tree + build contract**
 	- **TODO**: 建立 `level-1b/` 或等价的新源码树，明确哪些源码来自当前 `src/` 的复制编辑，哪些仍临时复用 level-0/seed stdlib。
 	- **DESC**: `level-1b` 是准备接管 generators 和 compiler pipeline 的干净实现层；不能直接把 level-0 当长期源码继续补丁式扩展。
 	- **验收**: 有固定入口、固定 project layout、固定构建命令；`timeout 10` 能通过 phase1/语法检查，放宽后能编译出 node runner 可加载的 wasm/object。

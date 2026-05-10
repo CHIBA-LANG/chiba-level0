@@ -54,6 +54,8 @@ run("lexer compare", process.execPath, ["tools/node/run-lexer-compare.mjs"]);
 run("parser compare", process.execPath, ["tools/node/run-parser-compare.mjs"]);
 run("parser error smoke", process.execPath, ["tools/node/run-parser-error-smoke.mjs"]);
 run("semantic gates", process.execPath, ["tools/node/run-semantic-gates.mjs"]);
+run("level-1b smoke", process.execPath, ["tools/node/run-level1b-smoke.mjs"]);
+run("level-1b std surface", process.execPath, ["tools/node/run-level1b-std-surface.mjs"]);
 
 const artifacts = [
   compileArtifact("level1c", "supports/bootstrap/level1c-bootstrap-main.chiba"),
