@@ -88,6 +88,7 @@ run("level1c.wasm cont-usage", process.execPath, [
   "cont-usage",
   "supports/bootstrap/continuation-multi-resume.chiba",
 ]);
+run("all wat files", process.execPath, ["tools/node/run-all-wat.mjs"]);
 
 console.log("[INFO] first bootstrap hashes");
 console.log(`seed ${sha256("chibac_amd64-unknown-linux_chiba_dev.o")}`);

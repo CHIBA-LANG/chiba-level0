@@ -6,6 +6,7 @@ function parseArgs() {
   let path = null;
   let invoke = null;
   let opt = false;
+  let instantiateOnly = false;
   const wasiArgs = [];
   const wasiEnv = {};
   let i = 2;
@@ -16,6 +17,9 @@ function parseArgs() {
       i += 2;
     } else if (arg === "--opt") {
       opt = true;
+      i += 1;
+    } else if (arg === "--instantiate-only") {
+      instantiateOnly = true;
       i += 1;
     } else if (arg === "--arg") {
       wasiArgs.push(process.argv[i + 1] || "");
@@ -34,7 +38,7 @@ function parseArgs() {
       i += 1;
     }
   }
-  return { path, invoke, opt, wasiArgs, wasiEnv };
+  return { path, invoke, opt, instantiateOnly, wasiArgs, wasiEnv };
 }
 
 async function readInput(args) {
@@ -51,13 +55,43 @@ async function readInput(args) {
 }
 
 async function makeImports(wat, args) {
-  const imports = {
-    env: {
+  const env = new Proxy(
+    {
       js_log(value) {
         console.log(`env.js_log ${String(value)}`);
         return 0n;
       },
+      left() {
+        return 20n;
+      },
+      right() {
+        return 22n;
+      },
+      share_state() {
+        return 0n;
+      },
+      level1c_help() {
+        return 0n;
+      },
+      level1c_parse() {
+        return 0n;
+      },
+      level1c_check() {
+        return 0n;
+      },
+      level1c_cont_usage() {
+        return 0n;
+      },
     },
+    {
+      get(target, prop) {
+        if (prop in target) return target[prop];
+        return () => 0n;
+      },
+    },
+  );
+  const imports = {
+    env,
   };
 
   if (wat.includes('"wasi_snapshot_preview1"')) {
@@ -95,6 +129,12 @@ try {
   const { imports, wasi } = await makeImports(wat, args);
   const instance = await WebAssembly.instantiate(buffer, imports);
   const exports = instance.instance.exports;
+
+  if (args.instantiateOnly) {
+    console.log("instantiate ok");
+    process.exit(0);
+  }
+
   const exportName = selectExport(exports, invoke);
 
   if (wasi && exportName === "_start") {

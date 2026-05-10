@@ -98,6 +98,111 @@ def wat_emit_imports(out: Str, items: CirItemList): i64 =
         }
     }
 
+def wat_item_defines_name(item: CirItem, name: Str): i64 =
+    match item {
+        L1ItemDef(binder, _, _, _) => streq(binder.name, name)
+        L1ItemExtern(binder, _, _, _) => streq(binder.name, name)
+        _ => 0
+    }
+
+def wat_items_define_name(items: CirItemList, name: Str): i64 =
+    match items {
+        CirItemEnd => 0
+        CirItemCons(item, rest) =>
+            if wat_item_defines_name(item, name) != 0 { 1 }
+            else { wat_items_define_name(rest, name) }
+    }
+
+def wat_expr_list_references_unresolved(args: CirExprList, name: Str): i64 =
+    match args {
+        CirExprEnd => 0
+        CirExprCons(head, tail) =>
+            if wat_expr_references_unresolved(head, name) != 0 { 1 }
+            else { wat_expr_list_references_unresolved(tail, name) }
+    }
+
+def wat_stmt_list_references_unresolved(stmts: CirStmtList, name: Str): i64 =
+    match stmts {
+        CirStmtEnd => 0
+        CirStmtCons(stmt, rest) => {
+            let hit = match stmt {
+                L1StmtLet(_, value) => wat_expr_references_unresolved(value, name)
+                L1StmtLetPattern(_, value) => wat_expr_references_unresolved(value, name)
+                L1StmtAssign(lhs, rhs) =>
+                    if wat_expr_references_unresolved(lhs, name) != 0 { 1 }
+                    else { wat_expr_references_unresolved(rhs, name) }
+                L1StmtExpr(value) => wat_expr_references_unresolved(value, name)
+                L1StmtReturn(value) => wat_expr_references_unresolved(value, name)
+                L1StmtFor(_, cond, body) =>
+                    if wat_expr_references_unresolved(cond, name) != 0 { 1 }
+                    else { wat_expr_references_unresolved(body, name) }
+                _ => 0
+            }
+            if hit != 0 { 1 } else { wat_stmt_list_references_unresolved(rest, name) }
+        }
+    }
+
+def wat_expr_references_unresolved(expr: CirExpr, name: Str): i64 =
+    match expr {
+        L1OpBlock(stmts, tail) =>
+            if wat_stmt_list_references_unresolved(stmts, name) != 0 { 1 }
+            else { wat_expr_references_unresolved(tail, name) }
+        L1OpIf(cond, then_expr, else_expr) =>
+            if wat_expr_references_unresolved(cond, name) != 0 { 1 }
+            else if wat_expr_references_unresolved(then_expr, name) != 0 { 1 }
+            else { wat_expr_references_unresolved(else_expr, name) }
+        L1OpMatch(value, _) => wat_expr_references_unresolved(value, name)
+        L1OpClosure(_, body) => wat_expr_references_unresolved(body, name)
+        L1OpReset(_, body) => wat_expr_references_unresolved(body, name)
+        L1OpShift(_, _, body) => wat_expr_references_unresolved(body, name)
+        L1OpCall(callee, args) =>
+            if wat_expr_references_unresolved(callee, name) != 0 { 1 }
+            else { wat_expr_list_references_unresolved(args, name) }
+        L1OpField(value, _) => wat_expr_references_unresolved(value, name)
+        L1OpIndex(value, args) =>
+            if wat_expr_references_unresolved(value, name) != 0 { 1 }
+            else { wat_expr_list_references_unresolved(args, name) }
+        L1OpAssign(lhs, rhs) =>
+            if wat_expr_references_unresolved(lhs, name) != 0 { 1 }
+            else { wat_expr_references_unresolved(rhs, name) }
+        L1OpPrefix(_, value) => wat_expr_references_unresolved(value, name)
+        L1OpBinary(_, lhs, rhs) =>
+            if wat_expr_references_unresolved(lhs, name) != 0 { 1 }
+            else { wat_expr_references_unresolved(rhs, name) }
+        L1OpRef(L1RefUnresolved(ref_name)) => streq(ref_name, name)
+        _ => 0
+    }
+
+def wat_items_reference_unresolved(items: CirItemList, name: Str): i64 =
+    match items {
+        CirItemEnd => 0
+        CirItemCons(item, rest) => {
+            let hit = match item {
+                L1ItemDef(_, _, _, body) => wat_expr_references_unresolved(body, name)
+                _ => 0
+            }
+            if hit != 0 { 1 } else { wat_items_reference_unresolved(rest, name) }
+        }
+    }
+
+def wat_emit_env_hole_import(out: Str, items: CirItemList, name: Str): i64 =
+    if wat_items_define_name(items, name) != 0 { 0 }
+    else if wat_items_reference_unresolved(items, name) == 0 { 0 }
+    else {
+        let _ = str_push_cstr(out, "  (import \"env\" \"")
+        let _ = str_append(out, name)
+        let _ = str_push_cstr(out, "\" (func ")
+        let _ = wat_func_name(out, name)
+        let _ = str_push_cstr(out, " (result i64)))")
+        str_push(out, 10)
+    }
+
+def wat_emit_env_hole_imports(out: Str, items: CirItemList): i64 = {
+    let _ = wat_emit_env_hole_import(out, items, mk_str("left", 4))
+    let _ = wat_emit_env_hole_import(out, items, mk_str("right", 5))
+    wat_emit_env_hole_import(out, items, mk_str("share_state", 11))
+}
+
 def wat_collect_expr_locals(out: Str, expr: CirExpr): i64 =
     match expr {
         L1OpBlock(stmts, tail) => {
@@ -456,6 +561,7 @@ def wat_emit_module(module: CirModule): Str = {
     let _ = match module {
         L1Module(_, items) => {
             let _ = wat_emit_imports(out, items)
+            let _ = wat_emit_env_hole_imports(out, items)
             wat_emit_items(out, items, 0)
         }
         _ => 0

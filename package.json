@@ -6,6 +6,7 @@
     "run:wat": "node tools/node/run-wat.mjs",
     "run:level1c-wasm": "node tools/node/run-level1c-wasm.mjs",
     "compile:wat": "node tools/node/compile-wat.mjs",
+    "run:all-wat": "node tools/node/run-all-wat.mjs",
     "validate:first-bootstrap": "node tools/node/run-first-bootstrap-validation.mjs",
     "smoke:bootstrap": "node tools/node/run-bootstrap-smokes.mjs",
     "smoke:bootstrap:opt": "node tools/node/run-bootstrap-smokes.mjs --opt",
