@@ -11,6 +11,7 @@ use frontend.parserspec.*
 use backend.cir.alpha.*
 use backend.cir.continuation_boundary_check.*
 use backend.cir.continuation_check.*
+use backend.cir.continuation_usage.*
 use backend.cir.lower_ast.*
 use backend.cir.show.*
 use backend.wasm.wat.*
@@ -21,7 +22,7 @@ def argv_str(argv: i64, i: i64): Str = str_from_cptr(argv_cstr(argv, i))
 
 def level1c_usage(): i64 = {
     let _ = write_fd(1, "Usage: level1c <command> <file>\n", 32)
-    let _ = write_fd(1, "Commands: lex parse check cir wat\n", 34)
+    let _ = write_fd(1, "Commands: lex parse check cir cont-usage wat\n", 45)
     0
 }
 
@@ -105,6 +106,20 @@ def level1c_run_cir(path: Str): i64 =
         }
     }
 
+def level1c_run_cont_usage(path: Str): i64 =
+    match level1c_parse_file(path) {
+        OK(ast, _) => {
+            let l1 = alpha_module(cir_lower_module(ast as AST))
+            let rendered = cir_cont_usage_show_module(l1)
+            let _ = str_write_to(rendered, 1)
+            0
+        }
+        Err(_, _) => {
+            let _ = write_fd(2, "parse failed\n", 13)
+            2
+        }
+    }
+
 def level1c_run_wat(path: Str): i64 =
     match level1c_parse_file(path) {
         OK(ast, _) => {
@@ -124,6 +139,7 @@ def level1c_dispatch(cmd: Str, path: Str): i64 =
     else if streq(cmd, mk_str("parse", 5)) != 0 { level1c_run_parse(path) }
     else if streq(cmd, mk_str("check", 5)) != 0 { level1c_run_check(path) }
     else if streq(cmd, mk_str("cir", 3)) != 0 { level1c_run_cir(path) }
+    else if streq(cmd, mk_str("cont-usage", 10)) != 0 { level1c_run_cont_usage(path) }
     else if streq(cmd, mk_str("wat", 3)) != 0 { level1c_run_wat(path) }
     else {
         let _ = level1c_usage()

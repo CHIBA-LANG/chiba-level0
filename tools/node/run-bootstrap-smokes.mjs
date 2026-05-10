@@ -112,6 +112,11 @@ const LEVEL1C_CASES = [
     expect: ["check ok", "0"],
   },
   {
+    name: "level1c continuation usage multi resume",
+    args: ["cont-usage", "supports/bootstrap/continuation-multi-resume.chiba"],
+    expect: ["continuation #1 \"k\" resumes=2 class=many", "0"],
+  },
+  {
     name: "level1c check continuation invalid",
     args: ["check", "supports/bootstrap/continuation-invalid.chiba"],
     expect: ["shift outside reset", "3"],
