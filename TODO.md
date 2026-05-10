@@ -180,6 +180,7 @@
 - [ ] **Pre-C07: real String/Array/Slice runtime**
 	- **TODO**: 实现 `String == Array[u8]`、`str == Slice[u8]` 的真实 payload lowering 和 runtime helpers：literal bytes、interpolation concat、byte index、range slice、bounds check、`.char_at`、WASI encode/decode。
 	- **DESC**: 当前 string/slice 是 wasm-gc managed layout hole；C00 前至少要能支撑 lexer/parser 输入、source span、diagnostic 输出和 generated code 拼接。
+	- **BLOCKER**: 当前 parser AST 把 string 降成 payload-less `Expr_String`，string chunk/interpolation 内容没有进入 `lower_ast`；真实 byte payload 需要先在 grammar/parser AST 中保留 string pieces，再进入 CIR/Core。
 	- **验收**: string literal WAT 含真实 byte payload；`s[i]` 返回 byte/slice 语义；`s[a..b]` 不复制并保活 backing array；`.char_at(n)` 做显式 codepoint 访问；file read/stdout/lexer input 共用同一 contract。
 	- **并行**: 不并行。
 
