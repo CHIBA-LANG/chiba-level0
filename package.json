@@ -5,6 +5,7 @@
   "scripts": {
     "run:wat": "node tools/node/run-wat.mjs",
     "compile:wat": "node tools/node/compile-wat.mjs",
+    "validate:first-bootstrap": "node tools/node/run-first-bootstrap-validation.mjs",
     "smoke:bootstrap": "node tools/node/run-bootstrap-smokes.mjs",
     "smoke:bootstrap:opt": "node tools/node/run-bootstrap-smokes.mjs --opt",
     "smoke:lexer-compare": "node tools/node/run-lexer-compare.mjs",

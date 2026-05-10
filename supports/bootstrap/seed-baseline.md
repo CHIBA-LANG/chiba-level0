@@ -76,3 +76,36 @@ Level-0 compiler, chibacc, and chibalex invocations should first use `timeout
 10` to catch phase1 hangs. Once scanning/resolving/type-checking has passed and
 the command is known to be in later lowering/codegen, use a relaxed explicit
 timeout such as `timeout 120` and require the command to finish.
+
+## First Bootstrap Validation Snapshot
+
+Command:
+
+```sh
+vp run validate:first-bootstrap
+```
+
+Current result on 2026-05-10:
+
+- bootstrap WAT smoke: pass
+- bootstrap WAT smoke with Binaryen `--opt`: pass
+- lexer compare: 30 specs pass
+- parser compare: 30 specs pass
+- parser error smoke: 108 specs pass
+- Node.js: `v24.15.0`
+- Binaryen: `129.0.0`
+
+Current hashes:
+
+- seed `chibac_amd64-unknown-linux_chiba_dev.o`: `7a7744ab9ace3d8e13ede45f2e5978e56cc07f597884085a9c4886753f3e268d`
+- native bootstrap runner `target/debug/level1c.o`: `fd58f6f46bac2aec947e4c014ad1c26104c33ef5f9b5fdfe94e30d116b6edcb0`
+- native parser runner `target/debug/parser_spec_runner.o`: `bb7a85e682d75b6e2540f23a74deac637b2d67473f01f6d4830a70f975c9793b`
+- generated `wat-tuple-heap-smoke.wat`: `933628efbf20637e41189be0cdc2157f0c25a5e21165002d8cb777323c81af4d`
+- generated `wat-tuple-heap-smoke.wasm`: `0b7edf0f79e80b27096deca09ca54fd81489d0479dbd00a1aeaf31a717768501`
+- generated `wat-extern-env-smoke.wat`: `c2f8a349a25fa22d3770db6fff3d86358673ad24f0baea8dfd5b0f6e6eb7622a`
+- generated `wat-extern-env-smoke.wasm`: `6f51626725cc1038b9b429088bedf4497f75c410f12886a0924f0b862c1b5186`
+
+B06 is not checked complete yet: this snapshot validates the current native
+level-1 compiler skeleton plus generated wasm smokes. The remaining B06 line is
+to emit and run `level1c.wasm` itself, then replace the native skeleton hash
+above with the real first-bootstrap wasm hash.
