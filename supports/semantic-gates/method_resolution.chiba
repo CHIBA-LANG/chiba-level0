@@ -1,0 +1,14 @@
+namespace semantic.gates.method
+
+type Widget {
+    handler: i64,
+    value: i64,
+}
+
+def Widget.handler(self: Widget): i64 = 2
+def Widget.size(self: Widget): i64 = 3
+def Widget.origin(): i64 = 4
+
+def field_callable(w: Widget): i64 = w.handler() // gate: field-callable
+def receiver_method(w: Widget): i64 = w.size() // gate: receiver-method
+def qualified_callee(): i64 = Widget.origin() // gate: qualified-callee

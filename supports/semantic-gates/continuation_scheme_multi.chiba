@@ -1,0 +1,8 @@
+namespace semantic.gates.continuation
+
+def scheme_multi_entry(): i64 =
+    1 + reset {
+        2 * shift k {
+            k(k(4))
+        }
+    }

@@ -1,0 +1,10 @@
+namespace semantic.gates.rowpoly
+
+type Named {
+    name: Str,
+    id: i64,
+}
+
+def row_name[T: {r| name: Str, id: i64}](value: T): Str = value.name
+def row_same_shape[T: {z| id: i64, name: Str}](value: T): Str = value.name
+def row_id[T: {r| id: i64, name: Str}](value: T): i64 = value.id

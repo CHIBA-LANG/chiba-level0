@@ -1,0 +1,16 @@
+namespace semantic.gates.memory
+
+#[world_local]
+def local_counter: Ref[i64] = Ref.new(0)
+
+def shared_state: UnsafeRef[State] = unsafe { share_state() }
+def atomic_counter: Atomic[i64] = Atomic.new(0)
+def atomic_flag: Atomic[bool] = Atomic.new(false)
+def atomic_ptr: Atomic[Ptr[u8]] = Atomic.new(null_ptr())
+
+def use_refs(r: Ref[i64], a: Atomic[i64], p: Ptr[u8], u: UnsafeRef[File]): i64 = {
+    r := r.* + 1
+    let x = Atomic.load(a, Acquire)
+    let _ = Atomic.store(a, x, Release)
+    x
+}

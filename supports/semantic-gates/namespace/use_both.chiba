@@ -1,0 +1,4 @@
+namespace semantic.gates.app
+use semantic.gates.parts.*
+
+def both(): i64 = left() + right()
