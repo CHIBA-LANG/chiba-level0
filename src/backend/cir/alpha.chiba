@@ -179,6 +179,8 @@ def alpha_expr(expr: CirExpr, ctx: AlphaCtx): CirExpr =
             L1OpCall(alpha_expr(callee, ctx), alpha_expr_list(args, ctx))
         L0OpField(value, field) =>
             L1OpField(alpha_expr(value, ctx), field)
+        L0OpIndex(value, args) =>
+            L1OpIndex(alpha_expr(value, ctx), alpha_expr_list(args, ctx))
         L0OpAssign(lhs, rhs) =>
             L1OpAssign(alpha_expr(lhs, ctx), alpha_expr(rhs, ctx))
         L0OpPrefix(op, value) =>

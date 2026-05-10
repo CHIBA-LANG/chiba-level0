@@ -1,5 +1,9 @@
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import process from "node:process";
+
+const WAT_DIR = ".scratch/bootstrap-smokes/wat";
 
 function run(command, args, options = {}) {
   return spawnSync(command, args, {
@@ -41,11 +45,21 @@ function runLevel1c(test) {
   return checkOutput(test.name, result, test.expect);
 }
 
+function watName(file) {
+  return file.replaceAll("/", "__").replace(/\.chiba$/, ".wat");
+}
+
+function writeGeneratedWat(test, wat) {
+  fs.mkdirSync(WAT_DIR, { recursive: true });
+  fs.writeFileSync(path.join(WAT_DIR, watName(test.file)), wat);
+}
+
 function runGeneratedWat(test) {
   const generated = run("./target/debug/level1c.o", ["wat", test.file]);
   if (generated.status !== 0) {
     return checkOutput(test.name, generated, test.expect);
   }
+  writeGeneratedWat(test, generated.stdout);
 
   const result = run(
     process.execPath,
@@ -62,6 +76,7 @@ function runGeneratedWat(test) {
 
 function checkGeneratedWatText(test) {
   const generated = run("./target/debug/level1c.o", ["wat", test.file]);
+  if (generated.status === 0) writeGeneratedWat(test, generated.stdout);
   return checkOutput(test.name, generated, test.expect);
 }
 

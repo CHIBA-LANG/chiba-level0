@@ -4,6 +4,22 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 
 const ROOT = "supports/semantic-gates";
+const WAT_DIR = ".scratch/semantic-gates/wat";
+
+const GATE_FILES = [
+  "method_resolution.chiba",
+  "row_poly.chiba",
+  "refs_atomic_valid.chiba",
+  "refs_atomic_invalid.chiba",
+  "continuation_scheme_multi.chiba",
+  "string_slice.chiba",
+  "namespace/part_a.chiba",
+  "namespace/part_b.chiba",
+  "namespace/use_both.chiba",
+  "namespace_project/src/part_a.chiba",
+  "namespace_project/src/part_b.chiba",
+  "namespace_project/src/use_both.chiba",
+];
 
 function read(file) {
   return fs.readFileSync(file, "utf8");
@@ -33,18 +49,24 @@ function parseOk(file) {
 }
 
 function parseAll() {
-  const files = [
-    "method_resolution.chiba",
-    "row_poly.chiba",
-    "refs_atomic_valid.chiba",
-    "refs_atomic_invalid.chiba",
-    "continuation_scheme_multi.chiba",
-    "namespace/part_a.chiba",
-    "namespace/part_b.chiba",
-    "namespace/use_both.chiba",
-  ].map((name) => path.join(ROOT, name));
+  const files = GATE_FILES.map((name) => path.join(ROOT, name));
   for (const file of files) parseOk(file);
   pass("semantic gate sources parse");
+}
+
+function watName(file) {
+  return file.replaceAll("/", "__").replace(/\.chiba$/, ".wat");
+}
+
+function emitWatAll() {
+  fs.mkdirSync(WAT_DIR, { recursive: true });
+  for (const rel of GATE_FILES) {
+    const file = path.join(ROOT, rel);
+    const result = run("./target/debug/level1c.o", ["wat", file]);
+    assert(`emit wat ${rel}`, result.status === 0 && result.stdout.includes("(module"), result.stdout || result.stderr);
+    fs.writeFileSync(path.join(WAT_DIR, watName(rel)), result.stdout);
+  }
+  pass("semantic gate wat files");
 }
 
 function collectTypes(source) {
@@ -132,9 +154,26 @@ function checkRowPoly() {
     for (const access of body.matchAll(/\bvalue\.([A-Za-z_]\w*)/g)) {
       assert(name, key.split(",").includes(access[1]), `${def[1]} accesses missing row field ${access[1]}`);
     }
+    if (def[1] === "row_identity") {
+      assert(name, /:\s*T\s*=/.test(def[0]) && body.trim() === "value", "row_identity must return the full row-polymorphic value");
+    }
   }
 
   assert(name, rowKeys[0] === rowKeys[1], `canonical row keys differ: ${rowKeys[0]} vs ${rowKeys[1]}`);
+  pass(name);
+}
+
+function checkStringSlice() {
+  const name = "string interpolation and slice gates";
+  const source = read(path.join(ROOT, "string_slice.chiba"));
+  assert(name, source.includes("${text}"), "string interpolation smoke missing");
+  assert(name, source.includes('r#"raw ${text} stays raw"#'), "raw string smoke missing");
+  assert(name, /text\[0\.\.4\]/.test(source), "slice smoke missing");
+  const wat = read(path.join(WAT_DIR, "string_slice.wat"));
+  assert(name, wat.includes("(type $str_view (struct (field i64) (field i64)))"), "WAT string layout missing");
+  assert(name, wat.includes("(type $slice_i64 (struct (field i64) (field i64)))"), "WAT slice layout missing");
+  assert(name, wat.includes("struct.new $str_view"), "string literal does not lower to managed object");
+  assert(name, wat.includes("struct.new $slice_i64"), "slice expression does not lower to managed object");
   pass(name);
 }
 
@@ -149,7 +188,8 @@ function extractDefs(source) {
 
 function checkNamespaceMerge() {
   const name = "namespace multi-file merge";
-  const files = ["part_a.chiba", "part_b.chiba", "use_both.chiba"].map((file) => path.join(ROOT, "namespace", file));
+  const project = path.join(ROOT, "namespace_project");
+  const files = ["part_a.chiba", "part_b.chiba", "use_both.chiba"].map((file) => path.join(project, "src", file));
   const table = new Map();
   for (const file of files) {
     const source = read(file);
@@ -161,9 +201,20 @@ function checkNamespaceMerge() {
 
   assert(name, table.get("semantic.gates.parts")?.has("left"), "part_a left() missing from merged namespace");
   assert(name, table.get("semantic.gates.parts")?.has("right"), "part_b right() missing from merged namespace");
-  const app = read(path.join(ROOT, "namespace/use_both.chiba"));
+  const app = read(path.join(project, "src/use_both.chiba"));
   assert(name, app.includes("use semantic.gates.parts.*"), "consumer must import merged namespace");
   assert(name, /\bleft\(\)\s*\+\s*right\(\)/.test(app), "consumer must call functions from both namespace fragments");
+  const compiled = run("timeout", [
+    "10",
+    "./chibac_amd64-unknown-linux_chiba_dev.o",
+    "--project",
+    project,
+    "--entry",
+    "use_both.chiba",
+    "--output",
+    "namespace_gate.o",
+  ]);
+  assert(name, compiled.status === 0, compiled.stdout || compiled.stderr);
   pass(name);
 }
 
@@ -268,8 +319,10 @@ function checkContinuation() {
 }
 
 parseAll();
+emitWatAll();
 checkMethodResolution();
 checkRowPoly();
 checkNamespaceMerge();
+checkStringSlice();
 checkMemory();
 checkContinuation();

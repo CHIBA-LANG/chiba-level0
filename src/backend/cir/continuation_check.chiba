@@ -53,6 +53,7 @@ def cir_cont_check_expr(expr: CirExpr, reset_depth: i64): CirContCheck =
         L1OpCall(callee, args) =>
             cir_cont_merge(cir_cont_check_expr(callee, reset_depth), cir_cont_check_expr_list(args, reset_depth))
         L1OpField(value, _) => cir_cont_check_expr(value, reset_depth)
+        L1OpIndex(value, args) => cir_cont_merge(cir_cont_check_expr(value, reset_depth), cir_cont_check_expr_list(args, reset_depth))
         L1OpAssign(lhs, rhs) => cir_cont_merge(cir_cont_check_expr(lhs, reset_depth), cir_cont_check_expr(rhs, reset_depth))
         L1OpPrefix(_, value) => cir_cont_check_expr(value, reset_depth)
         L1OpBinary(_, lhs, rhs) => cir_cont_merge(cir_cont_check_expr(lhs, reset_depth), cir_cont_check_expr(rhs, reset_depth))

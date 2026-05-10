@@ -178,6 +178,7 @@ def cir_lower_expr(ast: AST): CirExpr =
         Expr_Shift(label, name, body) => L0OpShift(cir_lower_control_label(label), name, cir_lower_expr(body))
         Expr_Call(callee, args) => L0OpCall(cir_lower_expr(callee), cir_lower_expr_list(args))
         Expr_Field(value, field) => L0OpField(cir_lower_expr(value), field)
+        Expr_Index(value, args) => L0OpIndex(cir_lower_expr(value), cir_lower_expr_list(args))
         Expr_Assign(lhs, rhs) => L0OpAssign(cir_lower_expr(lhs), cir_lower_expr(rhs))
         Expr_Prefix(op, value) => L0OpPrefix(cir_lower_prefix_op(op), cir_lower_expr(value))
         Expr_Binary(op, lhs, rhs) => L0OpBinary(cir_lower_binary_op(op), cir_lower_expr(lhs), cir_lower_expr(rhs))

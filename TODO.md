@@ -120,13 +120,19 @@
 - [x] 有没有正确的使用 nanopass 思想：每个pass只干一件事
 - [x] 有没有实现 nodejs runner 并能够运行示例程序（需要准备一系列程序涉及到你实现的所有的功能并运行）
 - [x] 有没有实现 `.method(call)` 有没有正确的按类型实现，符合Spec的三种标准不？
-- [x] 有没有正确实现 row poly `def row_name[T: {r| name: Str, id: i64}](value: T): Str = value.name` 或着用户采用简便写法 `def row_name(value: {r| name: Str, id: i64}): Str = value.name`
+- [x] 有没有正确实现 row poly `def row_name[T: {r| name: Str, id: i64}](value: T): Str = value.name` 或着用户采用简便写法 `def row_name(value: {r| name: Str, id: i64}): Str = value.name` 哦对, 还有比如返回 r
 - [x] 有没有正确实现 namespace, 测试两个文件同一个namespace，第三个文件调用这一个namespace里面的两个文件里面的函数
 - [x] 有没有实现 `Ref[T]` `UnsafeRef[T]` `Ptr[T]` `Atomic[T]`, `:=` 实现和spec对的上不, Ref[T] 和 UnsafeRef[T] 跟 wasm-gc 的行为对齐没有
 - [x] 有没有实现 delimited continuation, 可不可以multi entry, 测试经典scheme `(+ 1 (reset (* 2 (shift k (k (k 4))))))
+- [x] string string interpolation slice 这些的 test 然后 wasmgc 后端的 string 和 slice 应该都是托管对象，所以你得想办法打洞
+- [x] 所有测试都生成对应的 `.wat` 文件
+
+
 ## Second Bootstrap: level-1 wasm 接管 generators + Optimized CPS Core
 
 level-1 在重构的时候请不要再像level-0一样动不动就引入 i64 这种 opaque 和 internal mutability, 请参考spec我对mutable的控制，这个时候你可以把创建文件夹 level-1b 然后把 src 挪进去，并重新开一个 src，从头使用level-1的崭新的整洁的语法写出符合level-1 spec的代码!
+
+所以 `metalstd` 应该是拿 `.method` 写 `#![Metal]` 而不是现在这种不符合语言语义的东西
 
 - [ ] **Bootstrap Pass C00: wasm chibalex rewrite**
 	- **TODO**: 用第一次 bootstrap 出来的 `level1c.wasm` 按照旧的编写新的 regex + chibalex。
