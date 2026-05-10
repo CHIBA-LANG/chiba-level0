@@ -119,7 +119,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c help",
     args: ["--help"],
-    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check cir typed cps nanopass cont-usage wat"],
+    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check cir typed cps nanopass core-invalid-smoke cont-usage wat"],
   },
   {
     name: "level1c parse grammar 01",
@@ -145,6 +145,11 @@ const LEVEL1C_CASES = [
     name: "level1c nanopass continuation core",
     args: ["nanopass", "supports/bootstrap/continuation-multi-resume.chiba"],
     expect: ["L8ValidatedCoreModule", "L7CoreOp", "core-op continuation-package", "L5OpContinuationPackage", "validation ok", "0"],
+  },
+  {
+    name: "level1c core validator rejects invalid core",
+    args: ["core-invalid-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
+    expect: ["L8ValidatedCoreModule", "L8ValidatedCoreOp", "validation err(\"missing L7CoreOp\")"],
   },
   {
     name: "level1c cps continuation multi resume",

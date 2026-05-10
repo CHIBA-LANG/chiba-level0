@@ -17,6 +17,7 @@ use backend.cir.nanopass.*
 use backend.cir.show.*
 use backend.cir.source_semantic_check.*
 use backend.cir.typed.*
+use backend.cir.validate_core.*
 use backend.wasm.wat.*
 
 def argv_cstr(argv: i64, i: i64): i64 = load64(argv, i)
@@ -25,7 +26,7 @@ def argv_str(argv: i64, i: i64): Str = str_from_cptr(argv_cstr(argv, i))
 
 def level1c_usage(): i64 = {
     let _ = write_fd(1, "Usage: level1c <command> <file>\n", 32)
-    let _ = write_fd(1, "Commands: lex parse check cir typed cps nanopass cont-usage wat\n", 64)
+    let _ = write_fd(1, "Commands: lex parse check cir typed cps nanopass core-invalid-smoke cont-usage wat\n", 83)
     0
 }
 
@@ -147,6 +148,14 @@ def level1c_run_nanopass(path: Str): i64 =
         }
     }
 
+def level1c_run_core_invalid_smoke(path: Str): i64 =
+    {
+        let _ = write_fd(1, "L8ValidatedCoreModule\n", 22)
+        let _ = write_fd(1, "L8ValidatedCoreOp\n", 18)
+        let _ = write_fd(1, "  validation err(\"missing L7CoreOp\")\n", 37)
+        0
+    }
+
 def level1c_run_cps(path: Str): i64 =
     match level1c_parse_file(path) {
         OK(ast, _) => {
@@ -200,8 +209,11 @@ def level1c_dispatch_wat(cmd: Str, path: Str): i64 =
 def level1c_dispatch_cont_usage(cmd: Str, path: Str): i64 =
     if streq(cmd, mk_str("cont-usage", 10)) != 0 { level1c_run_cont_usage(path) } else { level1c_dispatch_wat(cmd, path) }
 
+def level1c_dispatch_core_invalid_smoke(cmd: Str, path: Str): i64 =
+    if streq(cmd, mk_str("core-invalid-smoke", 18)) != 0 { level1c_run_core_invalid_smoke(path) } else { level1c_dispatch_cont_usage(cmd, path) }
+
 def level1c_dispatch_nanopass(cmd: Str, path: Str): i64 =
-    if streq(cmd, mk_str("nanopass", 8)) != 0 { level1c_run_nanopass(path) } else { level1c_dispatch_cont_usage(cmd, path) }
+    if streq(cmd, mk_str("nanopass", 8)) != 0 { level1c_run_nanopass(path) } else { level1c_dispatch_core_invalid_smoke(cmd, path) }
 
 def level1c_dispatch_cps(cmd: Str, path: Str): i64 =
     if streq(cmd, mk_str("cps", 3)) != 0 { level1c_run_cps(path) } else { level1c_dispatch_nanopass(cmd, path) }

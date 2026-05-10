@@ -1,5 +1,7 @@
 namespace backend.cir.validate_core
 use backend.cir.ir.*
+use metalstd.str.*
+use parser.chiba_level1.*
 
 def cir_l8_validate_expr_list(args: CirExprList): CirExprList =
     match args {
@@ -77,4 +79,24 @@ def cir_validate_core_module(module: CirModule): CirModule =
     match module {
         L7CoreModule(header, items) => L8ValidatedCoreModule(header, cir_l8_items(items))
         _ => module
+    }
+
+def cir_invalid_core_smoke_module(header: AST): CirModule =
+    L8ValidatedCoreModule(
+        header,
+        CirItemCons(
+            L8ValidatedCoreItemDef(
+                cir_binder(0, mk_str("invalid_core", 12)),
+                CirParamEnd,
+                header,
+                cir_l8_validate_expr(L1OpInt(mk_str("0", 1)))
+            ),
+            CirItemEnd
+        )
+    )
+
+def cir_invalid_core_smoke_result(): CirCoreValidation =
+    match cir_l8_validate_expr(L1OpInt(mk_str("0", 1))) {
+        L8ValidatedCoreOp(_, result) => result
+        _ => L8ValidatedCoreErr(mk_str("invalid core smoke did not validate", 35))
     }

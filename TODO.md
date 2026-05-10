@@ -174,7 +174,7 @@
 - [ ] **Pre-C06: wasm-gc CoreIR + validator**
 	- **TODO**: 建立独立 Wasm-GC CoreIR，覆盖 struct/array/funcref/import/tailcall/layout id、String/Array/Slice、closure env、continuation package、world/thread facts。
 	- **DESC**: WAT emitter 必须从 validated Core 序列化，不能继续在 emitter 中做 unresolved hole、semantic fallback 或类型猜测。
-	- **PROGRESS**: L7 Core pass 已递归给表达式节点打 `L7CoreOp`，L8 validator 保留 L7 payload 并递归输出 `L8ValidatedCoreOp`；`vp run smoke:bootstrap` 覆盖 `core-op string-slice`、`core-op continuation-package` 与 validation ok。仍缺真实 symbol/layout/world-thread validator 和 emitter 改道 validated Core。
+	- **PROGRESS**: L7 Core pass 已递归给表达式节点打 `L7CoreOp`，L8 validator 保留 L7 payload 并递归输出 `L8ValidatedCoreOp`；`vp run smoke:bootstrap` 覆盖 `core-op string-slice`、`core-op continuation-package`、validation ok，以及 `core-invalid-smoke` 的 validator error dump。仍缺真实 symbol/layout/world-thread validator 和 emitter 改道 validated Core。
 	- **验收**: Core validator 能拒绝 dangling symbol、错误 layout ref、非法 tailcall、非法 continuation package、错误 String/str/Array/Slice layout；valid Core 全量能 emit `.wat` 并由 Binaryen validate。
 	- **并行**: 不并行；layout table 稳定排序。
 
