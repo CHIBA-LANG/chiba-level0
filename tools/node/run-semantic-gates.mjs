@@ -15,6 +15,9 @@ const GATE_FILES = [
   "refs_atomic_invalid.chiba",
   "type_inference.chiba",
   "type_inference_invalid.chiba",
+  "extern_abi.chiba",
+  "extern_abi_invalid.chiba",
+  "extern_abi_invalid_signature.chiba",
   "continuation_scheme_multi.chiba",
   "string_slice.chiba",
   "namespace/part_a.chiba",
@@ -24,6 +27,8 @@ const GATE_FILES = [
   "namespace_project/src/part_b.chiba",
   "namespace_project/src/use_both.chiba",
 ];
+
+const WAT_GATE_FILES = GATE_FILES.filter((file) => file !== "extern_abi_invalid.chiba");
 
 function read(file) {
   return fs.readFileSync(file, "utf8");
@@ -63,8 +68,9 @@ function watName(file) {
 }
 
 function emitWatAll() {
+  fs.rmSync(WAT_DIR, { recursive: true, force: true });
   fs.mkdirSync(WAT_DIR, { recursive: true });
-  for (const rel of GATE_FILES) {
+  for (const rel of WAT_GATE_FILES) {
     const file = path.join(ROOT, rel);
     const result = run("./target/debug/level1c.o", ["wat", file]);
     assert(`emit wat ${rel}`, result.status === 0 && result.stdout.includes("(module"), result.stdout || result.stderr);
@@ -341,6 +347,17 @@ function checkTypeInference() {
   pass(name);
 }
 
+function checkExternAbi() {
+  const name = "extern ABI gates";
+  const checkedValid = run("./target/debug/level1c.o", ["check", path.join(ROOT, "extern_abi.chiba")]);
+  assert(name, checkedValid.status === 0 && checkedValid.stdout.includes("check ok"), checkedValid.stdout || checkedValid.stderr);
+  const badAbi = run("./target/debug/level1c.o", ["check", path.join(ROOT, "extern_abi_invalid.chiba")]);
+  assert(name, badAbi.status === 0 && badAbi.stderr.includes("unsupported extern ABI"), badAbi.stdout || badAbi.stderr);
+  const badSig = run("./target/debug/level1c.o", ["check", path.join(ROOT, "extern_abi_invalid_signature.chiba")]);
+  assert(name, badSig.status === 0 && badSig.stderr.includes("wasi fd_write signature mismatch"), badSig.stdout || badSig.stderr);
+  pass(name);
+}
+
 function evaluateClassicShiftReset() {
   const k = (value) => 2 * value;
   return 1 + k(k(4));
@@ -367,4 +384,5 @@ checkNamespaceMerge();
 checkStringSlice();
 checkMemory();
 checkTypeInference();
+checkExternAbi();
 checkContinuation();

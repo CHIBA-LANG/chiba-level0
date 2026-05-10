@@ -130,6 +130,13 @@ def ast_def_body(rest: AST): AST =
         _ => Expr_Int(mk_str("0", 1))
     }
 
+def ast_expr_is_extern(expr: AST): i64 =
+    match expr {
+        Expr_Extern(_) => 1
+        Expr_ExternImport(_, _) => 1
+        _ => 0
+    }
+
 def ast_def_params(rest: AST): AST =
     match rest {
         DefFun(_, params, _, _) => params
@@ -577,6 +584,61 @@ def ast_params_check_types(params: AST): CirTypedSemanticCheck =
         _ => CirTypedSemanticCheckOk
     }
 
+def ast_params_count(params: AST): i64 =
+    match params {
+        Param_Cons(_, tail) => 1 + ast_params_count(tail)
+        _ => 0
+    }
+
+def ast_params_all_i64(params: AST): i64 =
+    match params {
+        Param_Cons(head, tail) =>
+            match head {
+                Param(_, ty) =>
+                    if ast_type_is_i64(ty) != 0 { ast_params_all_i64(tail) } else { 0 }
+                _ => 0
+            }
+        _ => 1
+    }
+
+def ast_params_no_missing_types(params: AST): i64 =
+    match params {
+        Param_Cons(head, tail) =>
+            match head {
+                Param(_, ty) =>
+                    if ast_type_is_missing(ty) != 0 { 0 } else { ast_params_no_missing_types(tail) }
+                _ => 0
+            }
+        _ => 1
+    }
+
+def ast_extern_abi_supported(abi: Str): i64 =
+    if streq(abi, mk_str("wasi", 4)) != 0 { 1 }
+    else if streq(abi, mk_str("C", 1)) != 0 { 1 }
+    else if streq(abi, mk_str("c", 1)) != 0 { 1 }
+    else if streq(abi, mk_str("env", 3)) != 0 { 1 }
+    else { 0 }
+
+def ast_extern_wasi_signature_check(symbol: Str, params: AST, ret: AST): CirTypedSemanticCheck =
+    if streq(symbol, mk_str("fd_write", 8)) != 0 {
+        if ast_params_count(params) == 4 && ast_params_all_i64(params) != 0 && ast_type_is_i64(ret) != 0 { CirTypedSemanticCheckOk }
+        else { cir_typed_semantic_err("wasi fd_write signature mismatch") }
+    } else { CirTypedSemanticCheckOk }
+
+def ast_extern_check(expr: AST, params: AST, ret: AST): CirTypedSemanticCheck =
+    if ast_params_no_missing_types(params) == 0 { cir_typed_semantic_err("extern parameter type requires annotation") }
+    else if ast_type_is_missing(ret) != 0 { cir_typed_semantic_err("extern return type requires annotation") }
+    else {
+        match expr {
+            Expr_ExternImport(abi, symbol) =>
+                if ast_extern_abi_supported(abi) == 0 { cir_typed_semantic_err("unsupported extern ABI") }
+                else if streq(abi, mk_str("wasi", 4)) != 0 { ast_extern_wasi_signature_check(symbol, params, ret) }
+                else { CirTypedSemanticCheckOk }
+            Expr_Extern(_) => ast_extern_wasi_signature_check(mk_str("", 0), params, ret)
+            _ => CirTypedSemanticCheckOk
+        }
+    }
+
 def ast_param_is_pointer_named_i64(name: Str, ty: AST): i64 =
     if ast_type_is_i64(ty) == 0 { 0 }
     else if streq(name, mk_str("ptr", 3)) != 0 { 1 }
@@ -604,8 +666,8 @@ def ast_item_check_def(defn: AST, all_items: AST, attrs: AST, file_is_metal: i64
         DefItem(_, generics, params, ret, body) => {
             let ref_check = if ast_type_is_path(ret, mk_str("Ref", 3)) != 0 && ast_attrs_has_world_local(attrs) == 0 { cir_typed_semantic_err("top-level Ref requires #[world_local]") } else { CirTypedSemanticCheckOk }
             let metal_check = if file_is_metal != 0 { ast_params_check_metal_raw_i64(params) } else { CirTypedSemanticCheckOk }
-            let infer_check = cir_typed_semantic_merge(ast_params_check_inference(params, body, generics), ast_return_check_inference(ret, params, body, generics))
-            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(infer_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0))))))
+            let signature_check = if ast_expr_is_extern(body) != 0 { ast_extern_check(body, params, ret) } else { cir_typed_semantic_merge(ast_params_check_inference(params, body, generics), ast_return_check_inference(ret, params, body, generics)) }
+            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(signature_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0))))))
         }
         DefItem2(name_ast, rest) => {
             let ret = ast_def_ret_type(rest)
@@ -614,8 +676,8 @@ def ast_item_check_def(defn: AST, all_items: AST, attrs: AST, file_is_metal: i64
             let generics = ast_def_generics_from_name(name_ast)
             let ref_check = if ast_type_is_path(ret, mk_str("Ref", 3)) != 0 && ast_attrs_has_world_local(attrs) == 0 { cir_typed_semantic_err("top-level Ref requires #[world_local]") } else { CirTypedSemanticCheckOk }
             let metal_check = if file_is_metal != 0 { ast_params_check_metal_raw_i64(params) } else { CirTypedSemanticCheckOk }
-            let infer_check = cir_typed_semantic_merge(ast_params_check_inference(params, body, generics), ast_return_check_inference(ret, params, body, generics))
-            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(infer_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0))))))
+            let signature_check = if ast_expr_is_extern(body) != 0 { ast_extern_check(body, params, ret) } else { cir_typed_semantic_merge(ast_params_check_inference(params, body, generics), ast_return_check_inference(ret, params, body, generics)) }
+            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(signature_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0))))))
         }
         _ => CirTypedSemanticCheckOk
     }

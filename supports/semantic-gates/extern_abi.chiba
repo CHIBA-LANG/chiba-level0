@@ -1,0 +1,5 @@
+namespace semantic.gates.extern_abi
+
+def host_log(value: i64): i64 = extern "C" "js_log"
+def env_log(value: i64): i64 = extern "env" "js_log"
+def wasi_fd_write(fd: i64, iovs: i64, iovs_len: i64, nwritten: i64): i64 = extern "wasi" "fd_write"
