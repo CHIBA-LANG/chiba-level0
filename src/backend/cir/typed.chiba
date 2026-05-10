@@ -3,6 +3,31 @@ use metalstd.str.*
 use parser.chiba_level1.*
 use backend.cir.ir.*
 
+data CirTypeEnv {
+    CirTypeEnvEnd,
+    CirTypeEnvCons(i64, CirType, CirTypeEnv)
+}
+
+type CirTypedStmtResult {
+    stmt: CirStmt
+    env: CirTypeEnv
+}
+
+type CirTypedStmtListResult {
+    stmts: CirStmtList
+    env: CirTypeEnv
+}
+
+def cir_type_env_lookup(env: CirTypeEnv, id: i64): CirType =
+    match env {
+        CirTypeEnvEnd => CirTyUnknown
+        CirTypeEnvCons(entry_id, ty, rest) =>
+            if entry_id == id { ty } else { cir_type_env_lookup(rest, id) }
+    }
+
+def cir_type_env_add(env: CirTypeEnv, binder: CirBinder, ty: CirType): CirTypeEnv =
+    CirTypeEnvCons(binder.id, ty, env)
+
 def cir_type_is_i64(ty: CirType): i64 =
     match ty {
         CirTyI64 => 1
@@ -23,6 +48,10 @@ def cir_type_of_binary(op: Str, lhs: CirType, rhs: CirType): CirType =
 def cir_typed_expr_type(expr: CirExpr): CirType =
     match expr {
         L2OpTyped(_, ty) => ty
+        L1OpRef(ref) => match ref {
+            L1RefLocal(_, _) => CirTyUnknown
+            _ => CirTyUnknown
+        }
         L1OpInt(_) => CirTyI64
         L1OpBool(_) => CirTyBool
         L1OpString => CirTyString
@@ -34,61 +63,88 @@ def cir_typed_expr_type(expr: CirExpr): CirType =
 def cir_typed_expr_list(args: CirExprList): CirExprList =
     match args {
         CirExprEnd => CirExprEnd
-        CirExprCons(head, tail) => CirExprCons(cir_typed_expr(head), cir_typed_expr_list(tail))
+        CirExprCons(head, tail) => CirExprCons(cir_typed_expr_in(head, CirTypeEnvEnd), cir_typed_expr_list(tail))
+    }
+
+def cir_typed_expr_list_in(args: CirExprList, env: CirTypeEnv): CirExprList =
+    match args {
+        CirExprEnd => CirExprEnd
+        CirExprCons(head, tail) => CirExprCons(cir_typed_expr_in(head, env), cir_typed_expr_list_in(tail, env))
+    }
+
+def cir_typed_stmt_list_in(stmts: CirStmtList, env: CirTypeEnv): CirTypedStmtListResult =
+    match stmts {
+        CirStmtEnd => CirTypedStmtListResult { stmts: CirStmtEnd, env: env }
+        CirStmtCons(stmt, rest) => {
+            let head = cir_typed_stmt_in(stmt, env)
+            let tail = cir_typed_stmt_list_in(rest, head.env)
+            CirTypedStmtListResult { stmts: CirStmtCons(head.stmt, tail.stmts), env: tail.env }
+        }
     }
 
 def cir_typed_stmt_list(stmts: CirStmtList): CirStmtList =
-    match stmts {
-        CirStmtEnd => CirStmtEnd
-        CirStmtCons(stmt, rest) => CirStmtCons(cir_typed_stmt(stmt), cir_typed_stmt_list(rest))
-    }
+    cir_typed_stmt_list_in(stmts, CirTypeEnvEnd).stmts
 
 def cir_typed_stmt(stmt: CirStmt): CirStmt =
+    cir_typed_stmt_in(stmt, CirTypeEnvEnd).stmt
+
+def cir_typed_stmt_in(stmt: CirStmt, env: CirTypeEnv): CirTypedStmtResult =
     match stmt {
         L1StmtLet(binder, value) => {
-            let value2 = cir_typed_expr(value)
-            L2StmtLet(binder, cir_typed_expr_type(value2), value2)
+            let value2 = cir_typed_expr_in(value, env)
+            let ty = cir_typed_expr_type(value2)
+            CirTypedStmtResult { stmt: L2StmtLet(binder, ty, value2), env: cir_type_env_add(env, binder, ty) }
         }
-        L1StmtLetPattern(pat, value) => L2StmtLetPattern(pat, cir_typed_expr(value))
-        L1StmtAssign(lhs, rhs) => L2StmtAssign(cir_typed_expr(lhs), cir_typed_expr(rhs))
-        L1StmtExpr(value) => L2StmtExpr(cir_typed_expr(value))
-        L1StmtReturn(value) => L2StmtReturn(cir_typed_expr(value))
-        L1StmtFor(label, cond, body) => L2StmtFor(label, cir_typed_expr(cond), cir_typed_expr(body))
-        L1StmtUnsupported(ast, reason) => L2StmtUnsupported(ast, reason)
-        _ => stmt
+        L1StmtLetPattern(pat, value) => CirTypedStmtResult { stmt: L2StmtLetPattern(pat, cir_typed_expr_in(value, env)), env: env }
+        L1StmtAssign(lhs, rhs) => CirTypedStmtResult { stmt: L2StmtAssign(cir_typed_expr_in(lhs, env), cir_typed_expr_in(rhs, env)), env: env }
+        L1StmtExpr(value) => CirTypedStmtResult { stmt: L2StmtExpr(cir_typed_expr_in(value, env)), env: env }
+        L1StmtReturn(value) => CirTypedStmtResult { stmt: L2StmtReturn(cir_typed_expr_in(value, env)), env: env }
+        L1StmtFor(label, cond, body) => CirTypedStmtResult { stmt: L2StmtFor(label, cir_typed_expr_in(cond, env), cir_typed_expr_in(body, env)), env: env }
+        L1StmtUnsupported(ast, reason) => CirTypedStmtResult { stmt: L2StmtUnsupported(ast, reason), env: env }
+        _ => CirTypedStmtResult { stmt: stmt, env: env }
     }
 
 def cir_typed_expr(expr: CirExpr): CirExpr =
+    cir_typed_expr_in(expr, CirTypeEnvEnd)
+
+def cir_typed_expr_in(expr: CirExpr, env: CirTypeEnv): CirExpr =
     match expr {
         L1OpBlock(stmts, tail) => {
-            let tail2 = cir_typed_expr(tail)
-            L2OpTyped(L1OpBlock(cir_typed_stmt_list(stmts), tail2), cir_typed_expr_type(tail2))
+            let stmts2 = cir_typed_stmt_list_in(stmts, env)
+            let tail2 = cir_typed_expr_in(tail, stmts2.env)
+            L2OpTyped(L1OpBlock(stmts2.stmts, tail2), cir_typed_expr_type(tail2))
         }
         L1OpIf(cond, then_expr, else_expr) => {
-            let then2 = cir_typed_expr(then_expr)
-            L2OpTyped(L1OpIf(cir_typed_expr(cond), then2, cir_typed_expr(else_expr)), cir_typed_expr_type(then2))
+            let then2 = cir_typed_expr_in(then_expr, env)
+            L2OpTyped(L1OpIf(cir_typed_expr_in(cond, env), then2, cir_typed_expr_in(else_expr, env)), cir_typed_expr_type(then2))
         }
-        L1OpMatch(value, arms) => L2OpTyped(L1OpMatch(cir_typed_expr(value), arms), CirTyUnknown)
-        L1OpClosure(params, body) => L2OpTyped(L1OpClosure(params, cir_typed_expr(body)), CirTyUnknown)
+        L1OpMatch(value, arms) => L2OpTyped(L1OpMatch(cir_typed_expr_in(value, env), arms), CirTyUnknown)
+        L1OpClosure(params, body) => L2OpTyped(L1OpClosure(params, cir_typed_expr_in(body, env)), CirTyUnknown)
         L1OpReset(label, body) => {
-            let body2 = cir_typed_expr(body)
+            let body2 = cir_typed_expr_in(body, env)
             L2OpTyped(L1OpReset(label, body2), cir_typed_expr_type(body2))
         }
-        L1OpShift(label, binder, body) => L2OpTyped(L1OpShift(label, binder, cir_typed_expr(body)), CirTyUnknown)
-        L1OpCall(callee, args) => L2OpTyped(L1OpCall(cir_typed_expr(callee), cir_typed_expr_list(args)), CirTyUnknown)
-        L1OpField(value, field) => L2OpTyped(L1OpField(cir_typed_expr(value), field), CirTyUnknown)
-        L1OpIndex(value, args) => L2OpTyped(L1OpIndex(cir_typed_expr(value), cir_typed_expr_list(args)), CirTySliceU8)
+        L1OpShift(label, binder, body) => L2OpTyped(L1OpShift(label, binder, cir_typed_expr_in(body, env)), CirTyUnknown)
+        L1OpCall(callee, args) => L2OpTyped(L1OpCall(cir_typed_expr_in(callee, env), cir_typed_expr_list_in(args, env)), CirTyUnknown)
+        L1OpField(value, field) => L2OpTyped(L1OpField(cir_typed_expr_in(value, env), field), CirTyUnknown)
+        L1OpIndex(value, args) => L2OpTyped(L1OpIndex(cir_typed_expr_in(value, env), cir_typed_expr_list_in(args, env)), CirTySliceU8)
         L1OpAssign(lhs, rhs) => {
-            let rhs2 = cir_typed_expr(rhs)
-            L2OpTyped(L1OpAssign(cir_typed_expr(lhs), rhs2), cir_typed_expr_type(rhs2))
+            let rhs2 = cir_typed_expr_in(rhs, env)
+            L2OpTyped(L1OpAssign(cir_typed_expr_in(lhs, env), rhs2), cir_typed_expr_type(rhs2))
         }
-        L1OpPrefix(op, value) => L2OpTyped(L1OpPrefix(op, cir_typed_expr(value)), CirTyI64)
+        L1OpPrefix(op, value) => L2OpTyped(L1OpPrefix(op, cir_typed_expr_in(value, env)), CirTyI64)
         L1OpBinary(op, lhs, rhs) => {
-            let lhs2 = cir_typed_expr(lhs)
-            let rhs2 = cir_typed_expr(rhs)
+            let lhs2 = cir_typed_expr_in(lhs, env)
+            let rhs2 = cir_typed_expr_in(rhs, env)
             L2OpTyped(L1OpBinary(op, lhs2, rhs2), cir_type_of_binary(op, cir_typed_expr_type(lhs2), cir_typed_expr_type(rhs2)))
         }
-        L1OpRef(_) => L2OpTyped(expr, CirTyUnknown)
+        L1OpRef(ref) => {
+            let ty = match ref {
+                L1RefLocal(id, _) => cir_type_env_lookup(env, id)
+                _ => CirTyUnknown
+            }
+            L2OpTyped(expr, ty)
+        }
         L1OpInt(_) => L2OpTyped(expr, CirTyI64)
         L1OpFloat(_) => L2OpTyped(expr, CirTyUnknown)
         L1OpAtom(_) => L2OpTyped(expr, CirTyUnknown)

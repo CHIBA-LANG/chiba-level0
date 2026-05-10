@@ -14,10 +14,22 @@ function run(command, args, options = {}) {
 
 const USE_BINARYEN_OPT = process.argv.includes("--opt");
 
-function checkOutput(name, result, expect, status = 0) {
+function outputHasSequence(output, sequence) {
+  let at = 0;
+  for (const part of sequence) {
+    const next = output.indexOf(part, at);
+    if (next < 0) return false;
+    at = next + part.length;
+  }
+  return true;
+}
+
+function checkOutput(name, result, expect, status = 0, expectSequence = []) {
   const output = `${result.stdout}${result.stderr}`;
   const ok =
-    result.status === status && expect.every((line) => output.includes(line));
+    result.status === status &&
+    expect.every((line) => output.includes(line)) &&
+    expectSequence.every((sequence) => outputHasSequence(output, sequence));
 
   if (ok) {
     console.log(`[PASS] ${name}`);
@@ -42,7 +54,7 @@ function runWatFile(test) {
 
 function runLevel1c(test) {
   const result = run("./target/debug/level1c.o", test.args);
-  return checkOutput(test.name, result, test.expect);
+  return checkOutput(test.name, result, test.expect, 0, test.expectSequence || []);
 }
 
 function watName(file) {
@@ -130,6 +142,7 @@ const LEVEL1C_CASES = [
     name: "level1c typed grammar 01",
     args: ["typed", "chiba-level1-grammar-spec/01-test.chiba"],
     expect: ["L2Module", "L2OpTyped", "type i64", "0"],
+    expectSequence: [["L2StmtReturn", "type i64", "L1RefLocal(#1 \"value\")"]],
   },
   {
     name: "level1c nanopass grammar 01",
