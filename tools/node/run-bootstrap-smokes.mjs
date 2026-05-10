@@ -60,6 +60,11 @@ function runGeneratedWat(test) {
   return checkOutput(test.name, result, test.expect);
 }
 
+function checkGeneratedWatText(test) {
+  const generated = run("./target/debug/level1c.o", ["wat", test.file]);
+  return checkOutput(test.name, generated, test.expect);
+}
+
 const WAT_CASES = [
   {
     name: "env import",
@@ -161,6 +166,14 @@ const GENERATED_WAT_CASES = [
   },
 ];
 
+const GENERATED_WAT_TEXT_CASES = [
+  {
+    name: "generated wat extern wasi import",
+    file: "supports/bootstrap/wat-extern-wasi-smoke.chiba",
+    expect: ['(import "wasi_snapshot_preview1" "fd_write" (func $wasi_fd_write'],
+  },
+];
+
 let failed = 0;
 
 for (const test of WAT_CASES) {
@@ -173,6 +186,10 @@ for (const test of LEVEL1C_CASES) {
 
 for (const test of GENERATED_WAT_CASES) {
   failed += runGeneratedWat(test);
+}
+
+for (const test of GENERATED_WAT_TEXT_CASES) {
+  failed += checkGeneratedWatText(test);
 }
 
 if (failed !== 0) {

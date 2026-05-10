@@ -1,0 +1,5 @@
+namespace bootstrap.wat.extern_wasi_smoke
+
+def wasi_fd_write(fd: i64, iovs: i64, iovs_len: i64, nwritten: i64): i64 = extern "wasi" "fd_write"
+
+def main(): i64 = 0
