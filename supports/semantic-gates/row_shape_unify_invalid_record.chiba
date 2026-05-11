@@ -1,0 +1,6 @@
+namespace semantic.gates.row_shape_unify.invalid_record
+
+def duplicate_record(): i64 = {
+    let point = { x: 1, x: 2 }
+    point.x
+}

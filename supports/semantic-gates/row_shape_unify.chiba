@@ -1,0 +1,14 @@
+namespace semantic.gates.row_shape_unify
+
+def record_literal(): i64 = {
+    let point = { x: 1, y: 2 }
+    point.x + point.y
+}
+
+def record_update(): i64 = {
+    let base = { x: 1, y: 2 }
+    let next = { base | x: 3, y: 4 }
+    next.x + next.y
+}
+
+def row_bound_ok[T: {r| x: i64, y: i64}](value: T): i64 = value.x + value.y

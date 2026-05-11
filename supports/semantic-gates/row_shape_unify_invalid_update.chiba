@@ -1,0 +1,7 @@
+namespace semantic.gates.row_shape_unify.invalid_update
+
+def duplicate_update(): i64 = {
+    let base = { x: 1, y: 2 }
+    let next = { base | x: 1, x: 2 }
+    next.x
+}

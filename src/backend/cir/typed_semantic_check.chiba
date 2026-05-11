@@ -407,6 +407,58 @@ def ast_generic_has_name(generics: AST, generic_name: Str): i64 =
         _ => 0
     }
 
+def ast_generic_row_has_duplicate(fields: AST): i64 =
+    match fields {
+        GenericRowField_Cons(head, tail) =>
+            match head {
+                GenericRowField(name, _) =>
+                    if ast_generic_row_has_field(tail, name) != 0 { 1 } else { ast_generic_row_has_duplicate(tail) }
+                _ => ast_generic_row_has_duplicate(tail)
+            }
+        _ => 0
+    }
+
+def ast_generic_bound_check(bound: AST): CirTypedSemanticCheck =
+    match bound {
+        GenericBound_Cons(head, tail) => {
+            let here = match head {
+                GenericBound_Row(row) =>
+                    match row {
+                        GenericRow(_, fields) =>
+                            if ast_generic_row_has_duplicate(fields) != 0 { cir_typed_semantic_err("duplicate row field") } else { CirTypedSemanticCheckOk }
+                        _ => CirTypedSemanticCheckOk
+                    }
+                _ => CirTypedSemanticCheckOk
+            }
+            cir_typed_semantic_merge(here, ast_generic_bound_check(tail))
+        }
+        _ => CirTypedSemanticCheckOk
+    }
+
+def ast_generics_has_name(generics: AST, generic_name: Str): i64 =
+    match generics {
+        Generic_Cons(head, tail) =>
+            match head {
+                GenericParam(name, _) =>
+                    if streq(name, generic_name) != 0 { 1 } else { ast_generics_has_name(tail, generic_name) }
+                _ => ast_generics_has_name(tail, generic_name)
+            }
+        _ => 0
+    }
+
+def ast_generics_check(generics: AST): CirTypedSemanticCheck =
+    match generics {
+        Generic_Cons(head, tail) =>
+            match head {
+                GenericParam(name, bound) => {
+                    let duplicate = if ast_generics_has_name(tail, name) != 0 { cir_typed_semantic_err("duplicate generic parameter") } else { CirTypedSemanticCheckOk }
+                    cir_typed_semantic_merge(duplicate, cir_typed_semantic_merge(ast_generic_bound_check(bound), ast_generics_check(tail)))
+                }
+                _ => ast_generics_check(tail)
+            }
+        _ => CirTypedSemanticCheckOk
+    }
+
 def ast_args_second_is_order(args: AST, order: Str): i64 =
     match args {
         Arg_Cons(_, Arg_Cons(second, _)) =>
@@ -484,6 +536,79 @@ def ast_expr_check_args(args: AST, all_items: AST, params: AST, generics: AST, u
     match args {
         Arg_Cons(head, tail) => cir_typed_semantic_merge(ast_expr_check(head, all_items, params, generics, unsafe_depth), ast_expr_check_args(tail, all_items, params, generics, unsafe_depth))
         ExprList_Cons(head, tail) => cir_typed_semantic_merge(ast_expr_check(head, all_items, params, generics, unsafe_depth), ast_expr_check_args(tail, all_items, params, generics, unsafe_depth))
+        _ => CirTypedSemanticCheckOk
+    }
+
+def ast_record_fields_has(fields: AST, field: Str): i64 =
+    match fields {
+        RecordField_Cons(head, tail) =>
+            match head {
+                RecordField(name, _) =>
+                    if streq(name, field) != 0 { 1 } else { ast_record_fields_has(tail, field) }
+                _ => ast_record_fields_has(tail, field)
+            }
+        _ => 0
+    }
+
+def ast_record_fields_has_duplicate(fields: AST): i64 =
+    match fields {
+        RecordField_Cons(head, tail) =>
+            match head {
+                RecordField(name, _) =>
+                    if ast_record_fields_has(tail, name) != 0 { 1 } else { ast_record_fields_has_duplicate(tail) }
+                _ => ast_record_fields_has_duplicate(tail)
+            }
+        _ => 0
+    }
+
+def ast_record_fields_check(fields: AST, all_items: AST, params: AST, generics: AST, unsafe_depth: i64): CirTypedSemanticCheck =
+    match fields {
+        RecordField_Cons(head, tail) =>
+            match head {
+                RecordField(_, value) => cir_typed_semantic_merge(ast_expr_check(value, all_items, params, generics, unsafe_depth), ast_record_fields_check(tail, all_items, params, generics, unsafe_depth))
+                _ => ast_record_fields_check(tail, all_items, params, generics, unsafe_depth)
+            }
+        _ => CirTypedSemanticCheckOk
+    }
+
+def ast_record_tail_fields(tail: AST): AST =
+    match tail {
+        RecordTail_Field(_, fields) => fields
+        RecordTail_Shorthand(fields) => fields
+        _ => RecordField_End
+    }
+
+def ast_record_tail_first_value_check(tail: AST, all_items: AST, params: AST, generics: AST, unsafe_depth: i64): CirTypedSemanticCheck =
+    match tail {
+        RecordTail_Field(value, _) => ast_expr_check(value, all_items, params, generics, unsafe_depth)
+        _ => CirTypedSemanticCheckOk
+    }
+
+def ast_record_body_check(body: AST, all_items: AST, params: AST, generics: AST, unsafe_depth: i64): CirTypedSemanticCheck =
+    match body {
+        Record_First(first, tail) => {
+            match tail {
+                Record_Update(base, fields) => {
+                    let duplicate = if ast_record_fields_has_duplicate(fields) != 0 { cir_typed_semantic_err("duplicate record field") } else { CirTypedSemanticCheckOk }
+                    cir_typed_semantic_merge(duplicate, cir_typed_semantic_merge(ast_expr_check(base, all_items, params, generics, unsafe_depth), ast_record_fields_check(fields, all_items, params, generics, unsafe_depth)))
+                }
+                _ => {
+                    let fields = ast_record_tail_fields(tail)
+                    let duplicate = if ast_record_fields_has(fields, first) != 0 { cir_typed_semantic_err("duplicate record field") }
+                        else if ast_record_fields_has_duplicate(fields) != 0 { cir_typed_semantic_err("duplicate record field") }
+                        else { CirTypedSemanticCheckOk }
+                    cir_typed_semantic_merge(duplicate, cir_typed_semantic_merge(ast_record_tail_first_value_check(tail, all_items, params, generics, unsafe_depth), ast_record_fields_check(fields, all_items, params, generics, unsafe_depth)))
+                }
+            }
+        }
+        Record_Update(base, fields) => {
+            let duplicate = if ast_record_fields_has_duplicate(fields) != 0 { cir_typed_semantic_err("duplicate record field") } else { CirTypedSemanticCheckOk }
+            cir_typed_semantic_merge(duplicate, cir_typed_semantic_merge(ast_expr_check(base, all_items, params, generics, unsafe_depth), ast_record_fields_check(fields, all_items, params, generics, unsafe_depth)))
+        }
+        Record_Fields(fields) => {
+            let duplicate = if ast_record_fields_has_duplicate(fields) != 0 { cir_typed_semantic_err("duplicate record field") } else { CirTypedSemanticCheckOk }
+            cir_typed_semantic_merge(duplicate, ast_record_fields_check(fields, all_items, params, generics, unsafe_depth))
+        }
         _ => CirTypedSemanticCheckOk
     }
 
@@ -753,6 +878,7 @@ def ast_expr_check(expr: AST, all_items: AST, params: AST, generics: AST, unsafe
         Expr_Block(stmts, tail) => cir_typed_semantic_merge(ast_stmt_list_check(stmts, all_items, params, generics, unsafe_depth), ast_expr_check(tail, all_items, params, generics, unsafe_depth))
         Expr_Call(callee, args) => cir_typed_semantic_merge(ast_expr_check_atomic_call(callee, args), cir_typed_semantic_merge(ast_expr_check_method_call(callee, args, all_items, params, generics, unsafe_depth), cir_typed_semantic_merge(ast_expr_check(callee, all_items, params, generics, unsafe_depth), ast_expr_check_args(args, all_items, params, generics, unsafe_depth))))
         Expr_IdentTail(name, IdentTail_Call(args, _)) => ast_expr_check_args(args, all_items, params, generics, unsafe_depth)
+        Expr_Record(body) => ast_record_body_check(body, all_items, params, generics, unsafe_depth)
         Expr_Field(value, field) => cir_typed_semantic_merge(ast_expr_check_field(value, field, params, generics), ast_expr_check(value, all_items, params, generics, unsafe_depth))
         Expr_Index(value, args) => cir_typed_semantic_merge(ast_expr_check(value, all_items, params, generics, unsafe_depth), ast_expr_check_args(args, all_items, params, generics, unsafe_depth))
         Expr_Assign(lhs, rhs) => cir_typed_semantic_merge(ast_expr_check_assign(lhs, rhs, params), cir_typed_semantic_merge(ast_expr_check(lhs, all_items, params, generics, unsafe_depth), ast_expr_check(rhs, all_items, params, generics, unsafe_depth)))
@@ -864,8 +990,9 @@ def ast_item_check_def(defn: AST, all_items: AST, attrs: AST, file_is_metal: i64
         DefItem(_, generics, params, ret, body) => {
             let ref_check = if ast_type_is_path(ret, mk_str("Ref", 3)) != 0 && ast_attrs_has_world_local(attrs) == 0 { cir_typed_semantic_err("top-level Ref requires #[world_local]") } else { CirTypedSemanticCheckOk }
             let metal_check = if file_is_metal != 0 { ast_params_check_metal_raw_i64(params) } else { CirTypedSemanticCheckOk }
+            let generic_check = ast_generics_check(generics)
             let signature_check = if ast_expr_is_extern(body) != 0 { ast_extern_check(body, params, ret) } else { cir_typed_semantic_merge(ast_params_check_inference(params, body, generics), cir_typed_semantic_merge(ast_return_check_inference(ret, params, body, generics), ast_return_check_type(ret, params, body))) }
-            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(signature_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0))))))
+            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(generic_check, cir_typed_semantic_merge(signature_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0)))))))
         }
         DefItem2(name_ast, rest) => {
             let ret = ast_def_ret_type(rest)
@@ -874,8 +1001,9 @@ def ast_item_check_def(defn: AST, all_items: AST, attrs: AST, file_is_metal: i64
             let generics = ast_def_generics_from_name(name_ast)
             let ref_check = if ast_type_is_path(ret, mk_str("Ref", 3)) != 0 && ast_attrs_has_world_local(attrs) == 0 { cir_typed_semantic_err("top-level Ref requires #[world_local]") } else { CirTypedSemanticCheckOk }
             let metal_check = if file_is_metal != 0 { ast_params_check_metal_raw_i64(params) } else { CirTypedSemanticCheckOk }
+            let generic_check = ast_generics_check(generics)
             let signature_check = if ast_expr_is_extern(body) != 0 { ast_extern_check(body, params, ret) } else { cir_typed_semantic_merge(ast_params_check_inference(params, body, generics), cir_typed_semantic_merge(ast_return_check_inference(ret, params, body, generics), ast_return_check_type(ret, params, body))) }
-            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(signature_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0))))))
+            cir_typed_semantic_merge(ref_check, cir_typed_semantic_merge(metal_check, cir_typed_semantic_merge(generic_check, cir_typed_semantic_merge(signature_check, cir_typed_semantic_merge(ast_type_check_atomic(ret), cir_typed_semantic_merge(ast_params_check_types(params), ast_expr_check(body, all_items, params, generics, 0)))))))
         }
         _ => CirTypedSemanticCheckOk
     }

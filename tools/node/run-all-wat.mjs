@@ -52,6 +52,7 @@ function instantiateOnly(file, wat) {
   if (file.includes("continuation_scheme_multi.wat")) return true;
   if (file.includes("refs_atomic_valid.wat")) return true;
   if (file.includes("refs_atomic_invalid.wat")) return true;
+  if (file.includes("row_shape_unify")) return true;
   return false;
 }
 

@@ -11,6 +11,11 @@ const GATE_FILES = [
   "method_resolution_invalid.chiba",
   "row_poly.chiba",
   "row_poly_invalid.chiba",
+  "row_shape_unify.chiba",
+  "row_shape_unify_invalid_record.chiba",
+  "row_shape_unify_invalid_update.chiba",
+  "row_shape_unify_invalid_generic.chiba",
+  "row_shape_unify_invalid_generic_name.chiba",
   "refs_atomic_valid.chiba",
   "refs_atomic_invalid.chiba",
   "type_inference.chiba",
@@ -196,6 +201,21 @@ function checkRowPolyCompilerGate() {
   assert(name, valid.status === 0 && valid.stdout.includes("check ok"), valid.stdout || valid.stderr);
   const invalid = run("./target/debug/level1c.o", ["check", path.join(ROOT, "row_poly_invalid.chiba")]);
   assert(name, invalid.status === 0 && invalid.stderr.includes("row constraint missing field id"), invalid.stdout || invalid.stderr);
+  pass(name);
+}
+
+function checkRowShapeUnify() {
+  const name = "row shape unification gates";
+  const checkedValid = run("./target/debug/level1c.o", ["check", path.join(ROOT, "row_shape_unify.chiba")]);
+  assert(name, checkedValid.status === 0 && checkedValid.stdout.includes("check ok"), checkedValid.stdout || checkedValid.stderr);
+  const badRecord = run("./target/debug/level1c.o", ["check", path.join(ROOT, "row_shape_unify_invalid_record.chiba")]);
+  assert(name, badRecord.status === 0 && badRecord.stderr.includes("duplicate record field"), badRecord.stdout || badRecord.stderr);
+  const badUpdate = run("./target/debug/level1c.o", ["check", path.join(ROOT, "row_shape_unify_invalid_update.chiba")]);
+  assert(name, badUpdate.status === 0 && badUpdate.stderr.includes("duplicate record field"), badUpdate.stdout || badUpdate.stderr);
+  const badGeneric = run("./target/debug/level1c.o", ["check", path.join(ROOT, "row_shape_unify_invalid_generic.chiba")]);
+  assert(name, badGeneric.status === 0 && badGeneric.stderr.includes("duplicate row field"), badGeneric.stdout || badGeneric.stderr);
+  const badGenericName = run("./target/debug/level1c.o", ["check", path.join(ROOT, "row_shape_unify_invalid_generic_name.chiba")]);
+  assert(name, badGenericName.status === 0 && badGenericName.stderr.includes("duplicate generic parameter"), badGenericName.stdout || badGenericName.stderr);
   pass(name);
 }
 
@@ -418,6 +438,7 @@ checkMethodResolution();
 checkMethodResolutionCompilerGate();
 checkRowPoly();
 checkRowPolyCompilerGate();
+checkRowShapeUnify();
 checkNamespaceMerge();
 checkStringSlice();
 checkMemory();
