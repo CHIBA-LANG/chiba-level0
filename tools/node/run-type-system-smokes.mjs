@@ -86,6 +86,13 @@ const CASES = [
     expect: ["let type mismatch"],
   },
   {
+    group: "l2-check",
+    name: "primary L2 checker golden dump",
+    args: ["type-l2-check-smoke", SPEC],
+    sha256: "e400a9e0df356c38d356e53681c229a9bb4396ba8fc694aefd7ed92bc5ee5490",
+    expect: ["L2TypeCheckSmoke", "binary-i64-ok ok", "binary-mismatch err expression type mismatch"],
+  },
+  {
     group: "inference",
     name: "typed source golden dump",
     args: ["typed", "supports/semantic-gates/type_inference.chiba"],

@@ -235,12 +235,18 @@
 ## 8. Pre-C03 完成标准
 
 - [ ] `level1c.o check` 不再以 source-level pattern gate 作为主要类型系统实现。
-- [ ] L2 pass 能输出稳定 `TypedAst + ConstraintSet + ObligationIR`。
+	- **PROGRESS**: `src/backend/cir/type_l2_check.chiba` 已作为 primary L2 checker 接入 `cir_typed_semantic_check`，先检查 `L2Module/L2OpTyped` 中可判断的 return/binary mismatch；source gate 暂时只补尚未 lowered 的 record/capability/extern/nominal 等规则。
+- [x] L2 pass 能输出稳定 `TypedAst + ConstraintSet + ObligationIR`。
+	- **DONE**: `vp run level1b:type-system` 对 `typed type_inference`、`type-smoke`、template/generic-body/method/capability/row/record dump 做 sha256 golden。
 - [ ] `def f(a,b,c)=expr` 自动泛化符合 spec。
 - [ ] `def f(a: {r | ...})` row shorthand 与显式 `[T: row]` 等价。
 - [ ] `[T]` 的语义、作用域、diagnostic、specialization identity 稳定。
-- [ ] unification 有独立测试，不只通过 parser fixture 间接覆盖。
-- [ ] row canonicalization 可 dump、可 hash、字段顺序无关。
-- [ ] method resolution 三路径可 dump、可诊断、可测试。
-- [ ] capability/ABI typing 进入 L2 pass。
+- [x] unification 有独立测试，不只通过 parser fixture 间接覆盖。
+	- **DONE**: `type-unify-smoke` 与 `level1b:type-system` unifier group 覆盖 var/fn/tuple/occurs/nominal mismatch/substitution dump。
+- [x] row canonicalization 可 dump、可 hash、字段顺序无关。
+	- **DONE**: `type-row-smoke`、`type-record-smoke` golden hash 覆盖字段顺序无关 key 与 record update stable dump。
+- [x] method resolution 三路径可 dump、可诊断、可测试。
+	- **DONE**: `type-method-smoke` golden dump 覆盖 field-callable、nominal receiver、qualified callee；semantic gates 覆盖 valid/invalid。
+- [x] capability/ABI typing 进入 L2 pass。
+	- **DONE**: `type-capability-smoke` 固定 Ref/Ptr/UnsafeRef/Atomic/ABI L2 checker；extern ABI source gates 已纳入 `level1b:type-system`。
 - [ ] TODO.md 的 Pre-C03 可以打勾，并附上测试命令、seed hash、关键 dump hash。

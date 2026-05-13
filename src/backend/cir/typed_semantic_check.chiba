@@ -3,6 +3,7 @@ use metalstd.mem.*
 use metalstd.str.*
 use parser.chiba_level1.*
 use backend.cir.ir.*
+use backend.cir.type_l2_check.*
 
 data CirTypedSemanticCheck {
     CirTypedSemanticCheckOk,
@@ -1102,7 +1103,10 @@ def cir_typed_semantic_check(ast: AST, module: CirModule): CirTypedSemanticCheck
     match module {
         L2Module(_, _) => {
             let items = ast_source_items(ast)
-            ast_items_check(items, items, ast_attrs_has_metal(ast_source_file_attrs(ast)))
+            match cir_l2_type_check_module(module) {
+                CirL2TypeCheckErr(message) => CirTypedSemanticCheckErr(message)
+                CirL2TypeCheckOk => ast_items_check(items, items, ast_attrs_has_metal(ast_source_file_attrs(ast)))
+            }
         }
         _ => cir_typed_semantic_err("typed semantic check expects L2 module")
     }

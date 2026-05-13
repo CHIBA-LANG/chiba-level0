@@ -133,7 +133,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c help",
     args: ["--help"],
-    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-generic-body-smoke type-kind-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
+    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-generic-body-smoke type-kind-smoke type-l2-check-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
   },
   {
     name: "level1c parse grammar 01",
@@ -226,6 +226,16 @@ const LEVEL1C_CASES = [
       "atomic-bad err unsupported Atomic[T]",
       "abi-ok ok",
       "abi-bad err not an ABI scalar type",
+      "0",
+    ],
+  },
+  {
+    name: "level1c type L2 check smoke",
+    args: ["type-l2-check-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
+    expect: [
+      "L2TypeCheckSmoke",
+      "binary-i64-ok ok",
+      "binary-mismatch err expression type mismatch",
       "0",
     ],
   },
