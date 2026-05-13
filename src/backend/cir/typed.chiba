@@ -28,6 +28,42 @@ def cir_type_env_lookup(env: CirTypeEnv, id: i64): CirType =
 def cir_type_env_add(env: CirTypeEnv, binder: CirBinder, ty: CirType): CirTypeEnv =
     CirTypeEnvCons(binder.id, ty, env)
 
+def cir_typed_type_from_ast(ty: AST, fallback: CirType): CirType =
+    match ty {
+        Type_Path(name, _) => {
+            if name.len == 0 { fallback }
+            else if streq(name, mk_str("i64", 3)) != 0 { CirTyI64 }
+            else if streq(name, mk_str("i32", 3)) != 0 { CirTyI32 }
+            else if streq(name, mk_str("usize", 5)) != 0 { CirTyUsize }
+            else if streq(name, mk_str("bool", 4)) != 0 { CirTyBool }
+            else if streq(name, mk_str("String", 6)) != 0 { CirTyString }
+            else if streq(name, mk_str("Str", 3)) != 0 { CirTyStr }
+            else { CirTyConst(name) }
+        }
+        Type_Atom(name) => {
+            if streq(name, mk_str("i64", 3)) != 0 { CirTyI64 }
+            else if streq(name, mk_str("i32", 3)) != 0 { CirTyI32 }
+            else if streq(name, mk_str("usize", 5)) != 0 { CirTyUsize }
+            else if streq(name, mk_str("bool", 4)) != 0 { CirTyBool }
+            else { CirTyConst(name) }
+        }
+        Type_Unit => CirTyUnit
+        _ => fallback
+    }
+
+def cir_type_env_from_params(params: CirParamList): CirTypeEnv =
+    match params {
+        CirParamEnd => CirTypeEnvEnd
+        CirParamCons(head, tail) =>
+            match head {
+                L1Param(binder, ty) => {
+                    let fallback = CirTyVar(CirTyVarId { id: binder.id })
+                    cir_type_env_add(cir_type_env_from_params(tail), binder, cir_typed_type_from_ast(ty, fallback))
+                }
+                _ => cir_type_env_from_params(tail)
+            }
+    }
+
 def cir_type_is_i64(ty: CirType): i64 =
     match ty {
         CirTyI64 => 1
@@ -43,7 +79,16 @@ def cir_type_of_binary(op: Str, lhs: CirType, rhs: CirType): CirType =
         else if streq(op, mk_str("<=", 2)) != 0 { CirTyBool }
         else if streq(op, mk_str(">=", 2)) != 0 { CirTyBool }
         else { CirTyI64 }
-    } else { CirTyUnknown }
+    } else {
+        match lhs {
+            CirTyVar(_) =>
+                match rhs {
+                    CirTyVar(_) => lhs
+                    _ => rhs
+                }
+            _ => CirTyUnknown
+        }
+    }
 
 def cir_typed_expr_type(expr: CirExpr): CirType =
     match expr {
@@ -160,7 +205,7 @@ def cir_typed_items(items: CirItemList): CirItemList =
         CirItemEnd => CirItemEnd
         CirItemCons(item, rest) => {
             let item2 = match item {
-                L1ItemDef(binder, params, ret, body) => L2ItemDef(binder, params, ret, cir_typed_expr(body))
+                L1ItemDef(binder, params, ret, body) => L2ItemDef(binder, params, ret, cir_typed_expr_in(body, cir_type_env_from_params(params)))
                 L1ItemExtern(binder, params, ret, import) => L2ItemExtern(binder, params, ret, import)
                 L1ItemUnsupported(ast, reason) => L2ItemUnsupported(ast, reason)
                 _ => item

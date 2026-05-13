@@ -96,8 +96,8 @@ const CASES = [
     group: "inference",
     name: "typed source golden dump",
     args: ["typed", "supports/semantic-gates/type_inference.chiba"],
-    sha256: "37d8fde48f1f79cedc4b0a1981d1b94f2c82713374b7a764d9199601be636aa4",
-    expect: ["L2Module", "infer_return", "infer_params", "explicit_and_implicit", "annotated_generic"],
+    sha256: "29be03b756fae05d722ff6e47fcd8f8aaa57b0487f34044c0f7ec9649721b9fe",
+    expect: ["L2Module", "infer_return", "infer_params", "type $T2", "explicit_and_implicit", "type $T9", "annotated_generic", "type T"],
   },
   {
     group: "inference",

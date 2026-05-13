@@ -238,7 +238,8 @@
 	- **PROGRESS**: `src/backend/cir/type_l2_check.chiba` 已作为 primary L2 checker 接入 `cir_typed_semantic_check`，先检查 `L2Module/L2OpTyped` 中可判断的 return/binary mismatch；source gate 暂时只补尚未 lowered 的 record/capability/extern/nominal 等规则。
 - [x] L2 pass 能输出稳定 `TypedAst + ConstraintSet + ObligationIR`。
 	- **DONE**: `vp run level1b:type-system` 对 `typed type_inference`、`type-smoke`、template/generic-body/method/capability/row/record dump 做 sha256 golden。
-- [ ] `def f(a,b,c)=expr` 自动泛化符合 spec。
+- [x] `def f(a,b,c)=expr` 自动泛化符合 spec。
+	- **DONE**: `cir_typed_module` 现在为省略参数标注生成稳定 synthetic `CirTyVar` 并写入 L2 env；`typed supports/semantic-gates/type_inference.chiba` golden 覆盖 unannotated params、return inference、explicit+implicit generic、annotated generic。
 - [ ] `def f(a: {r | ...})` row shorthand 与显式 `[T: row]` 等价。
 - [ ] `[T]` 的语义、作用域、diagnostic、specialization identity 稳定。
 - [x] unification 有独立测试，不只通过 parser fixture 间接覆盖。
