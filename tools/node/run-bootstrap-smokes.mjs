@@ -133,7 +133,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c help",
     args: ["--help"],
-    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-kind-smoke type-method-smoke type-nominal-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
+    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-kind-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
   },
   {
     name: "level1c parse grammar 01",
@@ -251,6 +251,24 @@ const LEVEL1C_CASES = [
       "type nominal#2 b.ns::User[]",
       "same-row-shape 1",
       "nominal-unify-error nominal mismatch",
+      "0",
+    ],
+  },
+  {
+    name: "level1c type record smoke",
+    args: ["type-record-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
+    expect: [
+      "L2TypeRecordSmoke",
+      "record-key-order-independent 1",
+      "record-literal-closed-row",
+      "row-meta row#42 closed=1 tail=Unit",
+      "record-literal-duplicate err duplicate record field",
+      "record-update-row",
+      "row-meta row#45 closed=1 tail=Unit",
+      "row-field z: String",
+      "record-update-duplicate err duplicate record update field",
+      "record-update-conflict err record update field type conflict",
+      "record-update-non-record err record update requires record-like value",
       "0",
     ],
   },

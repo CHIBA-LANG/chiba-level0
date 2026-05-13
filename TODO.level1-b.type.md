@@ -131,9 +131,10 @@
 	- **DONE**: `CirObligationField(receiver, field, result)` 已进入 ObligationIR；`type-template-smoke` 输出 `obligation field $T0.name: $T1`，字段结果类型有独立 origin `CirTyOriginFieldResult("name")`。
 	- **验收**: `def get_name(x)=x.name`、`def row_identity[T: {r| name: Str}](x:T):T=x` 通过；缺字段 fixture 报错。
 
-- [ ] **Record literal/update typing**
+- [x] **Record literal/update typing**
 	- **TODO**: record literal 产生 closed row；record update 通过 base row + updated fields 合成结果 row。
 	- **DESC**: duplicate field、field type conflict、更新非 record-like value 必须报错。
+	- **DONE**: `src/backend/cir/type_record.chiba` 已实现 record literal closed row、record update base+updated field 合成、duplicate field/update、field type conflict、non-record update 诊断；`level1c type-record-smoke` 已接入 bootstrap smoke。
 	- **验收**: duplicate 字段、非法 update、字段顺序稳定 key 都有 fixture。
 
 - [ ] **Generic body check**
