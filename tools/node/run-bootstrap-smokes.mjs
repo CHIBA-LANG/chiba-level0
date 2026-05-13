@@ -133,7 +133,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c help",
     args: ["--help"],
-    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-kind-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
+    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-kind-smoke type-row-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
   },
   {
     name: "level1c parse grammar 01",
@@ -198,6 +198,19 @@ const LEVEL1C_CASES = [
       "kind-abi-ptr ok abi-scalar",
       "kind-row-as-value err type kind mismatch",
       "kind-string-as-abi err not an ABI scalar type",
+      "0",
+    ],
+  },
+  {
+    name: "level1c type row smoke",
+    args: ["type-row-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
+    expect: [
+      "L2TypeRowSmoke",
+      "same-fields-order-independent 1",
+      "closed-row-unify",
+      "subst $T0 := str",
+      "closed-row-extra-error err closed row missing field",
+      "open-row-extra-ok",
       "0",
     ],
   },

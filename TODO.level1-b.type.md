@@ -104,9 +104,10 @@
 	- **DONE**: `src/backend/cir/type_kind.chiba` 已实现独立 kind pass，区分 value、row、capability、continuation、ABI scalar；`level1c type-kind-smoke` 覆盖正确分类、row-as-value mismatch、String-as-ABI error。
 	- **验收**: 错误 fixture 覆盖 kind mismatch、错误 type app arity、非法 row tail 使用。
 
-- [ ] **Row unification**
+- [x] **Row unification**
 	- **TODO**: 实现 open row / closed row unify、field presence、field type consistency、extra field rejection。
 	- **DESC**: row canonical key 必须与源码字段顺序无关；tuple 使用 `_1`, `_2`, ... positional row 字段。
+	- **DONE**: `src/backend/cir/type_row.chiba` 已实现 `CirRowMeta` open/closed row field lookup、order-independent field set check、field type unify、closed row extra field rejection、open row extra field acceptance；`level1c type-row-smoke` 已接入 bootstrap smoke。
 	- **验收**: `{x,y}` 与 `{y,x}` key 相同；closed row extra field 报错；open row field access 生成 tail obligation。
 
 - [ ] **Nominal identity + row shape**
