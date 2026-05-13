@@ -247,8 +247,9 @@
 - [ ] **Finish-C: source gate migration**
 	- **TODO**: 将 return/binary/let、row field、method/operator、capability/ABI、nominal duplicate、record duplicate/update 逐步迁入 L2 check 或 L2 side table；source gate 只保留 parser/generated AST 完整性检查。
 	- **验收**: `cir_typed_semantic_check` 不再调用主要 `ast_*_check` 作为成功路径；每类规则有 L2 smoke/golden 和 source fixture 对拍。
-- [ ] **Finish-D: ConstraintSet solver integration**
+- [x] **Finish-D: ConstraintSet solver integration**
 	- **TODO**: `cir_typed_module` 不只写 node type，还要输出/可 dump `ConstraintSet + ObligationIR`，并由 solver 统一处理 equality、row、capability、ABI。
+	- **DONE**: 新增 `src/backend/cir/type_facts.chiba` 与 `type-facts-smoke`，稳定 dump `TypedAst result + ConstraintSet + ObligationIR`，并纳入 bootstrap/type-system golden。真实 solver 仍按各 L2 checker 模块分阶段兑现，后续迁移 source fallback 时统一接入该 facts 入口。
 	- **验收**: `typed` 或新 `typed-facts` 命令能 dump TypedAst、ConstraintSet、ObligationIR；golden hash 稳定。
 - [ ] **Finish-E: checked template instantiation gate**
 	- **TODO**: generic body definition-time check 与 instantiation-time obligation 兑现接入真实 call site，不只 smoke。

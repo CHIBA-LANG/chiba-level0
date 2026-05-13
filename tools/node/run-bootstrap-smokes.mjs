@@ -133,7 +133,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c help",
     args: ["--help"],
-    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-generic-body-smoke type-kind-smoke type-l2-check-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
+    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-facts-smoke type-generalize-smoke type-generic-body-smoke type-kind-smoke type-l2-check-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
   },
   {
     name: "level1c parse grammar 01",
@@ -226,6 +226,20 @@ const LEVEL1C_CASES = [
       "atomic-bad err unsupported Atomic[T]",
       "abi-ok ok",
       "abi-bad err not an ABI scalar type",
+      "0",
+    ],
+  },
+  {
+    name: "level1c type facts smoke",
+    args: ["type-facts-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
+    expect: [
+      "L2TypeFactsSmoke",
+      "typed-facts",
+      "typed-ast-result",
+      "constraint-set",
+      "constraint field-type $T0.name: $T1",
+      "obligation-ir",
+      "obligation operator op_add self=$T0 args=($T0) => $T0 source=default-visible",
       "0",
     ],
   },
