@@ -178,6 +178,11 @@ data CirObligation {
     CirObligationContinuationCapability(CirType, CirContinuationKind)
 }
 
+data CirGenericBodyIR {
+    CirGenericBodyChecked(CirType, CirObligationList),
+    CirGenericBodyError(Str)
+}
+
 type CirTypeSubst {
     var: CirTyVarId
     ty: CirType

@@ -133,7 +133,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c help",
     args: ["--help"],
-    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-kind-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
+    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-generic-body-smoke type-kind-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
   },
   {
     name: "level1c parse grammar 01",
@@ -226,6 +226,21 @@ const LEVEL1C_CASES = [
       "atomic-bad err unsupported Atomic[T]",
       "abi-ok ok",
       "abi-bad err not an ABI scalar type",
+      "0",
+    ],
+  },
+  {
+    name: "level1c type generic body smoke",
+    args: ["type-generic-body-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
+    expect: [
+      "L2TypeGenericBodySmoke",
+      "generic-body concrete-error err definition-time type mismatch",
+      "generic-body field-obligation checked $T1",
+      "obligation field $T0.name: $T1",
+      "generic-body operator-obligation checked $T2",
+      "obligation operator op_add self=$T2 args=($T2) => $T2 source=default-visible",
+      "generic-instantiation-field-ok ok",
+      "generic-instantiation-field-missing err missing generic field obligation",
       "0",
     ],
   },

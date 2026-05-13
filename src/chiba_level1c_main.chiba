@@ -22,6 +22,7 @@ use backend.cir.typed.*
 use backend.cir.typed_semantic_check.*
 use backend.cir.type_capability.*
 use backend.cir.type_generalize.*
+use backend.cir.type_generic_body.*
 use backend.cir.type_kind.*
 use backend.cir.type_method.*
 use backend.cir.type_nominal.*
@@ -38,7 +39,7 @@ def argv_str(argv: i64, i: i64): Str = str_from_cptr(argv_cstr(argv, i))
 
 def level1c_usage(): i64 = {
     let _ = write_fd(1, "Usage: level1c <command> <file>\n", 32)
-    let _ = write_fd(1, "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-kind-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat\n", 275)
+    let _ = write_fd(1, "Commands: lex parse check check-project cir typed type-smoke type-capability-smoke type-generalize-smoke type-generic-body-smoke type-kind-smoke type-method-smoke type-nominal-smoke type-record-smoke type-row-smoke type-template-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat\n", 299)
     0
 }
 
@@ -288,6 +289,12 @@ def level1c_run_type_generalize_smoke(path: Str): i64 = {
     0
 }
 
+def level1c_run_type_generic_body_smoke(path: Str): i64 = {
+    let rendered = cir_type_generic_body_smoke()
+    let _ = str_write_to(rendered, 1)
+    0
+}
+
 def level1c_run_type_capability_smoke(path: Str): i64 = {
     let rendered = cir_type_capability_smoke()
     let _ = str_write_to(rendered, 1)
@@ -420,8 +427,11 @@ def level1c_dispatch_type_kind_smoke(cmd: Str, path: Str): i64 =
 def level1c_dispatch_type_generalize_smoke(cmd: Str, path: Str): i64 =
     if streq(cmd, mk_str("type-generalize-smoke", 21)) != 0 { level1c_run_type_generalize_smoke(path) } else { level1c_dispatch_type_kind_smoke(cmd, path) }
 
+def level1c_dispatch_type_generic_body_smoke(cmd: Str, path: Str): i64 =
+    if streq(cmd, mk_str("type-generic-body-smoke", 23)) != 0 { level1c_run_type_generic_body_smoke(path) } else { level1c_dispatch_type_generalize_smoke(cmd, path) }
+
 def level1c_dispatch_type_capability_smoke(cmd: Str, path: Str): i64 =
-    if streq(cmd, mk_str("type-capability-smoke", 21)) != 0 { level1c_run_type_capability_smoke(path) } else { level1c_dispatch_type_generalize_smoke(cmd, path) }
+    if streq(cmd, mk_str("type-capability-smoke", 21)) != 0 { level1c_run_type_capability_smoke(path) } else { level1c_dispatch_type_generic_body_smoke(cmd, path) }
 
 def level1c_dispatch_type_row_smoke(cmd: Str, path: Str): i64 =
     if streq(cmd, mk_str("type-row-smoke", 14)) != 0 { level1c_run_type_row_smoke(path) } else { level1c_dispatch_type_capability_smoke(cmd, path) }

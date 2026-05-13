@@ -137,9 +137,10 @@
 	- **DONE**: `src/backend/cir/type_record.chiba` 已实现 record literal closed row、record update base+updated field 合成、duplicate field/update、field type conflict、non-record update 诊断；`level1c type-record-smoke` 已接入 bootstrap smoke。
 	- **验收**: duplicate 字段、非法 update、字段顺序稳定 key 都有 fixture。
 
-- [ ] **Generic body check**
+- [x] **Generic body check**
 	- **TODO**: 在抽象 generic 参数下检查 body，产出 `GenericBodyIR + ObligationIR`。
 	- **DESC**: 不依赖 concrete type 的错误必须定义期报错；依赖 concrete shape 的行为留 obligation。
+	- **DONE**: `CirGenericBodyIR` 已加入 CIR；`src/backend/cir/type_generic_body.chiba` 覆盖定义期 concrete mismatch、抽象 field/operator obligation、instantiation field obligation ok/missing；`level1c type-generic-body-smoke` 已接入 bootstrap smoke。
 	- **验收**: `1 + true` 定义期报错；`x.name` 定义期生成 obligation；instantiation fixture 能兑现或失败。
 
 ## 5. Method / Operator / Type 关系
