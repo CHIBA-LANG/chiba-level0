@@ -133,7 +133,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c help",
     args: ["--help"],
-    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-kind-smoke type-row-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
+    expect: ["Usage: level1c <command> <file>", "Commands: lex parse check check-project cir typed type-smoke type-kind-smoke type-nominal-smoke type-row-smoke type-unify-smoke cps nanopass core-invalid-smoke cont-usage wat"],
   },
   {
     name: "level1c parse grammar 01",
@@ -211,6 +211,18 @@ const LEVEL1C_CASES = [
       "subst $T0 := str",
       "closed-row-extra-error err closed row missing field",
       "open-row-extra-ok",
+      "0",
+    ],
+  },
+  {
+    name: "level1c type nominal smoke",
+    args: ["type-nominal-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
+    expect: [
+      "L2TypeNominalSmoke",
+      "type nominal#1 a.ns::User[]",
+      "type nominal#2 b.ns::User[]",
+      "same-row-shape 1",
+      "nominal-unify-error nominal mismatch",
       "0",
     ],
   },

@@ -110,9 +110,10 @@
 	- **DONE**: `src/backend/cir/type_row.chiba` 已实现 `CirRowMeta` open/closed row field lookup、order-independent field set check、field type unify、closed row extra field rejection、open row extra field acceptance；`level1c type-row-smoke` 已接入 bootstrap smoke。
 	- **验收**: `{x,y}` 与 `{y,x}` key 相同；closed row extra field 报错；open row field access 生成 tail obligation。
 
-- [ ] **Nominal identity + row shape**
+- [x] **Nominal identity + row shape**
 	- **TODO**: `type T { ... }`、record shape、tuple shape、data/union payload shape 同时进入 nominal id 与 row shape 系统。
 	- **DESC**: 同 shape 不同 nominal type 不能被错误合并；row 约束只描述 shape obligation。
+	- **DONE**: `CirNominalId` 已携带 namespace/module name 与 local name；`src/backend/cir/type_nominal.chiba` smoke 证明同 row shape 的不同 namespace nominal type 不会 unify。
 	- **验收**: 两个同字段 nominal type 的 shape key 可相同，但 nominal id 不同；method resolution 仍按 nominal receiver 默认查找。
 
 ## 4. Row / Checked Template
