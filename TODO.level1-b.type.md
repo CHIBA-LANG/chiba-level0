@@ -197,32 +197,39 @@
 
 ## 7. 单测与验证矩阵
 
-- [ ] **Unifier unit tests**
+- [x] **Unifier unit tests**
 	- **TODO**: 建 `supports/type-system/unify-*` fixtures 或专用 runner。
+	- **DONE**: 新增 `vp run level1b:type-system` 专用 runner，覆盖 `type-unify-smoke` golden hash 以及 valid/invalid source gates。
 	- **验收**: var、fn、tuple、type app、row、occurs check、kind mismatch、substitution dump 全覆盖。
 
-- [ ] **Inference fixtures**
+- [x] **Inference fixtures**
 	- **TODO**: 扩展 `supports/semantic-gates/type_inference.chiba`。
+	- **DONE**: `level1b:type-system` 覆盖 `supports/semantic-gates/type_inference.chiba` typed dump golden、`type_inference_invalid.chiba` ambiguous `Ref.new(None)` diagnostic、let generalization smoke golden。
 	- **验收**: unannotated params、return inference、explicit+implicit generic、let-generalization、value restriction、bad branch type 全覆盖。
 
-- [ ] **Row fixtures**
+- [x] **Row fixtures**
 	- **TODO**: 扩展 row poly fixtures。
+	- **DONE**: `level1b:type-system` 覆盖 row unification golden、record literal/update golden、row shape source gate 与 duplicate record diagnostic。
 	- **验收**: row shorthand、field obligation、record literal/update、canonical field order、nominal identity、tuple positional row。
 
-- [ ] **Checked template fixtures**
+- [x] **Checked template fixtures**
 	- **TODO**: 增加定义期错误、实例化期错误、成功 specialization 三组 fixture。
+	- **DONE**: `level1b:type-system` 覆盖 template obligation golden 与 generic body golden，含定义期 concrete error、field/operator obligation、instantiation missing field failure。
 	- **验收**: 定义期错误不等到实例化；实例化错误指向 concrete call site；obligation dump 稳定。
 
-- [ ] **Method/operator fixtures**
+- [x] **Method/operator fixtures**
 	- **TODO**: 增加 `.method(call)` 三路径和 operator obligation fixtures。
+	- **DONE**: `level1b:type-system` 覆盖 method route golden、method valid/invalid source gate；operator obligation 由 template/generic body golden 覆盖。
 	- **验收**: valid/invalid/golden dump 全覆盖；二义性诊断稳定。
 
-- [ ] **Capability/ABI fixtures**
+- [x] **Capability/ABI fixtures**
 	- **TODO**: 把 Pre-C12 与 extern gate 全部接入 L2 semantic runner。
+	- **DONE**: `level1b:type-system` 覆盖 capability golden、extern ABI valid、unsupported ABI、WASI fd_write signature mismatch；`vp run level1b:capability` 继续覆盖 Pre-C12 source gate。
 	- **验收**: `vp run semantic:gates`、`vp run level1b:capability`、`level1c.o check` 对同一组 fixture 结论一致。
 
-- [ ] **Golden dump**
+- [x] **Golden dump**
 	- **TODO**: 为 TypedAst、ConstraintSet、ObligationIR、canonical row key 建 golden。
+	- **DONE**: `tools/node/run-type-system-smokes.mjs` 对 `type-smoke`、`typed type_inference`、unify/generalize/row/record/template/generic-body/method/capability dump 做 sha256 golden。
 	- **验收**: 字段顺序、synthetic generic id、diagnostic order、constraint order 全部确定。
 
 ## 8. Pre-C03 完成标准

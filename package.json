@@ -13,6 +13,7 @@
     "level1b:chibacc-mini": "node tools/node/run-level1b-chibacc-mini.mjs",
     "level1b:std-surface": "node tools/node/run-level1b-std-surface.mjs",
     "level1b:capability": "node tools/node/run-level1b-capability-gate.mjs",
+    "level1b:type-system": "node tools/node/run-type-system-smokes.mjs",
     "validate:first-bootstrap": "node tools/node/run-first-bootstrap-validation.mjs",
     "smoke:bootstrap": "node tools/node/run-bootstrap-smokes.mjs",
     "smoke:bootstrap:opt": "node tools/node/run-bootstrap-smokes.mjs --opt",
