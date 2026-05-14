@@ -97,46 +97,64 @@ def cir_l2_check_binary(op: Str, lhs: CirExpr, rhs: CirExpr): CirL2TypeCheck = {
     else { CirL2TypeCheckOk }
 }
 
-def cir_l2_check_expr_list(args: CirExprList): CirL2TypeCheck =
+def cir_l2_check_expr_list_in(args: CirExprList, unsafe_depth: i64): CirL2TypeCheck =
     match args {
         CirExprEnd => CirL2TypeCheckOk
-        CirExprCons(head, tail) => cir_l2_type_check_merge(cir_l2_check_expr(head), cir_l2_check_expr_list(tail))
+        CirExprCons(head, tail) => cir_l2_type_check_merge(cir_l2_check_expr_in(head, unsafe_depth), cir_l2_check_expr_list_in(tail, unsafe_depth))
+    }
+
+def cir_l2_check_expr_list(args: CirExprList): CirL2TypeCheck =
+    cir_l2_check_expr_list_in(args, 0)
+
+def cir_l2_check_stmt_list_in(stmts: CirStmtList, unsafe_depth: i64): CirL2TypeCheck =
+    match stmts {
+        CirStmtEnd => CirL2TypeCheckOk
+        CirStmtCons(head, tail) => cir_l2_type_check_merge(cir_l2_check_stmt_in(head, unsafe_depth), cir_l2_check_stmt_list_in(tail, unsafe_depth))
     }
 
 def cir_l2_check_stmt_list(stmts: CirStmtList): CirL2TypeCheck =
-    match stmts {
-        CirStmtEnd => CirL2TypeCheckOk
-        CirStmtCons(head, tail) => cir_l2_type_check_merge(cir_l2_check_stmt(head), cir_l2_check_stmt_list(tail))
-    }
+    cir_l2_check_stmt_list_in(stmts, 0)
 
-def cir_l2_check_expr(expr: CirExpr): CirL2TypeCheck =
+def cir_l2_check_expr_in(expr: CirExpr, unsafe_depth: i64): CirL2TypeCheck =
     match expr {
         L2OpTyped(inner, _) =>
             match inner {
-                L1OpBlock(stmts, tail) => cir_l2_type_check_merge(cir_l2_check_stmt_list(stmts), cir_l2_check_expr(tail))
-                L1OpIf(cond, then_expr, else_expr) => cir_l2_type_check_merge(cir_l2_check_expr(cond), cir_l2_type_check_merge(cir_l2_check_expr(then_expr), cir_l2_check_expr(else_expr)))
-                L1OpCall(callee, args) => cir_l2_type_check_merge(cir_l2_check_expr(callee), cir_l2_check_expr_list(args))
-                L1OpField(value, _) => cir_l2_check_expr(value)
-                L1OpIndex(value, args) => cir_l2_type_check_merge(cir_l2_check_expr(value), cir_l2_check_expr_list(args))
-                L1OpAssign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_expr(lhs), cir_l2_check_expr(rhs))
-                L1OpPrefix(_, value) => cir_l2_check_expr(value)
-                L1OpBinary(op, lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_binary(op, lhs, rhs), cir_l2_type_check_merge(cir_l2_check_expr(lhs), cir_l2_check_expr(rhs)))
-                L1OpReset(_, body) => cir_l2_check_expr(body)
-                L1OpShift(_, _, body) => cir_l2_check_expr(body)
+                L1OpBlock(stmts, tail) => cir_l2_type_check_merge(cir_l2_check_stmt_list_in(stmts, unsafe_depth), cir_l2_check_expr_in(tail, unsafe_depth))
+                L1OpIf(cond, then_expr, else_expr) => cir_l2_type_check_merge(cir_l2_check_expr_in(cond, unsafe_depth), cir_l2_type_check_merge(cir_l2_check_expr_in(then_expr, unsafe_depth), cir_l2_check_expr_in(else_expr, unsafe_depth)))
+                L1OpCall(callee, args) => cir_l2_type_check_merge(cir_l2_check_expr_in(callee, unsafe_depth), cir_l2_check_expr_list_in(args, unsafe_depth))
+                L1OpField(value, _) => cir_l2_check_expr_in(value, unsafe_depth)
+                L1OpIndex(value, args) => cir_l2_type_check_merge(cir_l2_check_expr_in(value, unsafe_depth), cir_l2_check_expr_list_in(args, unsafe_depth))
+                L1OpAssign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_expr_in(lhs, unsafe_depth), cir_l2_check_expr_in(rhs, unsafe_depth))
+                L1OpUnsafe(body) => cir_l2_check_expr_in(body, unsafe_depth + 1)
+                L1OpCast(value, ty) => {
+                    let target = cir_l2_type_from_ast(ty)
+                    let cap = cir_l2_capability_result(cir_capability_check_unsafe_type(target, unsafe_depth))
+                    cir_l2_type_check_merge(cap, cir_l2_check_expr_in(value, unsafe_depth))
+                }
+                L1OpPrefix(_, value) => cir_l2_check_expr_in(value, unsafe_depth)
+                L1OpBinary(op, lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_binary(op, lhs, rhs), cir_l2_type_check_merge(cir_l2_check_expr_in(lhs, unsafe_depth), cir_l2_check_expr_in(rhs, unsafe_depth)))
+                L1OpReset(_, body) => cir_l2_check_expr_in(body, unsafe_depth)
+                L1OpShift(_, _, body) => cir_l2_check_expr_in(body, unsafe_depth)
                 _ => CirL2TypeCheckOk
             }
         _ => CirL2TypeCheckOk
     }
 
-def cir_l2_check_stmt(stmt: CirStmt): CirL2TypeCheck =
+def cir_l2_check_expr(expr: CirExpr): CirL2TypeCheck =
+    cir_l2_check_expr_in(expr, 0)
+
+def cir_l2_check_stmt_in(stmt: CirStmt, unsafe_depth: i64): CirL2TypeCheck =
     match stmt {
-        L2StmtLet(_, _, value) => cir_l2_check_expr(value)
-        L2StmtAssign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_expr(lhs), cir_l2_check_expr(rhs))
-        L2StmtExpr(value) => cir_l2_check_expr(value)
-        L2StmtReturn(value) => cir_l2_check_expr(value)
-        L2StmtFor(_, cond, body) => cir_l2_type_check_merge(cir_l2_check_expr(cond), cir_l2_check_expr(body))
+        L2StmtLet(_, _, value) => cir_l2_check_expr_in(value, unsafe_depth)
+        L2StmtAssign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_expr_in(lhs, unsafe_depth), cir_l2_check_expr_in(rhs, unsafe_depth))
+        L2StmtExpr(value) => cir_l2_check_expr_in(value, unsafe_depth)
+        L2StmtReturn(value) => cir_l2_check_expr_in(value, unsafe_depth)
+        L2StmtFor(_, cond, body) => cir_l2_type_check_merge(cir_l2_check_expr_in(cond, unsafe_depth), cir_l2_check_expr_in(body, unsafe_depth))
         _ => CirL2TypeCheckOk
     }
+
+def cir_l2_check_stmt(stmt: CirStmt): CirL2TypeCheck =
+    cir_l2_check_stmt_in(stmt, 0)
 
 def cir_l2_check_return(ret: AST, body: CirExpr): CirL2TypeCheck = {
     let expected = cir_l2_type_kind(cir_l2_type_from_ast(ret))
@@ -255,6 +273,9 @@ def cir_l2_type_check_smoke(): Str = {
     let bad = cir_l2_check_binary(mk_str("+", 1), L2OpTyped(L1OpInt(mk_str("1", 1)), CirTyI64), L2OpTyped(L1OpBool(1), CirTyBool))
     let atomic_bad = cir_l2_check_type_well_formed_ast(Type_Path(mk_str("Atomic", 6), Type_Tail_Generic(TypeArg_Cons(Type_Path(mk_str("String", 6), Type_Tail_End), TypeArg_End))))
     let extern_bad = cir_l2_check_extern(CirParamCons(L1Param(CirBinder { id: 1, name: mk_str("fd", 2) }, Type_Path(mk_str("i64", 3), Type_Tail_End)), CirParamEnd), Type_Path(mk_str("i64", 3), Type_Tail_End), CirExternImport { abi: CirExternAbiWasi, module_name: mk_str("wasi_snapshot_preview1", 22), symbol_name: mk_str("fd_write", 8) })
+    let ptr_u8 = Type_Path(mk_str("Ptr", 3), Type_Tail_Generic(TypeArg_Cons(Type_Path(mk_str("u8", 2), Type_Tail_End), TypeArg_End)))
+    let unsafe_cast_ok = cir_l2_check_expr(L2OpTyped(L1OpUnsafe(L2OpTyped(L1OpCast(L2OpTyped(L1OpInt(mk_str("0", 1)), CirTyI64), ptr_u8), CirTyPtr(CirTyConst(mk_str("u8", 2))))), CirTyPtr(CirTyConst(mk_str("u8", 2)))))
+    let unsafe_cast_bad = cir_l2_check_expr(L2OpTyped(L1OpCast(L2OpTyped(L1OpInt(mk_str("0", 1)), CirTyI64), ptr_u8), CirTyPtr(CirTyConst(mk_str("u8", 2)))))
     let _ = str_push_cstr(out, "L2TypeCheckSmoke\n")
     let _ = match good {
         CirL2TypeCheckOk => str_push_cstr(out, "  binary-i64-ok ok\n")
@@ -284,6 +305,22 @@ def cir_l2_type_check_smoke(): Str = {
         CirL2TypeCheckOk => str_push_cstr(out, "  extern-fd-write unexpected-ok\n")
         CirL2TypeCheckErr(message) => {
             let _ = str_push_cstr(out, "  extern-fd-write err ")
+            let _ = str_append(out, message)
+            str_push(out, 10)
+        }
+    }
+    let _ = match unsafe_cast_ok {
+        CirL2TypeCheckOk => str_push_cstr(out, "  unsafe-cast-ptr ok\n")
+        CirL2TypeCheckErr(message) => {
+            let _ = str_push_cstr(out, "  unsafe-cast-ptr err ")
+            let _ = str_append(out, message)
+            str_push(out, 10)
+        }
+    }
+    let _ = match unsafe_cast_bad {
+        CirL2TypeCheckOk => str_push_cstr(out, "  safe-cast-ptr unexpected-ok\n")
+        CirL2TypeCheckErr(message) => {
+            let _ = str_push_cstr(out, "  safe-cast-ptr err ")
             let _ = str_append(out, message)
             str_push(out, 10)
         }

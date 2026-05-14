@@ -180,6 +180,8 @@ def cir_lower_expr(ast: AST): CirExpr =
         Expr_Field(value, field) => L0OpField(cir_lower_expr(value), field)
         Expr_Index(value, args) => L0OpIndex(cir_lower_expr(value), cir_lower_expr_list(args))
         Expr_Assign(lhs, rhs) => L0OpAssign(cir_lower_expr(lhs), cir_lower_expr(rhs))
+        Expr_Unsafe(body) => L0OpUnsafe(cir_lower_expr(body))
+        Expr_Cast(value, ty) => L0OpCast(cir_lower_expr(value), ty)
         Expr_Prefix(op, value) => L0OpPrefix(cir_lower_prefix_op(op), cir_lower_expr(value))
         Expr_Binary(op, lhs, rhs) => L0OpBinary(cir_lower_binary_op(op), cir_lower_expr(lhs), cir_lower_expr(rhs))
         Expr_Int(n) => L0OpInt(n)
@@ -191,7 +193,6 @@ def cir_lower_expr(ast: AST): CirExpr =
         Expr_IdentTail(name, tail) => cir_lower_ident_tail(name, tail)
         Expr_Paren(values) => L0OpCall(L0OpName(mk_str("__tuple", 7)), cir_lower_expr_list(values))
         Expr_List(values) => L0OpCall(L0OpName(mk_str("__list", 6)), cir_lower_expr_list(values))
-        Expr_Unsafe(body) => cir_lower_expr(body)
         _ => cir_l0_unsupported(ast, mk_str("expr unsupported", 16))
     }
 

@@ -183,6 +183,10 @@ def alpha_expr(expr: CirExpr, ctx: AlphaCtx): CirExpr =
             L1OpIndex(alpha_expr(value, ctx), alpha_expr_list(args, ctx))
         L0OpAssign(lhs, rhs) =>
             L1OpAssign(alpha_expr(lhs, ctx), alpha_expr(rhs, ctx))
+        L0OpUnsafe(body) =>
+            L1OpUnsafe(alpha_expr(body, ctx))
+        L0OpCast(value, ty) =>
+            L1OpCast(alpha_expr(value, ctx), ty)
         L0OpPrefix(op, value) =>
             L1OpPrefix(op, alpha_expr(value, ctx))
         L0OpBinary(op, lhs, rhs) =>

@@ -35,9 +35,14 @@ def cir_typed_type_from_ast(ty: AST, fallback: CirType): CirType =
             else if streq(name, mk_str("i64", 3)) != 0 { CirTyI64 }
             else if streq(name, mk_str("i32", 3)) != 0 { CirTyI32 }
             else if streq(name, mk_str("usize", 5)) != 0 { CirTyUsize }
+            else if streq(name, mk_str("u8", 2)) != 0 { CirTyConst(name) }
             else if streq(name, mk_str("bool", 4)) != 0 { CirTyBool }
             else if streq(name, mk_str("String", 6)) != 0 { CirTyString }
             else if streq(name, mk_str("Str", 3)) != 0 { CirTyStr }
+            else if streq(name, mk_str("Ref", 3)) != 0 { CirTyRef(cir_typed_type_first_arg(ty, fallback)) }
+            else if streq(name, mk_str("UnsafeRef", 9)) != 0 { CirTyUnsafeRef(cir_typed_type_first_arg(ty, fallback)) }
+            else if streq(name, mk_str("Ptr", 3)) != 0 { CirTyPtr(cir_typed_type_first_arg(ty, fallback)) }
+            else if streq(name, mk_str("Atomic", 6)) != 0 { CirTyAtomic(cir_typed_type_first_arg(ty, fallback)) }
             else { CirTyConst(name) }
         }
         Type_Atom(name) => {
@@ -48,6 +53,16 @@ def cir_typed_type_from_ast(ty: AST, fallback: CirType): CirType =
             else { CirTyConst(name) }
         }
         Type_Unit => CirTyUnit
+        _ => fallback
+    }
+
+def cir_typed_type_first_arg(ty: AST, fallback: CirType): CirType =
+    match ty {
+        Type_Path(_, Type_Tail_Generic(args)) =>
+            match args {
+                TypeArg_Cons(head, _) => cir_typed_type_from_ast(head, fallback)
+                _ => fallback
+            }
         _ => fallback
     }
 
@@ -177,6 +192,12 @@ def cir_typed_expr_in(expr: CirExpr, env: CirTypeEnv): CirExpr =
             let rhs2 = cir_typed_expr_in(rhs, env)
             L2OpTyped(L1OpAssign(cir_typed_expr_in(lhs, env), rhs2), cir_typed_expr_type(rhs2))
         }
+        L1OpUnsafe(body) => {
+            let body2 = cir_typed_expr_in(body, env)
+            L2OpTyped(L1OpUnsafe(body2), cir_typed_expr_type(body2))
+        }
+        L1OpCast(value, ty) =>
+            L2OpTyped(L1OpCast(cir_typed_expr_in(value, env), ty), cir_typed_type_from_ast(ty, CirTyUnknown))
         L1OpPrefix(op, value) => L2OpTyped(L1OpPrefix(op, cir_typed_expr_in(value, env)), CirTyI64)
         L1OpBinary(op, lhs, rhs) => {
             let lhs2 = cir_typed_expr_in(lhs, env)

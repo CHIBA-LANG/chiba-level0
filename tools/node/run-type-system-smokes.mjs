@@ -89,8 +89,8 @@ const CASES = [
     group: "l2-check",
     name: "primary L2 checker golden dump",
     args: ["type-l2-check-smoke", SPEC],
-    sha256: "7a0a1970ed058365af82ec097f7a7403f34d7d03c253e3e794f065ae24fefdbd",
-    expect: ["L2TypeCheckSmoke", "binary-i64-ok ok", "binary-mismatch err expression type mismatch", "atomic-string err unsupported Atomic[T]", "extern-fd-write err wasi fd_write signature mismatch"],
+    sha256: "3306dbc700701e4298635a81d6a1fab47458442d428f4b68aa316dd86be88021",
+    expect: ["L2TypeCheckSmoke", "binary-i64-ok ok", "binary-mismatch err expression type mismatch", "atomic-string err unsupported Atomic[T]", "extern-fd-write err wasi fd_write signature mismatch", "unsafe-cast-ptr ok", "safe-cast-ptr err Ptr requires unsafe block"],
   },
   {
     group: "l2-check",

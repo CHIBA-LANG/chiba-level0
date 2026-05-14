@@ -771,6 +771,24 @@ def cir_show_expr(out: Str, depth: i64, expr: CirExpr): i64 =
             let _ = cir_show_expr(out, depth + 1, lhs)
             cir_show_expr(out, depth + 1, rhs)
         }
+        L0OpUnsafe(body) => {
+            let _ = cir_show_line(out, depth, "L0OpUnsafe")
+            cir_show_expr(out, depth + 1, body)
+        }
+        L1OpUnsafe(body) => {
+            let _ = cir_show_line(out, depth, "L1OpUnsafe")
+            cir_show_expr(out, depth + 1, body)
+        }
+        L0OpCast(value, ty) => {
+            let _ = cir_show_line(out, depth, "L0OpCast")
+            let _ = cir_show_expr(out, depth + 1, value)
+            cir_show_line(out, depth + 1, "cast-type")
+        }
+        L1OpCast(value, ty) => {
+            let _ = cir_show_line(out, depth, "L1OpCast")
+            let _ = cir_show_expr(out, depth + 1, value)
+            cir_show_line(out, depth + 1, "cast-type")
+        }
         L0OpPrefix(op, value) => {
             let _ = cir_show_str_line(out, depth, "L0OpPrefix", op)
             cir_show_expr(out, depth + 1, value)
