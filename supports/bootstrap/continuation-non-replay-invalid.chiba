@@ -1,0 +1,9 @@
+namespace bootstrap.continuation.non_replay
+
+def invalid_non_replay(r: Ref[i64]): i64 = reset {
+    shift k {
+        r := 1
+        let first = k(1)
+        k(2)
+    }
+}

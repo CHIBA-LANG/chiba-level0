@@ -1,0 +1,11 @@
+namespace bootstrap.continuation.parser_recovery
+
+def parser_recovery(ok: bool): i64 = reset {
+    if ok {
+        1
+    } else {
+        shift recover {
+            recover(2)
+        }
+    }
+}

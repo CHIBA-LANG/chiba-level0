@@ -378,6 +378,24 @@ const LEVEL1C_CASES = [
     reject: ["usage unknown"],
   },
   {
+    name: "level1c cps continuation scheme multi entry",
+    args: ["cps", "supports/semantic-gates/continuation_scheme_multi.chiba"],
+    expect: ["L5Module", "L5OpContinuationPackage", "L1OpReset", "L1OpShift", "usage many", "0"],
+    reject: ["usage unknown"],
+  },
+  {
+    name: "level1c cps lexer backtracking",
+    args: ["cps", "supports/bootstrap/continuation-lexer-backtracking.chiba"],
+    expect: ["L5Module", "L5OpContinuationPackage", "L1OpShift", "usage many", "0"],
+    reject: ["usage unknown"],
+  },
+  {
+    name: "level1c cps parser recovery",
+    args: ["cps", "supports/bootstrap/continuation-parser-recovery.chiba"],
+    expect: ["L5Module", "L5OpContinuationPackage", "L1OpIf", "L1OpShift", "usage many", "0"],
+    reject: ["usage unknown"],
+  },
+  {
     name: "level1c core validator rejects invalid core",
     args: ["core-invalid-smoke", "chiba-level1-grammar-spec/01-test.chiba"],
     expect: ["L8ValidatedCoreModule", "L8ValidatedCoreOp", "validation err(\"missing L7CoreOp\")"],
@@ -386,7 +404,7 @@ const LEVEL1C_CASES = [
     name: "level1c cps continuation multi resume",
     args: ["cps", "supports/bootstrap/continuation-multi-resume.chiba"],
     expect: ["L5Module", "L5OpContinuationPackage", "L5OpCps", "L4OpUsage", "control-boundary", "0"],
-    expectSequence: [["L5OpContinuationPackage", "usage many", "L5OpCps", "usage many", "L4OpUsage", "usage many"]],
+    expectSequence: [["L5OpCps", "usage many", "L4OpUsage", "usage many", "L5OpContinuationPackage", "usage many", "L5OpCps", "usage many"]],
     reject: ["usage unknown"],
   },
   {
@@ -418,6 +436,16 @@ const LEVEL1C_CASES = [
     name: "level1c check continuation cross world invalid",
     args: ["check", "supports/bootstrap/continuation-cross-world-invalid.chiba"],
     expect: ["continuation crosses world/thread boundary", "3"],
+  },
+  {
+    name: "level1c check continuation answer mismatch",
+    args: ["check", "supports/bootstrap/continuation-answer-mismatch-invalid.chiba"],
+    expect: ["answer type mismatch", "3"],
+  },
+  {
+    name: "level1c check continuation non replay invalid",
+    args: ["check", "supports/bootstrap/continuation-non-replay-invalid.chiba"],
+    expect: ["multi-resume captures non-replay state", "3"],
   },
   {
     name: "level1c check Ref Atomic valid",

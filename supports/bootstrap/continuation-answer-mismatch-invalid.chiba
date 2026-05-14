@@ -1,0 +1,7 @@
+namespace bootstrap.continuation.answer_mismatch
+
+def invalid_answer(): i64 = reset {
+    shift k {
+        return "oops"
+    }
+}

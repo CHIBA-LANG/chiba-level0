@@ -160,10 +160,12 @@
 	- **验收**: `.method(call)`、row identity、namespace 多文件、Ref/Atomic invalid cases 不再只靠 JS gate；`level1c.o check` 能稳定接受/拒绝同一组 semantic fixtures。
 	- **并行**: 暂不并行；错误排序必须确定。
 
-- [ ] **Pre-C04: continuation answer/control + one-pass CPS**
+- [x] **Pre-C04: continuation answer/control + one-pass CPS**
 	- **TODO**: 实现 answer type check、continuation kind check、replay-safety check、one-pass CPS transformation 和 administrative continuation beta-reduction。
 	- **DESC**: `reset`/`shift` 不能停留在 check gate；chibalex/chibacc 的 backtracking/recovery 要能落到同一 CPS core。
-	- **PROGRESS**: `level1c.o cps` 已能把 continuation fixture dump 到 L5 CPS/continuation package，并由 bootstrap smoke 与 wasm bridge 覆盖；当前仍是骨架 CPS，不含完整 answer/control/replay-safety 与 beta-reduction。
+	- **DONE**: `cir_cont_check_module` 已按函数隐式 reset / 显式 reset 的局部 answer type 检查 `shift` body、block tail 和 `return` 离开路径；`shift` outside reset、answer mismatch、cross world/thread resume、multi-resume 捕获不可 replay mutation/unsafe/store 都稳定报错。`cir_cps_module` 已把 administrative continuation package 收敛到真实 `shift` capture 位置，父级 control context 只保留 `L5OpCps + usage` fact，避免每层重复 materialize synthetic package。
+	- **TEST**: `vp run smoke:bootstrap`、`vp run semantic:gates`、`vp run level1b:type-system`、`vp run level1b:capability`、`vp run run:all-wat`；all-wat `executed=38 instantiated=27`。
+	- **HASH**: seed `7a7744ab9ace3d8e13ede45f2e5978e56cc07f597884085a9c4886753f3e268d`；`target/debug/level1c.o` `f48db4e172527c552e3e515beb5b0aa6de0e275c57db9b42b9ccd4610cdbf46e`；`cps continuation-multi-resume` `ee51f6138d31551336ae2b4be21580795123703009b7c59cf2a3508fb2e43f44`；`cps continuation_scheme_multi` `ca1b791e7ec8730bff5133bd0124f35059affdc88d43ac56968d18e8b845fed2`；`nanopass continuation-multi-resume` `375f8a6967a9ce23e4e1cfc95c20b4973162c985ccd8a98d087d924cacc99dec`。
 	- **验收**: simple reset/shift、nested reset、multi-resume Scheme smoke、lexer backtracking、parser alternative/recovery 都能 dump CPS；answer mismatch、multi-resume 捕获不可 replay state、跨 world/thread continuation 稳定报错。
 	- **并行**: 不并行；先保证语义正确和 dump 稳定。
 

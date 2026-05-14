@@ -1,0 +1,8 @@
+namespace bootstrap.continuation.lexer_backtracking
+
+def lexer_backtracking(): i64 = reset {
+    shift retry {
+        let first = retry(1)
+        retry(first + 1)
+    }
+}
