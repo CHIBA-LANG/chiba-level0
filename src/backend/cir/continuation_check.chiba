@@ -237,6 +237,20 @@ def cir_cont_check_stmt_list(stmts: CirStmtList, reset_depth: i64, answer: CirTy
             cir_cont_merge(cir_cont_check_stmt(stmt, reset_depth, answer), cir_cont_check_stmt_list(rest, reset_depth, answer))
     }
 
+def cir_cont_stmt_has_return(stmt: CirStmt): i64 =
+    match stmt {
+        L1StmtReturn(_) => 1
+        L2StmtReturn(_) => 1
+        _ => 0
+    }
+
+def cir_cont_stmt_list_has_return(stmts: CirStmtList): i64 =
+    match stmts {
+        CirStmtEnd => 0
+        CirStmtCons(stmt, rest) =>
+            if cir_cont_stmt_has_return(stmt) != 0 { 1 } else { cir_cont_stmt_list_has_return(rest) }
+    }
+
 def cir_cont_check_stmt(stmt: CirStmt, reset_depth: i64, answer: CirType): CirContCheck =
     match stmt {
         L1StmtLet(_, value) => cir_cont_check_expr(value, reset_depth, answer)
@@ -251,8 +265,10 @@ def cir_cont_check_stmt(stmt: CirStmt, reset_depth: i64, answer: CirType): CirCo
 
 def cir_cont_check_expr(expr: CirExpr, reset_depth: i64, answer: CirType): CirContCheck =
     match expr {
-        L1OpBlock(stmts, tail) =>
-            cir_cont_merge(cir_cont_check_stmt_list(stmts, reset_depth, answer), cir_cont_merge(cir_cont_check_expr(tail, reset_depth, answer), cir_cont_answer_expect(answer, cir_cont_expr_static_type(tail))))
+        L1OpBlock(stmts, tail) => {
+            let tail_answer = if cir_cont_stmt_list_has_return(stmts) != 0 { CirContCheckOk } else { cir_cont_answer_expect(answer, cir_cont_expr_static_type(tail)) }
+            cir_cont_merge(cir_cont_check_stmt_list(stmts, reset_depth, answer), cir_cont_merge(cir_cont_check_expr(tail, reset_depth, answer), tail_answer))
+        }
         L1OpIf(cond, then_expr, else_expr) =>
             cir_cont_merge(cir_cont_check_expr(cond, reset_depth, answer), cir_cont_merge(cir_cont_check_expr(then_expr, reset_depth, answer), cir_cont_check_expr(else_expr, reset_depth, answer)))
         L1OpMatch(value, _) => cir_cont_check_expr(value, reset_depth, answer)

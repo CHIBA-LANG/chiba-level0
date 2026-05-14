@@ -346,7 +346,18 @@ const LEVEL1C_CASES = [
   {
     name: "level1c nanopass grammar 01",
     args: ["nanopass", "chiba-level1-grammar-spec/01-test.chiba"],
-    expect: ["L8ValidatedCoreModule", "L8ValidatedCoreOp", "L7CoreOp", "L6OpClosureEnv", "L5OpCps", "L4OpUsage", "L3OpAnswerControl", "validation ok", "0"],
+    expect: ["L8ValidatedCoreModule", "L8ValidatedCoreOp", "L7CoreOp", "L5OpCps", "L4OpUsage", "L3OpAnswerControl", "validation ok", "0"],
+  },
+  {
+    name: "level1c nanopass closure no capture",
+    args: ["nanopass", "supports/bootstrap/closure-no-capture.chiba"],
+    expect: ["L8ValidatedCoreModule", "L1OpClosure", "validation ok", "0"],
+    reject: ["L6OpClosureEnv"],
+  },
+  {
+    name: "level1c nanopass closure capture",
+    args: ["nanopass", "supports/bootstrap/closure-capture.chiba"],
+    expect: ["L8ValidatedCoreModule", "L6OpClosureEnv", "L1OpClosure", "L1RefLocal(#1 \"x\")", "validation ok", "0"],
   },
   {
     name: "level1c nanopass string slice core",

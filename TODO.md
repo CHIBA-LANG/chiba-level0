@@ -169,9 +169,12 @@
 	- **验收**: simple reset/shift、nested reset、multi-resume Scheme smoke、lexer backtracking、parser alternative/recovery 都能 dump CPS；answer mismatch、multi-resume 捕获不可 replay state、跨 world/thread continuation 稳定报错。
 	- **并行**: 不并行；先保证语义正确和 dump 稳定。
 
-- [ ] **Pre-C05: closure/lambda/continuation package lowering**
+- [x] **Pre-C05: closure/lambda/continuation package lowering**
 	- **TODO**: 实现 usage facts 驱动的 dead continuation 删除、single-use continuation inline、many-use continuation package、closure conversion、lambda lifting、env shrinking。
 	- **DESC**: level-1b 需要能写 generator 和 compiler helper，而不是所有 lambda/continuation 都分配成 opaque runtime 包。
+	- **DONE**: L6 closure pass 已加入 free-var/capture scan：no-capture closure 不再包 `L6OpClosureEnv`，capture closure 会实体化 `L6OpClosureEnv` 并在 dump 中保留捕获 local；immediate no-capture closure callee 走 direct payload，不再为了 env 包装。continuation package 继续只在真实 `L5OpContinuationPackage` 处实体化。L2 return checker 同步修正 explicit `return` block 的类型观察，不再把有 `return` 的 block 误判成 tail `Unit`。
+	- **TEST**: `timeout 10 ./chibac_amd64-unknown-linux_chiba_dev.o --project . --entry chiba_level1c_main.chiba --output level1c.o` 确认 phase1/resolve 后在 type-checking 超时；`timeout 120 ...` 成功写出 `target/debug/level1c.o`；`./target/debug/level1c.o check supports/bootstrap/closure-no-capture.chiba`、`closure-capture.chiba`；`vp run smoke:bootstrap`、`vp run semantic:gates`、`vp run level1b:type-system`、`vp run level1b:capability`、`vp run run:all-wat`；all-wat `executed=38 instantiated=27`。
+	- **HASH**: seed `7a7744ab9ace3d8e13ede45f2e5978e56cc07f597884085a9c4886753f3e268d`；`target/debug/level1c.o` `e584ae007df2f8fcd3de200ddf1c2ba249758c0dfe473a747fcb0c583bfc92f3`；`closure-no-capture.chiba` `6122d4ea298c37e786de7367e4d8af7bcf74914fde5f13892c0864635e9778d4`；`closure-capture.chiba` `b36220ed10cc894de256453e21800c3126edb9123a513320674bb05253098548`；`closure.chiba` `f16860ea3596ed446b6140eba2d33f75878f4463f26740e4febcad9cb4d5b09a`；`type_l2_check.chiba` `89f0d15536c30fb5ebadba2996d5d457766b526d76551c97bd0475c4ac0ff5e7`。
 	- **验收**: no-capture lambda direct call；single-use closure directified；escaping closure 有可 dump env layout；multi-resume continuation package 可重复 resume；非法 package 不进入 Core。
 	- **并行**: 不并行。
 

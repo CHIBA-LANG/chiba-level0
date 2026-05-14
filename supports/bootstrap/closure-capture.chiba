@@ -1,0 +1,6 @@
+namespace bootstrap.closure.capture
+
+def capture(x: i64): i64 = {
+    consume(1) {|v: i64| v + x }
+    return x + 1
+}

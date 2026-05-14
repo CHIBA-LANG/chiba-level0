@@ -1,0 +1,6 @@
+namespace bootstrap.closure.no_capture
+
+def no_capture(): i64 = {
+    consume(41) {|v: i64| v + 1 }
+    return 42
+}

@@ -156,9 +156,38 @@ def cir_l2_check_stmt_in(stmt: CirStmt, unsafe_depth: i64): CirL2TypeCheck =
 def cir_l2_check_stmt(stmt: CirStmt): CirL2TypeCheck =
     cir_l2_check_stmt_in(stmt, 0)
 
+def cir_l2_stmt_return_type(stmt: CirStmt): CirType =
+    match stmt {
+        L2StmtReturn(value) => cir_l2_expr_type(value)
+        L2StmtFor(_, _, body) => cir_l2_return_observed_type(body)
+        _ => CirTyUnknown
+    }
+
+def cir_l2_stmt_list_return_type(stmts: CirStmtList): CirType =
+    match stmts {
+        CirStmtEnd => CirTyUnknown
+        CirStmtCons(head, tail) => {
+            let head_ty = cir_l2_stmt_return_type(head)
+            if cir_l2_type_kind(head_ty) != 0 { head_ty } else { cir_l2_stmt_list_return_type(tail) }
+        }
+    }
+
+def cir_l2_return_observed_type(body: CirExpr): CirType =
+    match body {
+        L2OpTyped(inner, _) =>
+            match inner {
+                L1OpBlock(stmts, tail) => {
+                    let ret_ty = cir_l2_stmt_list_return_type(stmts)
+                    if cir_l2_type_kind(ret_ty) != 0 { ret_ty } else { cir_l2_expr_type(tail) }
+                }
+                _ => cir_l2_expr_type(body)
+            }
+        _ => cir_l2_expr_type(body)
+    }
+
 def cir_l2_check_return(ret: AST, body: CirExpr): CirL2TypeCheck = {
     let expected = cir_l2_type_kind(cir_l2_type_from_ast(ret))
-    let actual = cir_l2_type_kind(cir_l2_expr_type(body))
+    let actual = cir_l2_type_kind(cir_l2_return_observed_type(body))
     if expected != 0 && actual != 0 && expected != actual { cir_l2_type_check_err("return type mismatch") }
     else { CirL2TypeCheckOk }
 }
