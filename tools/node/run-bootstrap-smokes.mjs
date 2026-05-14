@@ -323,6 +323,7 @@ const LEVEL1C_CASES = [
       "method-route nominal-receiver",
       "method-route qualified-callee",
       "method-entry nominal#30 semantic.gates.method::Widget.size (nominal#30 semantic.gates.method::Widget[]) => i64",
+      "method-entry nominal#31 semantic.gates.method.other::Widget.size (nominal#31 semantic.gates.method.other::Widget[]) => bool",
       "method-duplicate-error duplicate method definition",
       "0",
     ],

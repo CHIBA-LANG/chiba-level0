@@ -207,8 +207,8 @@ const CASES = [
     group: "method-operator",
     name: "method routes golden dump",
     args: ["type-method-smoke", SPEC],
-    sha256: "563de0ff97edba61accb3f6d190e997a3118832c7a9bf57ca3ccfb0ab32f35de",
-    expect: ["method-route field-callable", "method-route nominal-receiver", "method-route qualified-callee"],
+    sha256: "72c85b49c9a92b134a77114fd044bf6089e73c1e86571747a6c4cce9a128cc79",
+    expect: ["method-route field-callable", "method-route nominal-receiver", "method-route qualified-callee", "semantic.gates.method.other::Widget.size"],
   },
   {
     group: "method-operator",

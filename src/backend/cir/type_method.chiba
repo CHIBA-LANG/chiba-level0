@@ -70,8 +70,10 @@ def cir_show_method_entry(out: Str, depth: i64, entry: CirMethodEntry): i64 = {
 def cir_type_method_smoke(): Str = {
     let out = str_new()
     let widget = CirNominalId { id: 30, module_name: mk_str("semantic.gates.method", 21), local_name: mk_str("Widget", 6) }
+    let widget_other = CirNominalId { id: 31, module_name: mk_str("semantic.gates.method.other", 27), local_name: mk_str("Widget", 6) }
     let size_entry = CirMethodEntry { receiver: widget, method_name: mk_str("size", 4), ty: CirTyFn(CirTypeCons(CirTyNominal(widget, CirTypeEnd), CirTypeEnd), CirTyI64) }
     let origin_entry = CirMethodEntry { receiver: widget, method_name: mk_str("origin", 6), ty: CirTyFn(CirTypeEnd, CirTyI64) }
+    let other_size_entry = CirMethodEntry { receiver: widget_other, method_name: mk_str("size", 4), ty: CirTyFn(CirTypeCons(CirTyNominal(widget_other, CirTypeEnd), CirTypeEnd), CirTyBool) }
     let index0 = CirMethodIndexEnd
     let index1 = match cir_method_index_insert(index0, size_entry) {
         CirMethodIndexOk(next) => next
@@ -81,15 +83,23 @@ def cir_type_method_smoke(): Str = {
         CirMethodIndexOk(next) => next
         CirMethodIndexErr(_) => index1
     }
+    let index3 = match cir_method_index_insert(index2, other_size_entry) {
+        CirMethodIndexOk(next) => next
+        CirMethodIndexErr(_) => index2
+    }
     let _ = cir_show_line(out, 0, "L2TypeMethodSmoke")
     let _ = cir_show_method_route(out, 1, CirMethodRouteFieldCallable)
     let _ = cir_show_method_route(out, 1, CirMethodRouteNominalReceiver)
     let _ = cir_show_method_route(out, 1, CirMethodRouteQualifiedCallee)
-    let _ = match cir_method_lookup(index2, widget, mk_str("size", 4)) {
+    let _ = match cir_method_lookup(index3, widget, mk_str("size", 4)) {
         CirMethodLookupFound(entry) => cir_show_method_entry(out, 1, entry)
         CirMethodLookupMissing => cir_show_line(out, 1, "method-lookup-missing")
     }
-    let _ = match cir_method_index_insert(index2, size_entry) {
+    let _ = match cir_method_lookup(index3, widget_other, mk_str("size", 4)) {
+        CirMethodLookupFound(entry) => cir_show_method_entry(out, 1, entry)
+        CirMethodLookupMissing => cir_show_line(out, 1, "method-namespace-lookup-missing")
+    }
+    let _ = match cir_method_index_insert(index3, size_entry) {
         CirMethodIndexOk(_) => cir_show_line(out, 1, "method-duplicate-unexpected-ok")
         CirMethodIndexErr(message) => {
             let _ = cir_show_indent(out, 1)

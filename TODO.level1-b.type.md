@@ -256,8 +256,9 @@
 	- **TODO**: generic body definition-time check 与 instantiation-time obligation 兑现接入真实 call site，不只 smoke。
 	- **DONE**: 新增 `checked_template_instantiation*.chiba`，`level1c.o check` 在 generic row-bound function 的 record literal call site 兑现 field obligation，缺字段报 `generic instantiation missing field name`；semantic/type-system runners 均覆盖。
 	- **验收**: 成功 specialization、定义期错误、实例化期 missing field/method/operator error 三组 fixture 全由 `level1c.o check` 判定。
-- [ ] **Finish-F: method/operator namespace resolution**
+- [x] **Finish-F: method/operator namespace resolution**
 	- **TODO**: method index 使用 namespace-qualified nominal id；`.method(call)` 三路径和 operator overload 进入 L2 resolution，不依赖 source pattern。
+	- **DONE**: `type-method-smoke` 现在覆盖两个 namespace 下同名 `Widget.size`，method index 使用 `CirNominalId(module_name, local_name)`，lookup 不冲突；三路径 route 与 duplicate diagnostic 保持 golden。operator obligation/checked-template specialization 已在 `type-template-smoke` 与 `type-generic-body-smoke` 覆盖。
 	- **验收**: 两个 namespace 同名 nominal/method 不冲突；via/qualified path 行为可 dump；operator overload obligation/resolve 有 valid/invalid fixture。
 - [ ] **Finish-G: capability/unsafe/ABI fully typed**
 	- **TODO**: `Ref`/`UnsafeRef`/`Ptr`/`Atomic`、unsafe depth、Metal raw pointer audit、extern ABI signature 都进入 L2 facts/checker。
