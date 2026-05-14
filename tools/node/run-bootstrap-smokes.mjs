@@ -250,6 +250,8 @@ const LEVEL1C_CASES = [
       "L2TypeCheckSmoke",
       "binary-i64-ok ok",
       "binary-mismatch err expression type mismatch",
+      "atomic-string err unsupported Atomic[T]",
+      "extern-fd-write err wasi fd_write signature mismatch",
       "0",
     ],
   },
@@ -424,7 +426,7 @@ const LEVEL1C_CASES = [
   {
     name: "level1c check Ref Atomic invalid",
     args: ["check", "supports/semantic-gates/refs_atomic_invalid.chiba"],
-    expect: ["top-level Ref requires #[world_local]", "3"],
+    expect: ["unsupported Atomic[T]", "3"],
   },
   {
     name: "level1c check method routes valid",

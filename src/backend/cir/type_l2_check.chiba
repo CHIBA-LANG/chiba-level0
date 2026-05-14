@@ -3,6 +3,7 @@ use metalstd.mem.*
 use metalstd.str.*
 use parser.chiba_level1.*
 use backend.cir.ir.*
+use backend.cir.type_capability.*
 
 data CirL2TypeCheck {
     CirL2TypeCheckOk,
@@ -20,14 +21,20 @@ def cir_l2_type_check_merge(a: CirL2TypeCheck, b: CirL2TypeCheck): CirL2TypeChec
 
 def cir_l2_type_from_ast(ty: AST): CirType =
     match ty {
-        Type_Path(name, _) => {
+        Type_Path(name, tail) => {
+            let first = cir_l2_type_first_arg(tail)
             if name.len == 0 { CirTyUnknown }
             else if streq(name, mk_str("i64", 3)) != 0 { CirTyI64 }
             else if streq(name, mk_str("i32", 3)) != 0 { CirTyI32 }
             else if streq(name, mk_str("usize", 5)) != 0 { CirTyUsize }
+            else if streq(name, mk_str("u8", 2)) != 0 { CirTyConst(name) }
             else if streq(name, mk_str("bool", 4)) != 0 { CirTyBool }
             else if streq(name, mk_str("String", 6)) != 0 { CirTyString }
             else if streq(name, mk_str("Str", 3)) != 0 { CirTyStr }
+            else if streq(name, mk_str("Ref", 3)) != 0 { CirTyRef(first) }
+            else if streq(name, mk_str("UnsafeRef", 9)) != 0 { CirTyUnsafeRef(first) }
+            else if streq(name, mk_str("Ptr", 3)) != 0 { CirTyPtr(first) }
+            else if streq(name, mk_str("Atomic", 6)) != 0 { CirTyAtomic(first) }
             else { CirTyUnknown }
         }
         Type_Atom(name) => {
@@ -38,6 +45,16 @@ def cir_l2_type_from_ast(ty: AST): CirType =
             else { CirTyUnknown }
         }
         Type_Unit => CirTyUnit
+        _ => CirTyUnknown
+    }
+
+def cir_l2_type_first_arg(tail: AST): CirType =
+    match tail {
+        Type_Tail_Generic(args) =>
+            match args {
+                TypeArg_Cons(head, _) => cir_l2_type_from_ast(head)
+                _ => CirTyUnknown
+            }
         _ => CirTyUnknown
     }
 
@@ -128,9 +145,95 @@ def cir_l2_check_return(ret: AST, body: CirExpr): CirL2TypeCheck = {
     else { CirL2TypeCheckOk }
 }
 
+def cir_l2_capability_result(result: CirCapabilityCheck): CirL2TypeCheck =
+    match result {
+        CirCapabilityOk => CirL2TypeCheckOk
+        CirCapabilityErr(message) => CirL2TypeCheckErr(message)
+    }
+
+def cir_l2_check_type_well_formed_ast(ty: AST): CirL2TypeCheck = {
+    let lowered = cir_l2_type_from_ast(ty)
+    match lowered {
+        CirTyAtomic(_) => cir_l2_capability_result(cir_capability_check_atomic(lowered))
+        _ => CirL2TypeCheckOk
+    }
+}
+
+def cir_l2_check_param_types(params: CirParamList): CirL2TypeCheck =
+    match params {
+        CirParamEnd => CirL2TypeCheckOk
+        CirParamCons(head, tail) => {
+            let here = match head {
+                L1Param(_, ty) => cir_l2_check_type_well_formed_ast(ty)
+                _ => CirL2TypeCheckOk
+            }
+            cir_l2_type_check_merge(here, cir_l2_check_param_types(tail))
+        }
+    }
+
+def cir_l2_param_type_missing(ty: AST): i64 =
+    match ty {
+        Type_Path(name, _) => if name.len == 0 { 1 } else { 0 }
+        _ => 0
+    }
+
+def cir_l2_params_no_missing_types(params: CirParamList): i64 =
+    match params {
+        CirParamEnd => 1
+        CirParamCons(head, tail) =>
+            match head {
+                L1Param(_, ty) => if cir_l2_param_type_missing(ty) != 0 { 0 } else { cir_l2_params_no_missing_types(tail) }
+                _ => cir_l2_params_no_missing_types(tail)
+            }
+    }
+
+def cir_l2_params_count(params: CirParamList): i64 =
+    match params {
+        CirParamEnd => 0
+        CirParamCons(_, tail) => 1 + cir_l2_params_count(tail)
+    }
+
+def cir_l2_params_all_i64(params: CirParamList): i64 =
+    match params {
+        CirParamEnd => 1
+        CirParamCons(head, tail) =>
+            match head {
+                L1Param(_, ty) =>
+                    match cir_l2_type_from_ast(ty) {
+                        CirTyI64 => cir_l2_params_all_i64(tail)
+                        _ => 0
+                    }
+                _ => 0
+            }
+    }
+
+def cir_l2_check_extern(params: CirParamList, ret: AST, import: CirExternImport): CirL2TypeCheck =
+    if cir_l2_params_no_missing_types(params) == 0 { cir_l2_type_check_err("extern parameter type requires annotation") }
+    else {
+        match cir_l2_type_from_ast(ret) {
+            CirTyUnknown => cir_l2_type_check_err("extern return type requires annotation")
+            _ => {
+                match import.abi {
+                    CirExternAbiUnsupported(_) => cir_l2_type_check_err("unsupported extern ABI")
+                    CirExternAbiWasi =>
+                        if streq(import.symbol_name, mk_str("fd_write", 8)) != 0 {
+                            if cir_l2_params_count(params) == 4 && cir_l2_params_all_i64(params) != 0 {
+                                match cir_l2_type_from_ast(ret) {
+                                    CirTyI64 => CirL2TypeCheckOk
+                                    _ => cir_l2_type_check_err("wasi fd_write signature mismatch")
+                                }
+                            } else { cir_l2_type_check_err("wasi fd_write signature mismatch") }
+                        } else { CirL2TypeCheckOk }
+                    CirExternAbiEnv => CirL2TypeCheckOk
+                }
+            }
+        }
+    }
+
 def cir_l2_check_item(item: CirItem): CirL2TypeCheck =
     match item {
-        L2ItemDef(_, _, ret, body) => cir_l2_type_check_merge(cir_l2_check_expr(body), cir_l2_check_return(ret, body))
+        L2ItemDef(_, params, ret, body) => cir_l2_type_check_merge(cir_l2_check_param_types(params), cir_l2_type_check_merge(cir_l2_check_type_well_formed_ast(ret), cir_l2_type_check_merge(cir_l2_check_expr(body), cir_l2_check_return(ret, body))))
+        L2ItemExtern(_, params, ret, import) => cir_l2_type_check_merge(cir_l2_check_param_types(params), cir_l2_type_check_merge(cir_l2_check_type_well_formed_ast(ret), cir_l2_check_extern(params, ret, import)))
         _ => CirL2TypeCheckOk
     }
 
@@ -150,6 +253,8 @@ def cir_l2_type_check_smoke(): Str = {
     let out = str_new()
     let good = cir_l2_check_binary(mk_str("+", 1), L2OpTyped(L1OpInt(mk_str("1", 1)), CirTyI64), L2OpTyped(L1OpInt(mk_str("2", 1)), CirTyI64))
     let bad = cir_l2_check_binary(mk_str("+", 1), L2OpTyped(L1OpInt(mk_str("1", 1)), CirTyI64), L2OpTyped(L1OpBool(1), CirTyBool))
+    let atomic_bad = cir_l2_check_type_well_formed_ast(Type_Path(mk_str("Atomic", 6), Type_Tail_Generic(TypeArg_Cons(Type_Path(mk_str("String", 6), Type_Tail_End), TypeArg_End))))
+    let extern_bad = cir_l2_check_extern(CirParamCons(L1Param(CirBinder { id: 1, name: mk_str("fd", 2) }, Type_Path(mk_str("i64", 3), Type_Tail_End)), CirParamEnd), Type_Path(mk_str("i64", 3), Type_Tail_End), CirExternImport { abi: CirExternAbiWasi, module_name: mk_str("wasi_snapshot_preview1", 22), symbol_name: mk_str("fd_write", 8) })
     let _ = str_push_cstr(out, "L2TypeCheckSmoke\n")
     let _ = match good {
         CirL2TypeCheckOk => str_push_cstr(out, "  binary-i64-ok ok\n")
@@ -163,6 +268,22 @@ def cir_l2_type_check_smoke(): Str = {
         CirL2TypeCheckOk => str_push_cstr(out, "  binary-mismatch unexpected-ok\n")
         CirL2TypeCheckErr(message) => {
             let _ = str_push_cstr(out, "  binary-mismatch err ")
+            let _ = str_append(out, message)
+            str_push(out, 10)
+        }
+    }
+    let _ = match atomic_bad {
+        CirL2TypeCheckOk => str_push_cstr(out, "  atomic-string unexpected-ok\n")
+        CirL2TypeCheckErr(message) => {
+            let _ = str_push_cstr(out, "  atomic-string err ")
+            let _ = str_append(out, message)
+            str_push(out, 10)
+        }
+    }
+    let _ = match extern_bad {
+        CirL2TypeCheckOk => str_push_cstr(out, "  extern-fd-write unexpected-ok\n")
+        CirL2TypeCheckErr(message) => {
+            let _ = str_push_cstr(out, "  extern-fd-write err ")
             let _ = str_append(out, message)
             str_push(out, 10)
         }
