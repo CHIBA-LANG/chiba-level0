@@ -417,6 +417,7 @@ const LEVEL1C_CASES = [
       "validation err(\"invalid string/slice layout\")",
       "validation err(\"illegal continuation package usage\")",
       "validation err(\"illegal tailcall\")",
+      "validation err(\"continuation crosses world/thread boundary\")",
     ],
   },
   {
