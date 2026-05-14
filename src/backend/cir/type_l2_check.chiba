@@ -223,13 +223,138 @@ def cir_l2_check_ast_item_signature(params: AST, ret: AST, attrs: AST, file_is_m
     cir_l2_type_check_merge(ref_check, metal_check)
 }
 
+def cir_l2_ast_record_fields_has(fields: AST, field: Str): i64 =
+    match fields {
+        RecordField_Cons(head, tail) =>
+            match head {
+                RecordField(name, _) =>
+                    if streq(name, field) != 0 { 1 } else { cir_l2_ast_record_fields_has(tail, field) }
+                _ => cir_l2_ast_record_fields_has(tail, field)
+            }
+        _ => 0
+    }
+
+def cir_l2_ast_record_fields_has_duplicate(fields: AST): i64 =
+    match fields {
+        RecordField_Cons(head, tail) =>
+            match head {
+                RecordField(name, _) =>
+                    if cir_l2_ast_record_fields_has(tail, name) != 0 { 1 } else { cir_l2_ast_record_fields_has_duplicate(tail) }
+                _ => cir_l2_ast_record_fields_has_duplicate(tail)
+            }
+        _ => 0
+    }
+
+def cir_l2_ast_record_tail_fields(tail: AST): AST =
+    match tail {
+        RecordTail_Field(_, fields) => fields
+        RecordTail_Shorthand(fields) => fields
+        _ => RecordField_End
+    }
+
+def cir_l2_check_ast_record_body(body: AST): CirL2TypeCheck =
+    match body {
+        Record_First(first, tail) =>
+            match tail {
+                Record_Update(_, fields) =>
+                    if cir_l2_ast_record_fields_has_duplicate(fields) != 0 { cir_l2_type_check_err("duplicate record field") } else { CirL2TypeCheckOk }
+                _ => {
+                    let fields = cir_l2_ast_record_tail_fields(tail)
+                    if cir_l2_ast_record_fields_has(fields, first) != 0 { cir_l2_type_check_err("duplicate record field") }
+                    else if cir_l2_ast_record_fields_has_duplicate(fields) != 0 { cir_l2_type_check_err("duplicate record field") }
+                    else { CirL2TypeCheckOk }
+                }
+            }
+        Record_Update(_, fields) =>
+            if cir_l2_ast_record_fields_has_duplicate(fields) != 0 { cir_l2_type_check_err("duplicate record field") } else { CirL2TypeCheckOk }
+        Record_Fields(fields) =>
+            if cir_l2_ast_record_fields_has_duplicate(fields) != 0 { cir_l2_type_check_err("duplicate record field") } else { CirL2TypeCheckOk }
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_args(args: AST): CirL2TypeCheck =
+    match args {
+        Arg_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_expr(head), cir_l2_check_ast_args(tail))
+        ExprList_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_expr(head), cir_l2_check_ast_args(tail))
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_record_fields_values(fields: AST): CirL2TypeCheck =
+    match fields {
+        RecordField_Cons(head, tail) =>
+            match head {
+                RecordField(_, value) => cir_l2_type_check_merge(cir_l2_check_ast_expr(value), cir_l2_check_ast_record_fields_values(tail))
+                _ => cir_l2_check_ast_record_fields_values(tail)
+            }
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_record_body_values(body: AST): CirL2TypeCheck =
+    match body {
+        Record_First(_, tail) =>
+            match tail {
+                Record_Update(base, fields) => cir_l2_type_check_merge(cir_l2_check_ast_expr(base), cir_l2_check_ast_record_fields_values(fields))
+                RecordTail_Field(value, fields) => cir_l2_type_check_merge(cir_l2_check_ast_expr(value), cir_l2_check_ast_record_fields_values(fields))
+                RecordTail_Shorthand(fields) => cir_l2_check_ast_record_fields_values(fields)
+                _ => CirL2TypeCheckOk
+            }
+        Record_Update(base, fields) => cir_l2_type_check_merge(cir_l2_check_ast_expr(base), cir_l2_check_ast_record_fields_values(fields))
+        Record_Fields(fields) => cir_l2_check_ast_record_fields_values(fields)
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_stmt(stmt: AST): CirL2TypeCheck =
+    match stmt {
+        Stmt_Expr(value) => cir_l2_check_ast_expr(value)
+        Stmt_Return(value) => cir_l2_check_ast_expr(value)
+        Stmt_Assign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_ast_expr(lhs), cir_l2_check_ast_expr(rhs))
+        Stmt_Let(_, value) => cir_l2_check_ast_expr(value)
+        Stmt_LetPattern(_, value) => cir_l2_check_ast_expr(value)
+        Stmt_LetPatternTyped(_, _, value) => cir_l2_check_ast_expr(value)
+        Stmt_For(_, cond, body) => cir_l2_type_check_merge(cir_l2_check_ast_expr(cond), cir_l2_check_ast_expr(body))
+        Stmt_WithAttrs(_, inner) => cir_l2_check_ast_stmt(inner)
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_stmts(stmts: AST): CirL2TypeCheck =
+    match stmts {
+        Stmt_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_stmt(head), cir_l2_check_ast_stmts(tail))
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_tail(tail: AST): CirL2TypeCheck =
+    match tail {
+        TailExpr_Some(value) => cir_l2_check_ast_expr(value)
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_expr(expr: AST): CirL2TypeCheck =
+    match expr {
+        Expr_Record(body) => cir_l2_type_check_merge(cir_l2_check_ast_record_body(body), cir_l2_check_ast_record_body_values(body))
+        Expr_Block(stmts, tail) => cir_l2_type_check_merge(cir_l2_check_ast_stmts(stmts), cir_l2_check_ast_tail(tail))
+        Expr_Call(callee, args) => cir_l2_type_check_merge(cir_l2_check_ast_expr(callee), cir_l2_check_ast_args(args))
+        Expr_IdentTail(_, IdentTail_Call(args, _)) => cir_l2_check_ast_args(args)
+        Expr_Field(value, _) => cir_l2_check_ast_expr(value)
+        Expr_Index(value, args) => cir_l2_type_check_merge(cir_l2_check_ast_expr(value), cir_l2_check_ast_args(args))
+        Expr_Assign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_ast_expr(lhs), cir_l2_check_ast_expr(rhs))
+        Expr_If(cond, then_expr, else_expr) => cir_l2_type_check_merge(cir_l2_check_ast_expr(cond), cir_l2_type_check_merge(cir_l2_check_ast_expr(then_expr), cir_l2_check_ast_expr(else_expr)))
+        Expr_Match(value, _) => cir_l2_check_ast_expr(value)
+        Expr_Reset(_, body) => cir_l2_check_ast_expr(body)
+        Expr_Shift(_, _, body) => cir_l2_check_ast_expr(body)
+        Expr_Unsafe(body) => cir_l2_check_ast_expr(body)
+        Expr_Cast(value, _) => cir_l2_check_ast_expr(value)
+        Expr_Prefix(_, value) => cir_l2_check_ast_expr(value)
+        Expr_Binary(_, lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_ast_expr(lhs), cir_l2_check_ast_expr(rhs))
+        _ => CirL2TypeCheckOk
+    }
+
 def cir_l2_check_ast_def(defn: AST, attrs: AST, file_is_metal: i64): CirL2TypeCheck =
     match defn {
-        DefItem(_, _, params, ret, _) => cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal)
+        DefItem(_, _, params, ret, body) => cir_l2_type_check_merge(cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal), cir_l2_check_ast_expr(body))
         DefItem2(_, rest) =>
             match rest {
-                DefFun(_, params, ret, _) => cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal)
-                DefConst(ret, _) => cir_l2_check_ast_item_signature(Param_End, ret, attrs, file_is_metal)
+                DefFun(_, params, ret, body) => cir_l2_type_check_merge(cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal), cir_l2_check_ast_expr(body))
+                DefConst(ret, value) => cir_l2_type_check_merge(cir_l2_check_ast_item_signature(Param_End, ret, attrs, file_is_metal), cir_l2_check_ast_expr(value))
                 _ => CirL2TypeCheckOk
             }
         _ => CirL2TypeCheckOk
