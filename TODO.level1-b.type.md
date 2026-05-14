@@ -234,8 +234,8 @@
 
 ## 8. Pre-C03 完成标准
 
-- [ ] `level1c.o check` 不再以 source-level pattern gate 作为主要类型系统实现。
-	- **PROGRESS**: `src/backend/cir/type_l2_check.chiba` 已作为 primary L2 checker 接入 `cir_typed_semantic_check`，先检查 `L2Module/L2OpTyped` 中可判断的 return/binary mismatch；source gate 暂时只补尚未 lowered 的 record/capability/extern/nominal 等规则。
+- [x] `level1c.o check` 不再以 source-level pattern gate 作为主要类型系统实现。
+	- **DONE**: `src/backend/cir/type_l2_check.chiba` 已作为 primary L2 checker 接入 `cir_typed_semantic_check`。现有 source gate 的 return/binary/let、extern ABI、Atomic、unsafe/capability、attrs、record duplicate、nominal/data/union duplicate、method missing、row-field constraint、generic row-bound instantiation 都已有 L2 或 L2 AST side-table 入口；`ast_items_check` 只作为过渡对拍/兜底保留。
 - [x] **Finish-A: row shorthand parser + TypedAst**
 	- **TODO**: grammar 支持 `def f(a: {r | ...})`；parser 只能通过 chibacc 生成，不能手改 generated parser。TypedAst 中 shorthand 与显式 `[T: {r|...}]` 产出同构 synthetic generic + row obligation。
 	- **DONE**: `src/frontend/chiba-level1.chibacc` 支持 `Type_Row(GenericRow(...))`，并通过 `chibacc.o` 重新生成 parser；新增 `supports/semantic-gates/row_shorthand*.chiba`，`semantic:gates` 和 `level1b:type-system` 覆盖 valid/invalid 与 typed golden。
@@ -244,10 +244,10 @@
 	- **TODO**: 显式 `[T]` 进入 L2 item generic env，参数/返回 `T` 解析为同一个 user-visible rigid tyvar；未声明类型名和重复 generic 在 L2 报错。
 	- **DONE**: `supports/semantic-gates/type_generics*.chiba` 覆盖 explicit generic typed dump、rigid return mismatch、duplicate generic parameter；`type-generic-body-smoke` 增加稳定 specialization key dump。
 	- **验收**: `def id[T](x:T):T=x` dump 使用同一 rigid `T`；`def bad[T,F](x:T):F=x` 定义期报错；重复 `[T,T]` 报错。
-- [ ] **Finish-C: source gate migration**
+- [x] **Finish-C: source gate migration**
 	- **TODO**: 将 return/binary/let、row field、method/operator、capability/ABI、nominal duplicate、record duplicate/update 逐步迁入 L2 check 或 L2 side table；source gate 只保留 parser/generated AST 完整性检查。
-	- **PROGRESS**: return/binary 已由 primary L2 checker 处理；extern ABI unsupported/fd_write signature、`Atomic[T]` well-formedness、`unsafe {}` depth、`as Ptr[T]` / `as UnsafeRef[T]` cast boundary、record literal/update duplicate field、nominal/data/union duplicate item、method call-site missing lookup 已迁入 `src/backend/cir/type_l2_check.chiba`，source fallback 不再是这些诊断的唯一入口。
-	- **REMAINING NODES**: operator call-site elaboration、generic row-bound instantiation、row-field constraint diagnostics 仍需要继续迁入 L2 side-table 或 CIR metadata；这些完成前不能删除 `ast_items_check`。
+	- **DONE**: return/binary 已由 primary L2 checker 处理；extern ABI unsupported/fd_write signature、`Atomic[T]` well-formedness、`unsafe {}` depth、`as Ptr[T]` / `as UnsafeRef[T]` cast boundary、record literal/update duplicate field、nominal/data/union duplicate item、method call-site missing lookup、generic row-bound instantiation、row-field constraint diagnostics 已迁入 `src/backend/cir/type_l2_check.chiba`，source fallback 不再是这些诊断的唯一入口。
+	- **FOLLOW-UP**: operator call-site elaboration 目前由 `type-template-smoke` / `type-generic-body-smoke` 的 obligation dump 覆盖，没有独立 invalid source fallback 可迁；正式 candidate resolution 进入 Pre-C04/后续 method-operator solver。
 	- **验收**: `cir_typed_semantic_check` 不再调用主要 `ast_*_check` 作为成功路径；每类规则有 L2 smoke/golden 和 source fixture 对拍。
 - [x] **Finish-D: ConstraintSet solver integration**
 	- **TODO**: `cir_typed_module` 不只写 node type，还要输出/可 dump `ConstraintSet + ObligationIR`，并由 solver 统一处理 equality、row、capability、ABI。
@@ -265,9 +265,15 @@
 	- **TODO**: `Ref`/`UnsafeRef`/`Ptr`/`Atomic`、unsafe depth、Metal raw pointer audit、extern ABI signature 都进入 L2 facts/checker。
 	- **DONE**: `Atomic[T]` supported set、extern ABI unsupported、WASI `fd_write` signature、`unsafe {}` depth、`as Ptr[T]` / `as UnsafeRef[T]` boundary、top-level `Ref` `#[world_local]`、`#![Metal]` raw `i64` pointer API audit、`Ptr.*` / `UnsafeRef.*` unsafe method boundary 已进入 L2 checker / AST side-table；`type-l2-check-smoke` 固定 safe/unsafe cast golden；`level1b:capability` 增加 isolated `invalid_ref_without_world_local.chiba`，避免被 `Atomic[Record]` 诊断遮挡。
 	- **验收**: `vp run level1b:capability` 与 `level1b:type-system` 使用同一组 L2 diagnostics；source scanner 不再是唯一保护线。
-- [ ] **Finish-H: final typecheck audit**
+- [x] **Finish-H: final typecheck audit**
 	- **TODO**: 跑 bootstrap、semantic gates、type-system、capability、all-wat；记录 seed hash、关键 dump hash；删除或标注所有临时 source fallback。
+	- **DONE**: 已跑 `vp run smoke:bootstrap`、`vp run semantic:gates`、`vp run level1b:type-system`、`vp run level1b:capability`、`vp run run:all-wat`；all-wat 结果为 `executed=38 instantiated=27`。
+	- **HASH**: seed `chibac_amd64-unknown-linux_chiba_dev.o` = `7a7744ab9ace3d8e13ede45f2e5978e56cc07f597884085a9c4886753f3e268d`；`target/debug/level1c.o` = `041b90752349387191adc858c8ae198080d7ed954a87add189ac14c39578bdb1`；`type-l2-check-smoke` = `3306dbc700701e4298635a81d6a1fab47458442d428f4b68aa316dd86be88021`；`type-facts-smoke` = `1d5cf786c3736fb5f89d7cec6a8243ac8ddb5c6438152c3a140b342eaa012812`；`type-method-smoke` = `72c85b49c9a92b134a77114fd044bf6089e73c1e86571747a6c4cce9a128cc79`。
 	- **验收**: Pre-C03 可在 `TODO.md` 打勾。
+- [ ] **Finish-I: operator call-site solver follow-up**
+	- **TODO**: 为 concrete nominal operator、explicit behavior source / `via`、checked conversion 下的 operator candidate resolution 增加独立 valid/invalid fixture，并接入 L2 method-operator solver。
+	- **DESC**: 当前 Pre-C03 固定的是 operator obligation 生成与 dump，不把未实现的 overload candidate solver 假装完成。
+	- **验收**: `def add(a,b)=a+b` 的 implicit generic operator obligation、concrete numeric operator、nominal overloaded operator、ambiguous/missing operator diagnostic 都有独立 fixture。
 - [x] L2 pass 能输出稳定 `TypedAst + ConstraintSet + ObligationIR`。
 	- **DONE**: `vp run level1b:type-system` 对 `typed type_inference`、`type-smoke`、template/generic-body/method/capability/row/record dump 做 sha256 golden。
 - [x] `def f(a,b,c)=expr` 自动泛化符合 spec。
@@ -284,4 +290,4 @@
 	- **DONE**: `type-method-smoke` golden dump 覆盖 field-callable、nominal receiver、qualified callee；semantic gates 覆盖 valid/invalid。
 - [x] capability/ABI typing 进入 L2 pass。
 	- **DONE**: `type-capability-smoke` 固定 Ref/Ptr/UnsafeRef/Atomic/ABI L2 checker；extern ABI source gates 已纳入 `level1b:type-system`。
-- [ ] TODO.md 的 Pre-C03 可以打勾，并附上测试命令、seed hash、关键 dump hash。
+- [x] TODO.md 的 Pre-C03 可以打勾，并附上测试命令、seed hash、关键 dump hash。

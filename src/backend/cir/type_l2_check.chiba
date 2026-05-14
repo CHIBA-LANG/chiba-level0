@@ -536,6 +536,280 @@ def cir_l2_check_ast_expr_methods(expr: AST, all_items: AST, params: AST, unsafe
         _ => CirL2TypeCheckOk
     }
 
+def cir_l2_ast_type_path_name(ty: AST): Str =
+    match ty {
+        Type_Path(name, _) => name
+        Type_Atom(name) => name
+        _ => mk_str("", 0)
+    }
+
+def cir_l2_ast_param_type_ast(params: AST, param_name: Str): AST =
+    match params {
+        Param_Cons(head, tail) =>
+            match head {
+                Param(name, ty) =>
+                    if streq(name, param_name) != 0 { ty } else { cir_l2_ast_param_type_ast(tail, param_name) }
+                _ => cir_l2_ast_param_type_ast(tail, param_name)
+            }
+        _ => Type_Path(mk_str("", 0), Type_Tail_End)
+    }
+
+def cir_l2_ast_generic_row_has_field(fields: AST, field: Str): i64 =
+    match fields {
+        GenericRowField_Cons(head, tail) =>
+            match head {
+                GenericRowField(name, _) =>
+                    if streq(name, field) != 0 { 1 } else { cir_l2_ast_generic_row_has_field(tail, field) }
+                _ => cir_l2_ast_generic_row_has_field(tail, field)
+            }
+        _ => 0
+    }
+
+def cir_l2_ast_generic_bound_has_row_field(bound: AST, field: Str): i64 =
+    match bound {
+        GenericBound_Cons(head, tail) => {
+            let here = match head {
+                GenericBound_Row(row) =>
+                    match row {
+                        GenericRow(_, fields) => cir_l2_ast_generic_row_has_field(fields, field)
+                        _ => 0
+                    }
+                _ => 0
+            }
+            if here != 0 { 1 } else { cir_l2_ast_generic_bound_has_row_field(tail, field) }
+        }
+        _ => 0
+    }
+
+def cir_l2_ast_generic_has_name(generics: AST, generic_name: Str): i64 =
+    match generics {
+        Generic_Cons(head, tail) =>
+            match head {
+                GenericParam(name, _) =>
+                    if streq(name, generic_name) != 0 { 1 } else { cir_l2_ast_generic_has_name(tail, generic_name) }
+                _ => cir_l2_ast_generic_has_name(tail, generic_name)
+            }
+        _ => 0
+    }
+
+def cir_l2_ast_generic_has_row_field(generics: AST, generic_name: Str, field: Str): i64 =
+    match generics {
+        Generic_Cons(head, tail) =>
+            match head {
+                GenericParam(name, bound) =>
+                    if streq(name, generic_name) != 0 { cir_l2_ast_generic_bound_has_row_field(bound, field) }
+                    else { cir_l2_ast_generic_has_row_field(tail, generic_name, field) }
+                _ => cir_l2_ast_generic_has_row_field(tail, generic_name, field)
+            }
+        _ => 0
+    }
+
+def cir_l2_ast_type_row_has_field(ty: AST, field: Str): i64 =
+    match ty {
+        Type_Row(row) =>
+            match row {
+                GenericRow(_, fields) => cir_l2_ast_generic_row_has_field(fields, field)
+                _ => 0
+            }
+        _ => 0
+    }
+
+def cir_l2_check_ast_row_field(value: AST, field: Str, params: AST, generics: AST): CirL2TypeCheck =
+    match value {
+        Expr_IdentTail(name, IdentTail_None) => {
+            let param_ty = cir_l2_ast_param_type_name(params, name)
+            let param_ty_ast = cir_l2_ast_param_type_ast(params, name)
+            if param_ty.len != 0 && cir_l2_ast_generic_has_name(generics, param_ty) != 0 && cir_l2_ast_generic_has_row_field(generics, param_ty, field) == 0 {
+                cir_l2_type_check_err("row constraint missing field id")
+            } else if cir_l2_ast_type_row_has_field(param_ty_ast, field) == 0 {
+                match param_ty_ast {
+                    Type_Row(_) => cir_l2_type_check_err("row constraint missing field id")
+                    _ => CirL2TypeCheckOk
+                }
+            } else { CirL2TypeCheckOk }
+        }
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_ast_record_body_has_field(body: AST, field: Str): i64 =
+    match body {
+        Record_First(first, tail) =>
+            if streq(first, field) != 0 { 1 } else { cir_l2_ast_record_fields_has(cir_l2_ast_record_tail_fields(tail), field) }
+        Record_Update(_, fields) => cir_l2_ast_record_fields_has(fields, field)
+        Record_Fields(fields) => cir_l2_ast_record_fields_has(fields, field)
+        _ => 0
+    }
+
+def cir_l2_ast_generic_row_fields_satisfied(fields: AST, record_body: AST): CirL2TypeCheck =
+    match fields {
+        GenericRowField_Cons(head, tail) =>
+            match head {
+                GenericRowField(name, _) =>
+                    if cir_l2_ast_record_body_has_field(record_body, name) == 0 { cir_l2_type_check_err("generic instantiation missing field name") }
+                    else { cir_l2_ast_generic_row_fields_satisfied(tail, record_body) }
+                _ => cir_l2_ast_generic_row_fields_satisfied(tail, record_body)
+            }
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_ast_generic_bound_record_satisfied(bound: AST, record_body: AST): CirL2TypeCheck =
+    match bound {
+        GenericBound_Cons(head, tail) => {
+            let here = match head {
+                GenericBound_Row(row) =>
+                    match row {
+                        GenericRow(_, fields) => cir_l2_ast_generic_row_fields_satisfied(fields, record_body)
+                        _ => CirL2TypeCheckOk
+                    }
+                _ => CirL2TypeCheckOk
+            }
+            cir_l2_type_check_merge(here, cir_l2_ast_generic_bound_record_satisfied(tail, record_body))
+        }
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_ast_generics_record_satisfied(generics: AST, generic_name: Str, record_body: AST): CirL2TypeCheck =
+    match generics {
+        Generic_Cons(head, tail) =>
+            match head {
+                GenericParam(name, bound) =>
+                    if streq(name, generic_name) != 0 { cir_l2_ast_generic_bound_record_satisfied(bound, record_body) }
+                    else { cir_l2_ast_generics_record_satisfied(tail, generic_name, record_body) }
+                _ => cir_l2_ast_generics_record_satisfied(tail, generic_name, record_body)
+            }
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_ast_first_param_type_name(params: AST): Str =
+    match params {
+        Param_Cons(head, _) =>
+            match head {
+                Param(_, ty) => cir_l2_ast_type_path_name(ty)
+                _ => mk_str("", 0)
+            }
+        _ => mk_str("", 0)
+    }
+
+def cir_l2_ast_def_generics_from_name(name_ast: AST): AST =
+    match name_ast {
+        DefName(_, generics, _) => generics
+        _ => Generic_End
+    }
+
+def cir_l2_ast_def_params(rest: AST): AST =
+    match rest {
+        DefFun(_, params, _, _) => params
+        _ => Param_End
+    }
+
+def cir_l2_ast_item_def_generics(defn: AST): AST =
+    match defn {
+        DefItem(_, generics, _, _, _) => generics
+        DefItem2(name_ast, _) => cir_l2_ast_def_generics_from_name(name_ast)
+        _ => Generic_End
+    }
+
+def cir_l2_ast_item_def_params_from_defn(defn: AST): AST =
+    match defn {
+        DefItem(_, _, params, _, _) => params
+        DefItem2(_, rest) => cir_l2_ast_def_params(rest)
+        _ => Param_End
+    }
+
+def cir_l2_check_ast_record_instantiation_item(item: AST, callee: Str, record_body: AST): CirL2TypeCheck =
+    match item {
+        Item_WithAttrs(_, inner) => cir_l2_check_ast_record_instantiation_item(inner, callee, record_body)
+        Item_Def(defn) => {
+            let name = cir_l2_ast_item_def_name(defn)
+            if streq(name, callee) != 0 {
+                let generic_name = cir_l2_ast_first_param_type_name(cir_l2_ast_item_def_params_from_defn(defn))
+                cir_l2_ast_generics_record_satisfied(cir_l2_ast_item_def_generics(defn), generic_name, record_body)
+            } else { CirL2TypeCheckOk }
+        }
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_record_instantiation_items(items: AST, callee: Str, record_body: AST): CirL2TypeCheck =
+    match items {
+        Item_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_record_instantiation_item(head, callee, record_body), cir_l2_check_ast_record_instantiation_items(tail, callee, record_body))
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_ast_args_first_record(args: AST): AST =
+    match args {
+        Arg_Cons(head, _) =>
+            match head {
+                Expr_Record(body) => body
+                _ => Record_Fields(RecordField_End)
+            }
+        _ => Record_Fields(RecordField_End)
+    }
+
+def cir_l2_ast_args_first_is_record(args: AST): i64 =
+    match args {
+        Arg_Cons(head, _) =>
+            match head {
+                Expr_Record(_) => 1
+                _ => 0
+            }
+        _ => 0
+    }
+
+def cir_l2_check_ast_template_instantiation(callee_name: Str, args: AST, all_items: AST): CirL2TypeCheck =
+    if cir_l2_ast_args_first_is_record(args) != 0 { cir_l2_check_ast_record_instantiation_items(all_items, callee_name, cir_l2_ast_args_first_record(args)) }
+    else { CirL2TypeCheckOk }
+
+def cir_l2_check_ast_args_rows(args: AST, all_items: AST, params: AST, generics: AST): CirL2TypeCheck =
+    match args {
+        Arg_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(head, all_items, params, generics), cir_l2_check_ast_args_rows(tail, all_items, params, generics))
+        ExprList_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(head, all_items, params, generics), cir_l2_check_ast_args_rows(tail, all_items, params, generics))
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_stmt_rows(stmt: AST, all_items: AST, params: AST, generics: AST): CirL2TypeCheck =
+    match stmt {
+        Stmt_Expr(value) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Stmt_Return(value) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Stmt_Assign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(lhs, all_items, params, generics), cir_l2_check_ast_expr_rows(rhs, all_items, params, generics))
+        Stmt_Let(_, value) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Stmt_LetPattern(_, value) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Stmt_LetPatternTyped(_, _, value) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Stmt_For(_, cond, body) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(cond, all_items, params, generics), cir_l2_check_ast_expr_rows(body, all_items, params, generics))
+        Stmt_WithAttrs(_, inner) => cir_l2_check_ast_stmt_rows(inner, all_items, params, generics)
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_stmts_rows(stmts: AST, all_items: AST, params: AST, generics: AST): CirL2TypeCheck =
+    match stmts {
+        Stmt_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_stmt_rows(head, all_items, params, generics), cir_l2_check_ast_stmts_rows(tail, all_items, params, generics))
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_tail_rows(tail: AST, all_items: AST, params: AST, generics: AST): CirL2TypeCheck =
+    match tail {
+        TailExpr_Some(value) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        _ => CirL2TypeCheckOk
+    }
+
+def cir_l2_check_ast_expr_rows(expr: AST, all_items: AST, params: AST, generics: AST): CirL2TypeCheck =
+    match expr {
+        Expr_Block(stmts, tail) => cir_l2_type_check_merge(cir_l2_check_ast_stmts_rows(stmts, all_items, params, generics), cir_l2_check_ast_tail_rows(tail, all_items, params, generics))
+        Expr_Call(callee, args) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(callee, all_items, params, generics), cir_l2_check_ast_args_rows(args, all_items, params, generics))
+        Expr_IdentTail(name, IdentTail_Call(args, _)) => cir_l2_type_check_merge(cir_l2_check_ast_template_instantiation(name, args, all_items), cir_l2_check_ast_args_rows(args, all_items, params, generics))
+        Expr_Field(value, field) => cir_l2_type_check_merge(cir_l2_check_ast_row_field(value, field, params, generics), cir_l2_check_ast_expr_rows(value, all_items, params, generics))
+        Expr_Index(value, args) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(value, all_items, params, generics), cir_l2_check_ast_args_rows(args, all_items, params, generics))
+        Expr_Assign(lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(lhs, all_items, params, generics), cir_l2_check_ast_expr_rows(rhs, all_items, params, generics))
+        Expr_If(cond, then_expr, else_expr) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(cond, all_items, params, generics), cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(then_expr, all_items, params, generics), cir_l2_check_ast_expr_rows(else_expr, all_items, params, generics)))
+        Expr_Match(value, _) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Expr_Reset(_, body) => cir_l2_check_ast_expr_rows(body, all_items, params, generics)
+        Expr_Shift(_, _, body) => cir_l2_check_ast_expr_rows(body, all_items, params, generics)
+        Expr_Unsafe(body) => cir_l2_check_ast_expr_rows(body, all_items, params, generics)
+        Expr_Cast(value, _) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Expr_Prefix(_, value) => cir_l2_check_ast_expr_rows(value, all_items, params, generics)
+        Expr_Binary(_, lhs, rhs) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(lhs, all_items, params, generics), cir_l2_check_ast_expr_rows(rhs, all_items, params, generics))
+        _ => CirL2TypeCheckOk
+    }
+
 def cir_l2_check_ast_args(args: AST): CirL2TypeCheck =
     match args {
         Arg_Cons(head, tail) => cir_l2_type_check_merge(cir_l2_check_ast_expr(head), cir_l2_check_ast_args(tail))
@@ -614,11 +888,17 @@ def cir_l2_check_ast_expr(expr: AST): CirL2TypeCheck =
 
 def cir_l2_check_ast_def(defn: AST, attrs: AST, file_is_metal: i64, all_items: AST): CirL2TypeCheck =
     match defn {
-        DefItem(_, _, params, ret, body) => cir_l2_type_check_merge(cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal), cir_l2_type_check_merge(cir_l2_check_ast_expr(body), cir_l2_check_ast_expr_methods(body, all_items, params, 0)))
+        DefItem(_, generics, params, ret, body) => cir_l2_type_check_merge(cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal), cir_l2_type_check_merge(cir_l2_check_ast_expr(body), cir_l2_type_check_merge(cir_l2_check_ast_expr_methods(body, all_items, params, 0), cir_l2_check_ast_expr_rows(body, all_items, params, generics))))
         DefItem2(_, rest) =>
             match rest {
-                DefFun(_, params, ret, body) => cir_l2_type_check_merge(cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal), cir_l2_type_check_merge(cir_l2_check_ast_expr(body), cir_l2_check_ast_expr_methods(body, all_items, params, 0)))
-                DefConst(ret, value) => cir_l2_type_check_merge(cir_l2_check_ast_item_signature(Param_End, ret, attrs, file_is_metal), cir_l2_type_check_merge(cir_l2_check_ast_expr(value), cir_l2_check_ast_expr_methods(value, all_items, Param_End, 0)))
+                DefFun(_, params, ret, body) => {
+                    let generics = cir_l2_ast_item_def_generics(defn)
+                    cir_l2_type_check_merge(cir_l2_check_ast_item_signature(params, ret, attrs, file_is_metal), cir_l2_type_check_merge(cir_l2_check_ast_expr(body), cir_l2_type_check_merge(cir_l2_check_ast_expr_methods(body, all_items, params, 0), cir_l2_check_ast_expr_rows(body, all_items, params, generics))))
+                }
+                DefConst(ret, value) => {
+                    let generics = cir_l2_ast_item_def_generics(defn)
+                    cir_l2_type_check_merge(cir_l2_check_ast_item_signature(Param_End, ret, attrs, file_is_metal), cir_l2_type_check_merge(cir_l2_check_ast_expr(value), cir_l2_type_check_merge(cir_l2_check_ast_expr_methods(value, all_items, Param_End, 0), cir_l2_check_ast_expr_rows(value, all_items, Param_End, generics))))
+                }
                 _ => CirL2TypeCheckOk
             }
         _ => CirL2TypeCheckOk
