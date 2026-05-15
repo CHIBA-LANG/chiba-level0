@@ -126,3 +126,4 @@
 - `106-test.chiba`：带泛型和 row bound 的 `type` 记录字段缺类型。应报错。
 - `107-test.chiba`：带泛型和 row bound 的 `data` 记录字段缺类型。应报错。
 - `108-test.chiba`：receiver generics 后的方法 generics 缺逗号。应报错。
+- `109-test.chiba`：`if let` 缺显式 `else`。应报错。
