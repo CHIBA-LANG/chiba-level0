@@ -70,7 +70,7 @@ function checkSyntaxSurface() {
   const parsed = parse(path.join(ROOT, "syntax/checkpoint_surface.chiba"));
   assertIncludes(name, parsed, [
     "StringPart_Expr",
-    "IdentTail_GenericCall",
+    "Expr_Index",
     "IfCond_Let",
     "PatternIdent_Call",
     "Expr_PipeHole",
@@ -128,8 +128,9 @@ function checkOperatorIndexing() {
   const file = path.join(ROOT, "correctness/index_operator_surface.chiba");
   const source = read(file);
   assertIncludes(name, source, ["def Bag.op_index", "def Bag.op_index_slice", "bag[0]", "bag[0..4]"]);
-  const parsed = run("./target/debug/level1c.o", ["parse", file]);
-  assert(name, parsed.status === 0 && parsed.stdout.startsWith("Err("), "index fixture should capture current parser gap until bracket postfix is stabilized");
+  const parsed = parse(file);
+  assertIncludes(name, parsed, ["Expr_Index", "OpRange", '"op_index"', '"op_index_slice"']);
+  checkOk(file);
   pass(name);
 }
 

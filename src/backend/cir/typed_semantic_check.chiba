@@ -1137,6 +1137,10 @@ def ast_expr_check(expr: AST, all_items: AST, params: AST, generics: AST, unsafe
     match expr {
         Expr_Unsafe(body) => ast_expr_check(body, all_items, params, generics, unsafe_depth + 1)
         Expr_Block(stmts, tail) => cir_typed_semantic_merge(ast_stmt_list_check(stmts, all_items, params, generics, unsafe_depth), ast_expr_check(tail, all_items, params, generics, unsafe_depth))
+        Expr_Call(Expr_Index(Expr_IdentTail(_, IdentTail_None), _), args) =>
+            ast_expr_check_args(args, all_items, params, generics, unsafe_depth)
+        Expr_Call(Expr_Index(Expr_Name(_), _), args) =>
+            ast_expr_check_args(args, all_items, params, generics, unsafe_depth)
         Expr_Call(callee, args) => cir_typed_semantic_merge(ast_expr_check_atomic_call(callee, args), cir_typed_semantic_merge(ast_expr_check_method_call(callee, args, all_items, params, generics, unsafe_depth), cir_typed_semantic_merge(ast_expr_check(callee, all_items, params, generics, unsafe_depth), ast_expr_check_args(args, all_items, params, generics, unsafe_depth))))
         Expr_IdentTail(name, IdentTail_Call(args, _)) => cir_typed_semantic_merge(ast_expr_check_template_instantiation(name, args, all_items), ast_expr_check_args(args, all_items, params, generics, unsafe_depth))
         Expr_IdentTail(_, IdentTail_GenericCall(_, args)) => ast_expr_check_args(args, all_items, params, generics, unsafe_depth)

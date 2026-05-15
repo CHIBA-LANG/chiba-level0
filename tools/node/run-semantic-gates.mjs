@@ -288,9 +288,8 @@ function checkStringSlice() {
   const source = read(path.join(ROOT, "string_slice.chiba"));
   assert(name, source.includes("${text}"), "string interpolation smoke missing");
   assert(name, source.includes('r#"raw ${text} stays raw"#'), "raw string smoke missing");
-  const indexFixture = read("supports/checkpoint/correctness/index_operator_surface.chiba");
-  assert(name, /bag\[0\]/.test(indexFixture), "index source smoke missing");
-  assert(name, /bag\[0\.\.4\]/.test(indexFixture), "slice source smoke missing");
+  assert(name, /text\[0\]/.test(source), "string byte index smoke missing");
+  assert(name, /text\[0\.\.4\]/.test(source), "string slice smoke missing");
   assert(name, /text\.char_at\(0\)/.test(source), "explicit char_at smoke missing");
   const wat = read(path.join(WAT_DIR, "string_slice.wat"));
   assert(name, wat.includes("(type $array_u8 (array (mut i8)))"), "WAT backing byte array layout missing");
@@ -299,6 +298,9 @@ function checkStringSlice() {
   assert(name, wat.includes("i32.const 114") && wat.includes("i32.const 119"), "raw string literal byte payload missing");
   assert(name, wat.includes("call $__chiba_string_concat2"), "string interpolation does not call concat runtime");
   assert(name, wat.includes("(param $v1 (ref $array_u8))"), "String parameter does not lower to Array[u8] ref");
+  assert(name, wat.includes("call $__chiba_string_byte_at"), "string byte index does not lower to byte-at helper");
+  assert(name, wat.includes("call $__chiba_string_slice"), "string range index does not lower to slice helper");
+  assert(name, wat.includes("struct.new $slice_u8"), "string slice does not build slice_u8 object");
   assert(name, wat.includes("call $__chiba_string_codepoint_at"), "char_at/codepoint_at does not lower to UTF-8 codepoint helper");
   pass(name);
 }
@@ -311,6 +313,7 @@ function checkStringReturnAbi() {
   assert(name, /\(local \$v[0-9]+ \(ref \$array_u8\)\)/.test(wat), "String-returning call result does not bind to Array[u8] local");
   assert(name, wat.includes("call $string_return_value"), "String-returning helper call missing");
   assert(name, wat.includes("call $string_return_inferred"), "Inferred String-returning helper call missing");
+  assert(name, (wat.match(/call \$__chiba_string_byte_at/g) || []).length >= 2, "String-returning byte index ABI smoke missing");
   pass(name);
 }
 

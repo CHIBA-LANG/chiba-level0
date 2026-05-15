@@ -283,6 +283,14 @@ def cir_lower_pipe_expr(lhs: AST, rhs: AST): CirExpr =
             L0OpCall(L0OpName(name), cir_pipe_call_args(lhs, rhs, args))
         Expr_IdentTail(name, IdentTail_GenericCall(_, args)) =>
             L0OpCall(L0OpName(name), cir_pipe_call_args(lhs, rhs, args))
+        Expr_Index(Expr_IdentTail(name, IdentTail_None), _) =>
+            L0OpCall(L0OpName(name), CirExprCons(cir_lower_expr(lhs), CirExprEnd))
+        Expr_Index(Expr_Name(name), _) =>
+            L0OpCall(L0OpName(name), CirExprCons(cir_lower_expr(lhs), CirExprEnd))
+        Expr_Call(Expr_Index(Expr_IdentTail(name, IdentTail_None), _), args) =>
+            L0OpCall(L0OpName(name), cir_pipe_call_args(lhs, rhs, args))
+        Expr_Call(Expr_Index(Expr_Name(name), _), args) =>
+            L0OpCall(L0OpName(name), cir_pipe_call_args(lhs, rhs, args))
         Expr_Call(callee, args) =>
             if cir_ast_pipe_holes(callee) != 0 {
                 cir_l0_unsupported(rhs, mk_str("pipe callee hole unsupported", 28))
@@ -316,6 +324,10 @@ def cir_lower_expr(ast: AST): CirExpr =
         Expr_Match(value, arms) => L0OpMatch(cir_lower_expr(value), cir_lower_match_arms(arms))
         Expr_Reset(label, body) => L0OpReset(cir_lower_control_label(label), cir_lower_expr(body))
         Expr_Shift(label, name, body) => L0OpShift(cir_lower_control_label(label), name, cir_lower_expr(body))
+        Expr_Call(Expr_Index(Expr_IdentTail(name, IdentTail_None), _), args) =>
+            L0OpCall(L0OpName(name), cir_lower_expr_list(args))
+        Expr_Call(Expr_Index(Expr_Name(name), _), args) =>
+            L0OpCall(L0OpName(name), cir_lower_expr_list(args))
         Expr_Call(callee, args) => L0OpCall(cir_lower_expr(callee), cir_lower_expr_list(args))
         Expr_Field(value, field) => L0OpField(cir_lower_expr(value), field)
         Expr_Index(value, args) => L0OpIndex(cir_lower_expr(value), cir_lower_expr_list(args))

@@ -667,6 +667,10 @@ def cir_l2_check_ast_tail_methods(tail: AST, all_items: AST, params: AST, generi
 def cir_l2_check_ast_expr_methods(expr: AST, all_items: AST, params: AST, generics: AST, unsafe_depth: i64): CirL2TypeCheck =
     match expr {
         Expr_Block(stmts, tail) => cir_l2_type_check_merge(cir_l2_check_ast_stmts_methods(stmts, all_items, params, generics, unsafe_depth), cir_l2_check_ast_tail_methods(tail, all_items, params, generics, unsafe_depth))
+        Expr_Call(Expr_Index(Expr_IdentTail(_, IdentTail_None), _), args) =>
+            cir_l2_check_ast_args_methods(args, all_items, params, generics, unsafe_depth)
+        Expr_Call(Expr_Index(Expr_Name(_), _), args) =>
+            cir_l2_check_ast_args_methods(args, all_items, params, generics, unsafe_depth)
         Expr_Call(callee, args) => cir_l2_type_check_merge(cir_l2_check_ast_method_call(callee, all_items, params, unsafe_depth), cir_l2_type_check_merge(cir_l2_check_ast_expr_methods(callee, all_items, params, generics, unsafe_depth), cir_l2_check_ast_args_methods(args, all_items, params, generics, unsafe_depth)))
         Expr_IdentTail(_, IdentTail_Call(args, _)) => cir_l2_check_ast_args_methods(args, all_items, params, generics, unsafe_depth)
         Expr_IdentTail(_, IdentTail_GenericCall(_, args)) => cir_l2_check_ast_args_methods(args, all_items, params, generics, unsafe_depth)
@@ -944,6 +948,10 @@ def cir_l2_check_ast_tail_rows(tail: AST, all_items: AST, params: AST, generics:
 def cir_l2_check_ast_expr_rows(expr: AST, all_items: AST, params: AST, generics: AST): CirL2TypeCheck =
     match expr {
         Expr_Block(stmts, tail) => cir_l2_type_check_merge(cir_l2_check_ast_stmts_rows(stmts, all_items, params, generics), cir_l2_check_ast_tail_rows(tail, all_items, params, generics))
+        Expr_Call(Expr_Index(Expr_IdentTail(_, IdentTail_None), _), args) =>
+            cir_l2_check_ast_args_rows(args, all_items, params, generics)
+        Expr_Call(Expr_Index(Expr_Name(_), _), args) =>
+            cir_l2_check_ast_args_rows(args, all_items, params, generics)
         Expr_Call(callee, args) => cir_l2_type_check_merge(cir_l2_check_ast_expr_rows(callee, all_items, params, generics), cir_l2_check_ast_args_rows(args, all_items, params, generics))
         Expr_IdentTail(name, IdentTail_Call(args, _)) => cir_l2_type_check_merge(cir_l2_check_ast_template_instantiation(name, args, all_items), cir_l2_check_ast_args_rows(args, all_items, params, generics))
         Expr_IdentTail(_, IdentTail_GenericCall(_, args)) => cir_l2_check_ast_args_rows(args, all_items, params, generics)
@@ -1021,6 +1029,8 @@ def cir_l2_check_ast_expr(expr: AST): CirL2TypeCheck =
     match expr {
         Expr_Record(body) => cir_l2_type_check_merge(cir_l2_check_ast_record_body(body), cir_l2_check_ast_record_body_values(body))
         Expr_Block(stmts, tail) => cir_l2_type_check_merge(cir_l2_check_ast_stmts(stmts), cir_l2_check_ast_tail(tail))
+        Expr_Call(Expr_Index(Expr_IdentTail(_, IdentTail_None), _), args) => cir_l2_check_ast_args(args)
+        Expr_Call(Expr_Index(Expr_Name(_), _), args) => cir_l2_check_ast_args(args)
         Expr_Call(callee, args) => cir_l2_type_check_merge(cir_l2_check_ast_expr(callee), cir_l2_check_ast_args(args))
         Expr_IdentTail(_, IdentTail_Call(args, _)) => cir_l2_check_ast_args(args)
         Expr_IdentTail(_, IdentTail_GenericCall(_, args)) => cir_l2_check_ast_args(args)
