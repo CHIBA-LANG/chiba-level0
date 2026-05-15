@@ -135,6 +135,20 @@ def aststr_ast(out: Str, depth: i64, name: i64, a: Str, b: AST): i64 = {
     astcloseblock(out, depth)
 }
 
+def aststr_str_ast(out: Str, depth: i64, name: i64, a: Str, b: Str, c: AST): i64 = {
+    let _ = astopen(out, name)
+    let child_depth = depth + 1
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, a)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = aststr(out, b)
+    let _ = astcomma(out)
+    let _ = astnewline(out, child_depth)
+    let _ = astwriteat(out, c, child_depth)
+    astcloseblock(out, depth)
+}
+
 def aststr_ast_ast(out: Str, depth: i64, name: i64, a: Str, b: AST, c: AST): i64 = {
     let _ = astopen(out, name)
     let child_depth = depth + 1
@@ -214,6 +228,8 @@ def astwriteat(out: Str, ast: AST, depth: i64): i64 =
         ItemAttr(body) => astnode1(out, depth, "ItemAttr", body)
         Attr(name, args) => aststr_ast(out, depth, "Attr", name, args)
         AttrArg_Cons(name, tail) => aststr_ast(out, depth, "AttrArg_Cons", name, tail)
+        AttrArgString_Cons(value, tail) => aststr_ast(out, depth, "AttrArgString_Cons", value, tail)
+        AttrArgNamedString_Cons(name, value, tail) => aststr_str_ast(out, depth, "AttrArgNamedString_Cons", name, value, tail)
         AttrArg_End => astleaf(out, "AttrArg_End")
         Path_Cons(head, tail) => aststr_ast(out, depth, "Path_Cons", head, tail)
         Path_End => astleaf(out, "Path_End")
@@ -247,9 +263,13 @@ def astwriteat(out: Str, ast: AST, depth: i64): i64 =
         UnionField_Cons(head, tail) => astnode2(out, depth, "UnionField_Cons", head, tail)
         UnionField_End => astleaf(out, "UnionField_End")
         UnionField(name, ty) => aststr_ast(out, depth, "UnionField", name, ty)
+        UnionFieldAttrs(attrs, field) => astnode2(out, depth, "UnionFieldAttrs", attrs, field)
+        UnionPhantomField(ty) => astnode1(out, depth, "UnionPhantomField", ty)
         NominalField_Cons(head, tail) => astnode2(out, depth, "NominalField_Cons", head, tail)
         NominalField_End => astleaf(out, "NominalField_End")
         NominalField(name, ty) => aststr_ast(out, depth, "NominalField", name, ty)
+        NominalFieldAttrs(attrs, field) => astnode2(out, depth, "NominalFieldAttrs", attrs, field)
+        NominalPhantomField(ty) => astnode1(out, depth, "NominalPhantomField", ty)
         InterfaceItem(name, methods) => aststr_ast(out, depth, "InterfaceItem", name, methods)
         InterfaceMethod_Cons(head, tail) => astnode2(out, depth, "InterfaceMethod_Cons", head, tail)
         InterfaceMethod_End => astleaf(out, "InterfaceMethod_End")

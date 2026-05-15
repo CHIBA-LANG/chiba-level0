@@ -310,6 +310,12 @@ def cir_l2_ast_nominal_fields_has(fields: AST, field: Str): i64 =
             match head {
                 NominalField(name, _) =>
                     if streq(name, field) != 0 { 1 } else { cir_l2_ast_nominal_fields_has(tail, field) }
+                NominalFieldAttrs(_, inner) =>
+                    match inner {
+                        NominalField(name, _) =>
+                            if streq(name, field) != 0 { 1 } else { cir_l2_ast_nominal_fields_has(tail, field) }
+                        _ => cir_l2_ast_nominal_fields_has(tail, field)
+                    }
                 _ => cir_l2_ast_nominal_fields_has(tail, field)
             }
         _ => 0
@@ -321,6 +327,12 @@ def cir_l2_ast_nominal_fields_has_duplicate(fields: AST): i64 =
             match head {
                 NominalField(name, _) =>
                     if cir_l2_ast_nominal_fields_has(tail, name) != 0 { 1 } else { cir_l2_ast_nominal_fields_has_duplicate(tail) }
+                NominalFieldAttrs(_, inner) =>
+                    match inner {
+                        NominalField(name, _) =>
+                            if cir_l2_ast_nominal_fields_has(tail, name) != 0 { 1 } else { cir_l2_ast_nominal_fields_has_duplicate(tail) }
+                        _ => cir_l2_ast_nominal_fields_has_duplicate(tail)
+                    }
                 _ => cir_l2_ast_nominal_fields_has_duplicate(tail)
             }
         _ => 0
@@ -332,6 +344,12 @@ def cir_l2_ast_union_fields_has(fields: AST, field: Str): i64 =
             match head {
                 UnionField(name, _) =>
                     if streq(name, field) != 0 { 1 } else { cir_l2_ast_union_fields_has(tail, field) }
+                UnionFieldAttrs(_, inner) =>
+                    match inner {
+                        UnionField(name, _) =>
+                            if streq(name, field) != 0 { 1 } else { cir_l2_ast_union_fields_has(tail, field) }
+                        _ => cir_l2_ast_union_fields_has(tail, field)
+                    }
                 _ => cir_l2_ast_union_fields_has(tail, field)
             }
         _ => 0
@@ -343,6 +361,12 @@ def cir_l2_ast_union_fields_has_duplicate(fields: AST): i64 =
             match head {
                 UnionField(name, _) =>
                     if cir_l2_ast_union_fields_has(tail, name) != 0 { 1 } else { cir_l2_ast_union_fields_has_duplicate(tail) }
+                UnionFieldAttrs(_, inner) =>
+                    match inner {
+                        UnionField(name, _) =>
+                            if cir_l2_ast_union_fields_has(tail, name) != 0 { 1 } else { cir_l2_ast_union_fields_has_duplicate(tail) }
+                        _ => cir_l2_ast_union_fields_has_duplicate(tail)
+                    }
                 _ => cir_l2_ast_union_fields_has_duplicate(tail)
             }
         _ => 0

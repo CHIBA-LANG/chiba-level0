@@ -56,12 +56,16 @@ rule attr_body_after_ident ::=
     ;
 
 rule attr_arg_list_opt ::= 
-    name:Ident _:trivia_list tail:attr_arg_tail => AttrArg_Cons(name, tail)
+    StringStart value:StringChunk StringEnd _:trivia_list tail:attr_arg_tail => AttrArgString_Cons(value, tail)
+    | name:Ident _:trivia_list Eq _:trivia_list StringStart value:StringChunk StringEnd _:trivia_list tail:attr_arg_tail => AttrArgNamedString_Cons(name, value, tail)
+    | name:Ident _:trivia_list tail:attr_arg_tail => AttrArg_Cons(name, tail)
     | => AttrArg_End
     ;
 
 rule attr_arg_tail ::= 
-    Comma _:trivia_list name:Ident _:trivia_list tail:attr_arg_tail => AttrArg_Cons(name, tail)
+    Comma _:trivia_list StringStart value:StringChunk StringEnd _:trivia_list tail:attr_arg_tail => AttrArgString_Cons(value, tail)
+    | Comma _:trivia_list name:Ident _:trivia_list Eq _:trivia_list StringStart value:StringChunk StringEnd _:trivia_list tail:attr_arg_tail => AttrArgNamedString_Cons(name, value, tail)
+    | Comma _:trivia_list name:Ident _:trivia_list tail:attr_arg_tail => AttrArg_Cons(name, tail)
     | => AttrArg_End
     ;
 
@@ -179,7 +183,13 @@ rule nominal_field_tail ::=
     ;
 
 rule nominal_field ::= 
+    attrs:item_attr_nonempty_list field:nominal_field_core => NominalFieldAttrs(attrs, field)
+    | field:nominal_field_core => field
+    ;
+
+rule nominal_field_core ::= 
     name:Ident Colon _:trivia_list ty:type_expr => NominalField(name, ty)
+    | Underscore Colon _:trivia_list ty:type_expr => NominalPhantomField(ty)
     ;
 
 rule data_variant_list ::= 
@@ -237,7 +247,13 @@ rule union_field_after_comma ::=
     ;
 
 rule union_field ::= 
+    attrs:item_attr_nonempty_list field:union_field_core => UnionFieldAttrs(attrs, field)
+    | field:union_field_core => field
+    ;
+
+rule union_field_core ::= 
     name:Ident Colon _:trivia_list ty:type_expr => UnionField(name, ty)
+    | Underscore Colon _:trivia_list ty:type_expr => UnionPhantomField(ty)
     ;
 
 rule interface_item ::= 
@@ -942,6 +958,8 @@ rule arg_tail ::=
         ItemAttr(AST),
         Attr(Str, AST),
         AttrArg_Cons(Str, AST),
+        AttrArgString_Cons(Str, AST),
+        AttrArgNamedString_Cons(Str, Str, AST),
         AttrArg_End,
 
         Path_Cons(Str, AST),
@@ -978,9 +996,13 @@ rule arg_tail ::=
         UnionField_Cons(AST, AST),
         UnionField_End,
         UnionField(Str, AST),
+        UnionFieldAttrs(AST, AST),
+        UnionPhantomField(AST),
         NominalField_Cons(AST, AST),
         NominalField_End,
         NominalField(Str, AST),
+        NominalFieldAttrs(AST, AST),
+        NominalPhantomField(AST),
         InterfaceItem(Str, AST),
         InterfaceMethod_Cons(AST, AST),
         InterfaceMethod_End,

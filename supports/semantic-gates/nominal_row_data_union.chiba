@@ -10,6 +10,18 @@ type Account {
     id: i64,
 }
 
+type PhantomTagged {
+    _: i64,
+    _: Str,
+    value: i64,
+}
+
+#[repr("C")]
+type CUnderscoreField {
+    #[cname(field="_")]
+    field: i64,
+}
+
 data Span {
     start: i64,
     end: i64,
@@ -18,6 +30,12 @@ data Span {
 union Payload {
     id: i64,
     name: Str,
+}
+
+union PhantomPayload {
+    _: i64,
+    _: Str,
+    value: i64,
 }
 
 def User.display(self: User): i64 = self.id
