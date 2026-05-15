@@ -1,0 +1,20 @@
+namespace semantic.gates.pipe
+
+def inc(value: i64): i64 = value + 1
+
+def add(left: i64, right: i64): i64 = left + right
+
+def finish(value: i64): i64 = value * 2
+
+def pipe_default(value: i64): i64 =
+    value |> inc |> finish
+
+def pipe_hole(value: i64): i64 =
+    value |> add(10, _) |> finish
+
+def weak_param(_: i64, value: i64): i64 = value
+
+def main(): i64 = {
+    let _ = weak_param(99, 1)
+    pipe_default(3) + pipe_hole(4)
+}

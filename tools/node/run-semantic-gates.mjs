@@ -45,6 +45,7 @@ const GATE_FILES = [
   "continuation_scheme_multi.chiba",
   "string_slice.chiba",
   "string_return.chiba",
+  "pipe.chiba",
   "namespace/part_a.chiba",
   "namespace/part_b.chiba",
   "namespace/use_both.chiba",
@@ -63,6 +64,7 @@ const WAT_GATE_FILES = [
   "type_unify.chiba",
   "type_inference.chiba",
   "extern_abi.chiba",
+  "pipe.chiba",
   "namespace/part_a.chiba",
   "namespace/part_b.chiba",
 ];
@@ -314,6 +316,31 @@ function checkStringReturnAbi() {
   pass(name);
 }
 
+function checkPipeLowering() {
+  const name = "pipe parser and codegen gates";
+  const file = path.join(ROOT, "pipe.chiba");
+  const parsed = run("./target/debug/level1c.o", ["parse", file]);
+  assert(name, parsed.status === 0 && parsed.stdout.includes("OpPipeGt"), parsed.stdout || parsed.stderr);
+  assert(name, /Expr_IdentTail\(\s+"_"/.test(parsed.stdout), "underscore must remain a weak ident in the parser AST");
+
+  const cir = run("./target/debug/level1c.o", ["cir", file]);
+  assert(name, cir.status === 0, cir.stdout || cir.stderr);
+  assert(name, !cir.stdout.includes("binary |>"), "pipe must desugar before CIR binary lowering");
+  assert(name, cir.stdout.includes('L1RefUnresolved("inc")'), "default pipe must lower to inc(lhs)");
+  assert(name, cir.stdout.includes('L1RefUnresolved("add")'), "placeholder pipe must lower to add(...lhs...)");
+  assert(name, cir.stdout.includes("L1StmtExpr") && cir.stdout.includes('L1RefUnresolved("weak_param")'), "let _ must lower as a discard expression statement");
+
+  const wat = read(path.join(WAT_DIR, "pipe.wat"));
+  assert(name, !wat.includes("unsupported-binary"), "pipe WAT must not use unsupported binary fallback");
+  assert(name, wat.includes("call $inc"), "default pipe WAT call to inc missing");
+  assert(name, wat.includes("call $add"), "placeholder pipe WAT call to add missing");
+  assert(name, wat.includes("call $finish"), "pipe chain WAT call to finish missing");
+
+  const runWat = run(process.execPath, ["tools/node/run-wat.mjs", path.join(WAT_DIR, "pipe.wat"), "--invoke", "main"]);
+  assert(name, runWat.status === 0 && runWat.stdout.trim() === "36", runWat.stdout || runWat.stderr);
+  pass(name);
+}
+
 function extractNamespace(source) {
   const match = source.match(/\bnamespace\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)/);
   return match ? match[1] : "";
@@ -537,6 +564,7 @@ checkCheckedTemplateInstantiation();
 checkNamespaceMerge();
 checkStringSlice();
 checkStringReturnAbi();
+checkPipeLowering();
 checkMemory();
 checkTypeInference();
 checkTypeGenerics();

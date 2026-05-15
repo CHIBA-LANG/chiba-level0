@@ -77,6 +77,11 @@ rule path_name ::=
     name:Ident => name
     ;
 
+rule weak_ident ::=
+    name:Ident => name
+    | Underscore => mk_str("_", 1)
+    ;
+
 rule path_tail ::= 
     Dot rest:path => rest
     | => Path_End
@@ -323,7 +328,7 @@ rule param ::=
     ;
 
 rule param_name ::= 
-    name:Ident => name
+    name:weak_ident => name
     | KwSelf => mk_str("self", 4)
     ;
 
@@ -626,7 +631,7 @@ rule asm_string_list ::=
     ;
 
 rule pattern ::= 
-    name:Ident rest:pattern_after_ident => Pattern_IdentStart(name, rest)
+    name:weak_ident rest:pattern_after_ident => Pattern_IdentStart(name, rest)
     | atom:pattern_atom_no_ident => atom
     ;
 
@@ -636,7 +641,7 @@ rule pattern_after_ident ::=
     ;
 
 rule pattern_atom ::= 
-    name:Ident rest:pattern_after_ident => Pattern_IdentStart(name, rest)
+    name:weak_ident rest:pattern_after_ident => Pattern_IdentStart(name, rest)
     | atom:pattern_atom_no_ident => atom
     ;
 
@@ -828,6 +833,7 @@ rule expr ::= pratt {
         KwTrue => Expr_Bool(1) ;
         KwFalse => Expr_Bool(0) ;
         KwSelf => Expr_Name(mk_str("self", 4)) ;
+        Underscore => Expr_IdentTail(mk_str("_", 1), IdentTail_None) ;
         p:paren_expr => p ;
         l:list_expr => l ;
         r:record_expr => r ;

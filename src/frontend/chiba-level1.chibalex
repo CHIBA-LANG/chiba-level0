@@ -151,6 +151,7 @@ tokens CODE :-
     @kw_send                { KwSend }
     @kw_self                { KwSelf }
 
+    @tok_underscore         { Underscore }
     @ident                  => ident_or_string_open
 
     @float1                 { FloatLit(s) }
@@ -195,7 +196,6 @@ tokens CODE :-
     @op_dot                { Dot }
     @op_semicolon          { Semicolon }
     @tok_at                 { At }
-    @tok_underscore         { Underscore }
     @op_lparen             { LParen }
     @tok_rparen             { RParen }
     @op_lbrace             => code_lbrace

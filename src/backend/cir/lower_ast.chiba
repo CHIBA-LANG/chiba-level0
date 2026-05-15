@@ -12,6 +12,10 @@ data CirLowerStringResult {
     CirLowerStringInterp(CirStringPartList)
 }
 
+data CirPipeArgsResult {
+    CirPipeArgsResult(CirExprList, i64)
+}
+
 def cir_lower_control_label(ast: AST): CirControlLabel =
     match ast {
         ControlLabel_Some => CirLabelImplicit
@@ -26,6 +30,63 @@ def cir_lower_expr_list(ast: AST): CirExprList =
         Arg_End => CirExprEnd
         Arg_Cons(head, tail) => CirExprCons(cir_lower_expr(head), cir_lower_expr_list(tail))
         _ => CirExprCons(cir_l0_unsupported(ast, mk_str("expr list unsupported", 21)), CirExprEnd)
+    }
+
+def cir_ast_is_pipe_hole(ast: AST): i64 =
+    match ast {
+        Expr_IdentTail(name, IdentTail_None) => streq(name, mk_str("_", 1))
+        Expr_Name(name) => streq(name, mk_str("_", 1))
+        _ => 0
+    }
+
+def cir_ast_pipe_holes(ast: AST): i64 =
+    match ast {
+        Expr_IdentTail(name, IdentTail_None) => streq(name, mk_str("_", 1))
+        Expr_Name(name) => streq(name, mk_str("_", 1))
+        Expr_Binary(_, lhs, rhs) => cir_ast_pipe_holes(lhs) + cir_ast_pipe_holes(rhs)
+        Expr_Call(callee, args) => cir_ast_pipe_holes(callee) + cir_ast_pipe_holes(args)
+        Expr_Field(value, _) => cir_ast_pipe_holes(value)
+        Expr_Index(value, args) => cir_ast_pipe_holes(value) + cir_ast_pipe_holes(args)
+        Expr_Assign(lhs, rhs) => cir_ast_pipe_holes(lhs) + cir_ast_pipe_holes(rhs)
+        Expr_Prefix(_, value) => cir_ast_pipe_holes(value)
+        Expr_IdentTail(_, tail) => cir_ast_pipe_holes(tail)
+        IdentTail_Call(args, _) => cir_ast_pipe_holes(args)
+        ExprList_Cons(head, tail) => cir_ast_pipe_holes(head) + cir_ast_pipe_holes(tail)
+        Arg_Cons(head, tail) => cir_ast_pipe_holes(head) + cir_ast_pipe_holes(tail)
+        _ => 0
+    }
+
+def cir_lower_pipe_args(lhs: AST, args: AST): CirPipeArgsResult =
+    match args {
+        Arg_End => CirPipeArgsResult(CirExprEnd, 0)
+        Arg_Cons(head, tail) =>
+            match cir_lower_pipe_args(lhs, tail) {
+                CirPipeArgsResult(rest, holes) =>
+                    if cir_ast_is_pipe_hole(head) != 0 {
+                        CirPipeArgsResult(CirExprCons(cir_lower_expr(lhs), rest), holes + 1)
+                    } else {
+                        CirPipeArgsResult(CirExprCons(cir_lower_expr(head), rest), holes + cir_ast_pipe_holes(head))
+                    }
+            }
+        ExprList_End => CirPipeArgsResult(CirExprEnd, 0)
+        ExprList_Cons(head, tail) =>
+            match cir_lower_pipe_args(lhs, tail) {
+                CirPipeArgsResult(rest, holes) =>
+                    if cir_ast_is_pipe_hole(head) != 0 {
+                        CirPipeArgsResult(CirExprCons(cir_lower_expr(lhs), rest), holes + 1)
+                    } else {
+                        CirPipeArgsResult(CirExprCons(cir_lower_expr(head), rest), holes + cir_ast_pipe_holes(head))
+                    }
+            }
+        _ => CirPipeArgsResult(CirExprCons(cir_l0_unsupported(args, mk_str("pipe args unsupported", 21)), CirExprEnd), 0)
+    }
+
+def cir_pipe_call_args(lhs: AST, rhs: AST, args: AST): CirExprList =
+    match cir_lower_pipe_args(lhs, args) {
+        CirPipeArgsResult(args2, holes) =>
+            if holes == 0 { CirExprCons(cir_lower_expr(lhs), args2) }
+            else if holes == 1 { args2 }
+            else { CirExprCons(cir_l0_unsupported(rhs, mk_str("pipe placeholder repeated", 25)), CirExprEnd) }
     }
 
 def cir_lower_string_parts_to_cir(ast: AST): CirStringPartList =
@@ -112,8 +173,10 @@ def cir_lower_block_parts_no_tail(stmts: AST): CirLowerBlockResult =
 
 def cir_lower_pattern_let(pat: AST, value: CirExpr): CirStmt =
     match pat {
-        Pattern_IdentStart(name, PatternAfterIdent_Atom(PatternIdent_Name)) => L0StmtLet(name, value)
-        Pattern_IdentStart(name, PatternAfterIdent_Bind(PatternIdent_Name)) => L0StmtLet(name, value)
+        Pattern_IdentStart(name, PatternAfterIdent_Atom(PatternIdent_Name)) =>
+            if streq(name, mk_str("_", 1)) != 0 { L0StmtExpr(value) } else { L0StmtLet(name, value) }
+        Pattern_IdentStart(name, PatternAfterIdent_Bind(PatternIdent_Name)) =>
+            if streq(name, mk_str("_", 1)) != 0 { L0StmtExpr(value) } else { L0StmtLet(name, value) }
         _ => L0StmtLetPattern(pat, value)
     }
 
@@ -201,6 +264,34 @@ def cir_lower_binary_op(op: AST): Str =
         _ => mk_str("?", 1)
     }
 
+def cir_lower_pipe_expr(lhs: AST, rhs: AST): CirExpr =
+    match rhs {
+        Expr_IdentTail(name, IdentTail_None) =>
+            L0OpCall(L0OpName(name), CirExprCons(cir_lower_expr(lhs), CirExprEnd))
+        Expr_Name(name) =>
+            L0OpCall(L0OpName(name), CirExprCons(cir_lower_expr(lhs), CirExprEnd))
+        Expr_IdentTail(name, IdentTail_Call(args, IdentCallClosure_None)) =>
+            L0OpCall(L0OpName(name), cir_pipe_call_args(lhs, rhs, args))
+        Expr_Call(callee, args) =>
+            if cir_ast_pipe_holes(callee) != 0 {
+                cir_l0_unsupported(rhs, mk_str("pipe callee hole unsupported", 28))
+            } else {
+                L0OpCall(cir_lower_expr(callee), cir_pipe_call_args(lhs, rhs, args))
+            }
+        Expr_Field(_, _) =>
+            if cir_ast_pipe_holes(rhs) != 0 {
+                cir_l0_unsupported(rhs, mk_str("pipe field hole unsupported", 27))
+            } else {
+                L0OpCall(cir_lower_expr(rhs), CirExprCons(cir_lower_expr(lhs), CirExprEnd))
+            }
+        _ =>
+            if cir_ast_pipe_holes(rhs) != 0 {
+                cir_l0_unsupported(rhs, mk_str("pipe hole unsupported here", 26))
+            } else {
+                L0OpCall(cir_lower_expr(rhs), CirExprCons(cir_lower_expr(lhs), CirExprEnd))
+            }
+    }
+
 def cir_lower_expr(ast: AST): CirExpr =
     match ast {
         Expr_Block(stmts, tail) =>
@@ -221,6 +312,7 @@ def cir_lower_expr(ast: AST): CirExpr =
         Expr_Unsafe(body) => L0OpUnsafe(cir_lower_expr(body))
         Expr_Cast(value, ty) => L0OpCast(cir_lower_expr(value), ty)
         Expr_Prefix(op, value) => L0OpPrefix(cir_lower_prefix_op(op), cir_lower_expr(value))
+        Expr_Binary(OpPipeGt, lhs, rhs) => cir_lower_pipe_expr(lhs, rhs)
         Expr_Binary(op, lhs, rhs) => L0OpBinary(cir_lower_binary_op(op), cir_lower_expr(lhs), cir_lower_expr(rhs))
         Expr_Int(n) => L0OpInt(n)
         Expr_Float(n) => L0OpFloat(n)
