@@ -90,7 +90,7 @@ str == Slice[u8]
 Bootstrap byte-string layouts therefore use an owned array plus a view object:
 
 ```wat
-(type $array_u8 (array i8))
+(type $array_u8 (array (mut i8)))
 (type $slice_u8
   (struct
     (field (ref $array_u8))
@@ -98,11 +98,15 @@ Bootstrap byte-string layouts therefore use an owned array plus a view object:
     (field i32)))
 ```
 
-String literals and interpolation results produce `$array_u8` values. Index and
-range operations produce or consume `$slice_u8` view values. `String[index]`
-follows `Slice[u8]` byte-index semantics. Character/codepoint access is not
-implicit indexing; use an explicit method such as `.char_at(n)`. `cstr` is an
-ABI boundary view and is not the ordinary managed string representation.
+String literals produce `$array_u8` values, and interpolation concatenates
+existing `$array_u8` parts into a new `$array_u8`. The bootstrap array type is
+mutable so builders and concat helpers can fill fresh arrays; ordinary `String`
+surface operations still expose byte-array semantics, not arbitrary mutation.
+Index and range operations produce or consume `$slice_u8` view values.
+`String[index]` follows `Slice[u8]` byte-index semantics. Character/codepoint
+access is not implicit indexing; use an explicit method such as `.char_at(n)`.
+`cstr` is an ABI boundary view and is not the ordinary managed string
+representation.
 
 File read, stdout/stderr write, lexer input, parser source span, and WASI
 boundary helpers must use this same string/slice contract.

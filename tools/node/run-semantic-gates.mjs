@@ -286,11 +286,11 @@ function checkStringSlice() {
   assert(name, /text\[0\.\.4\]/.test(source), "slice smoke missing");
   assert(name, /text\.char_at\(0\)/.test(source), "explicit char_at smoke missing");
   const wat = read(path.join(WAT_DIR, "string_slice.wat"));
-  assert(name, wat.includes("(type $array_u8 (array i8))"), "WAT backing byte array layout missing");
+  assert(name, wat.includes("(type $array_u8 (array (mut i8)))"), "WAT backing byte array layout missing");
   assert(name, wat.includes("(type $slice_u8 (struct (field (ref $array_u8)) (field i32) (field i32)))"), "WAT slice layout missing");
   assert(name, wat.includes("array.new_fixed $array_u8 21"), "raw string literal does not lower to real Array[u8] payload");
   assert(name, wat.includes("i32.const 114") && wat.includes("i32.const 119"), "raw string literal byte payload missing");
-  assert(name, wat.includes("string interpolation concat pending"), "interpolation must stay explicit until concat runtime lands");
+  assert(name, wat.includes("call $__chiba_string_concat2"), "string interpolation does not call concat runtime");
   assert(name, wat.includes("(param $v1 (ref $array_u8))"), "String parameter does not lower to Array[u8] ref");
   assert(name, wat.includes("array.get_u $array_u8"), "String byte index does not lower to array.get_u");
   assert(name, wat.includes("struct.new $slice_u8"), "String range slice does not lower to Slice[u8] view");

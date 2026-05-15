@@ -45,6 +45,28 @@ def wat_emit_string_array(out: Str, depth: i64, bytes: Str): i64 = {
     str_push(out, 10)
 }
 
+def wat_emit_string_interp_expr(out: Str, depth: i64, value: CirExpr): i64 = {
+    let _ = wat_emit_expr(out, depth, value)
+    0
+}
+
+def wat_emit_string_interp(out: Str, depth: i64, parts: CirStringPartList): i64 =
+    match parts {
+        CirStringPartEnd => wat_emit_string_array(out, depth, mk_str("", 0))
+        CirStringPartChunk(chunk, CirStringPartEnd) => wat_emit_string_array(out, depth, chunk)
+        CirStringPartExpr(value, CirStringPartEnd) => wat_emit_string_interp_expr(out, depth, value)
+        CirStringPartChunk(chunk, rest) => {
+            let _ = wat_emit_string_array(out, depth, chunk)
+            let _ = wat_emit_string_interp(out, depth, rest)
+            wat_line(out, depth, "call $__chiba_string_concat2")
+        }
+        CirStringPartExpr(value, rest) => {
+            let _ = wat_emit_string_interp_expr(out, depth, value)
+            let _ = wat_emit_string_interp(out, depth, rest)
+            wat_line(out, depth, "call $__chiba_string_concat2")
+        }
+    }
+
 def wat_local_name(out: Str, id: i64): i64 = {
     let _ = str_push_cstr(out, "$v")
     str_append_i64(out, id)
@@ -717,7 +739,7 @@ def wat_emit_expr(out: Str, depth: i64, expr: CirExpr): i64 =
         }
         L1OpString => wat_line(out, depth, "unreachable ;; legacy payloadless string unsupported")
         L1OpStringBytes(bytes) => wat_emit_string_array(out, depth, bytes)
-        L1OpStringInterp(_) => wat_line(out, depth, "unreachable ;; string interpolation concat pending")
+        L1OpStringInterp(parts) => wat_emit_string_interp(out, depth, parts)
         L1OpUnit => wat_line(out, depth, "i64.const 0")
         L1OpReset(_, body) => wat_emit_expr(out, depth, body)
         L1OpShift(_, _, _) => wat_line(out, depth, "unreachable ;; shift requires cps lowering")
@@ -890,7 +912,7 @@ def wat_emit_module(module: CirModule): Str = {
     let out = str_new()
     let _ = str_push_cstr(out, "(module\n")
     let _ = str_push_cstr(out, "  (type $tuple2_i64 (struct (field i64) (field i64)))\n")
-    let _ = str_push_cstr(out, "  (type $array_u8 (array i8))\n")
+    let _ = str_push_cstr(out, "  (type $array_u8 (array (mut i8)))\n")
     let _ = str_push_cstr(out, "  (type $slice_u8 (struct (field (ref $array_u8)) (field i32) (field i32)))\n")
     let _ = match module {
         L1Module(_, items) => {
@@ -1031,6 +1053,32 @@ def wat_emit_module(module: CirModule): Str = {
     let _ = str_push_cstr(out, "      end\n")
     let _ = str_push_cstr(out, "    end\n")
     let _ = str_push_cstr(out, "    i64.extend_i32_u)\n")
+    let _ = str_push_cstr(out, "  (func $__chiba_string_concat2 (param $a (ref $array_u8)) (param $b (ref $array_u8)) (result (ref $array_u8))\n")
+    let _ = str_push_cstr(out, "    (local $out (ref $array_u8)) (local $alen i32) (local $blen i32)\n")
+    let _ = str_push_cstr(out, "    local.get $a\n")
+    let _ = str_push_cstr(out, "    array.len\n")
+    let _ = str_push_cstr(out, "    local.set $alen\n")
+    let _ = str_push_cstr(out, "    local.get $b\n")
+    let _ = str_push_cstr(out, "    array.len\n")
+    let _ = str_push_cstr(out, "    local.set $blen\n")
+    let _ = str_push_cstr(out, "    local.get $alen\n")
+    let _ = str_push_cstr(out, "    local.get $blen\n")
+    let _ = str_push_cstr(out, "    i32.add\n")
+    let _ = str_push_cstr(out, "    array.new_default $array_u8\n")
+    let _ = str_push_cstr(out, "    local.set $out\n")
+    let _ = str_push_cstr(out, "    local.get $out\n")
+    let _ = str_push_cstr(out, "    i32.const 0\n")
+    let _ = str_push_cstr(out, "    local.get $a\n")
+    let _ = str_push_cstr(out, "    i32.const 0\n")
+    let _ = str_push_cstr(out, "    local.get $alen\n")
+    let _ = str_push_cstr(out, "    array.copy $array_u8 $array_u8\n")
+    let _ = str_push_cstr(out, "    local.get $out\n")
+    let _ = str_push_cstr(out, "    local.get $alen\n")
+    let _ = str_push_cstr(out, "    local.get $b\n")
+    let _ = str_push_cstr(out, "    i32.const 0\n")
+    let _ = str_push_cstr(out, "    local.get $blen\n")
+    let _ = str_push_cstr(out, "    array.copy $array_u8 $array_u8\n")
+    let _ = str_push_cstr(out, "    local.get $out)\n")
     let _ = match module {
         L1Module(_, items) => {
             wat_emit_items(out, items, 0)
