@@ -7,6 +7,7 @@
     "run:level1c-wasm": "node tools/node/run-level1c-wasm.mjs",
     "compile:wat": "node tools/node/compile-wat.mjs",
     "run:all-wat": "node tools/node/run-all-wat.mjs",
+    "run:all-wat:opt": "node tools/node/run-all-wat.mjs --opt",
     "level1b:smoke": "node tools/node/run-level1b-smoke.mjs",
     "level1b:namespace": "node tools/node/run-level1b-namespace-smoke.mjs",
     "level1b:chibalex-mini": "node tools/node/run-level1b-chibalex-mini.mjs",

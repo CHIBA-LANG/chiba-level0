@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 
 const ROOT = ".";
+const USE_BINARYEN_OPT = process.argv.includes("--opt");
 
 function listWatFiles(dir) {
   const out = [];
@@ -62,6 +63,7 @@ function instantiateOnly(file, wat) {
 
 function runWat(file, mode) {
   const args = ["--no-warnings", "tools/node/run-wat.mjs", file];
+  if (USE_BINARYEN_OPT) args.push("--opt");
   if (mode.instantiateOnly) args.push("--instantiate-only");
   for (const arg of mode.args || []) args.push(arg);
   return spawnSync(process.execPath, args, { encoding: "utf8" });
@@ -97,4 +99,4 @@ for (const file of listWatFiles(ROOT)) {
 }
 
 if (failed !== 0) process.exit(1);
-console.log(`[PASS] all wat files executed=${executed} instantiated=${instantiated}`);
+console.log(`[PASS] all wat files mode=${USE_BINARYEN_OPT ? "opt" : "raw"} executed=${executed} instantiated=${instantiated}`);

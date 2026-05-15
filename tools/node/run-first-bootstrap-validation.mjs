@@ -5,10 +5,12 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 
 const ARTIFACT_DIR = ".scratch/first-bootstrap";
+const REBUILD_RUNNERS = process.argv.includes("--rebuild-runners");
 
 function run(name, command, args, options = {}) {
   const result = spawnSync(command, args, {
     encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
     ...options,
   });
   if (result.status !== 0) {
@@ -27,7 +29,11 @@ function sha256(file) {
 }
 
 function binaryenVersion() {
-  const pkg = JSON.parse(fs.readFileSync("node_modules/binaryen/package.json", "utf8"));
+  return packageVersion("binaryen");
+}
+
+function packageVersion(name) {
+  const pkg = JSON.parse(fs.readFileSync(`node_modules/${name}/package.json`, "utf8"));
   return pkg.version;
 }
 
@@ -47,6 +53,29 @@ function compileArtifact(name, source) {
 }
 
 fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+
+if (REBUILD_RUNNERS) {
+  run("build lexer spec runner", "timeout", [
+    "120",
+    "./chibac_amd64-unknown-linux_chiba_dev.o",
+    "--project",
+    ".",
+    "--entry",
+    "chiba_level1_lexer_spec_main.chiba",
+    "--output",
+    "lexer_spec_runner.o",
+  ]);
+  run("build parser spec runner", "timeout", [
+    "120",
+    "./chibac_amd64-unknown-linux_chiba_dev.o",
+    "--project",
+    ".",
+    "--entry",
+    "chiba_level1_parser_spec_main.chiba",
+    "--output",
+    "parser_spec_runner.o",
+  ]);
+}
 
 run("bootstrap smoke", process.execPath, ["tools/node/run-bootstrap-smokes.mjs"]);
 run("bootstrap smoke opt", process.execPath, ["tools/node/run-bootstrap-smokes.mjs", "--opt"]);
@@ -116,14 +145,49 @@ run("level1c.wasm cont-usage", process.execPath, [
   "supports/bootstrap/continuation-multi-resume.chiba",
 ]);
 run("all wat files", process.execPath, ["tools/node/run-all-wat.mjs"]);
+run("all wat files opt", process.execPath, ["tools/node/run-all-wat.mjs", "--opt"]);
+
+const manifest = {
+  seed: {
+    path: "chibac_amd64-unknown-linux_chiba_dev.o",
+    sha256: sha256("chibac_amd64-unknown-linux_chiba_dev.o"),
+  },
+  level1cObject: {
+    path: "target/debug/level1c.o",
+    sha256: sha256("target/debug/level1c.o"),
+  },
+  parserSpecRunnerObject: {
+    path: "target/debug/parser_spec_runner.o",
+    sha256: sha256("target/debug/parser_spec_runner.o"),
+  },
+  toolchain: {
+    node: process.version,
+    binaryen: binaryenVersion(),
+    wasmUtil: packageVersion("@tybys/wasm-util"),
+    wasiThreads: packageVersion("@emnapi/wasi-threads"),
+  },
+  artifacts: artifacts.map((artifact) => ({
+    name: artifact.name,
+    source: artifact.source,
+    wat: artifact.watPath,
+    wasm: artifact.wasmPath,
+    watSha256: artifact.watHash,
+    wasmSha256: artifact.wasmHash,
+  })),
+};
+const manifestPath = path.join(ARTIFACT_DIR, "manifest.json");
+fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
 console.log("[INFO] first bootstrap hashes");
-console.log(`seed ${sha256("chibac_amd64-unknown-linux_chiba_dev.o")}`);
-console.log(`level1c.o ${sha256("target/debug/level1c.o")}`);
-console.log(`parser_spec_runner.o ${sha256("target/debug/parser_spec_runner.o")}`);
-console.log(`node ${process.version}`);
-console.log(`binaryen ${binaryenVersion()}`);
+console.log(`seed ${manifest.seed.sha256}`);
+console.log(`level1c.o ${manifest.level1cObject.sha256}`);
+console.log(`parser_spec_runner.o ${manifest.parserSpecRunnerObject.sha256}`);
+console.log(`node ${manifest.toolchain.node}`);
+console.log(`binaryen ${manifest.toolchain.binaryen}`);
+console.log(`@tybys/wasm-util ${manifest.toolchain.wasmUtil}`);
+console.log(`@emnapi/wasi-threads ${manifest.toolchain.wasiThreads}`);
 for (const artifact of artifacts) {
   console.log(`${artifact.name}.wat ${artifact.watHash}`);
   console.log(`${artifact.name}.wasm ${artifact.wasmHash}`);
 }
+console.log(`manifest ${manifestPath}`);
