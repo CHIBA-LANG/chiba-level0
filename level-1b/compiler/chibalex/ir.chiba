@@ -1,0 +1,37 @@
+/// Lowered chibalex IR.
+///
+/// The IR stores typed regex programs and stable rule order. Longest-match
+/// tie-breaking always prefers the earliest rule in source order.
+namespace level1b.compiler.chibalex.ir
+
+use level1b.compiler.chibalex.ast.*
+use level1b.compiler.regex.program.*
+
+/// Stable rule identifier.
+type LexRuleId {
+    index: usize,
+}
+
+/// Lowered lexer rule.
+type LoweredLexRule {
+    id: LexRuleId,
+    mode: LexMode,
+    program: RegexProgram,
+    action: LexAction,
+    transition: LexTransition,
+    trivia: bool,
+}
+
+/// Lowered lexer module.
+type LoweredLexer {
+    namespace_name: str,
+    modes: Array[LexMode],
+    rules: Array[LoweredLexRule],
+    token_data: String,
+}
+
+/// Lower a parsed chibalex spec into typed lexer IR.
+def lower_chibalex(spec: ChibalexSpec): LoweredLexer = extern "std" "chibalex_lower"
+
+/// Return rules in deterministic source order.
+def LoweredLexer.ordered_rules(self): Array[LoweredLexRule] = self.rules

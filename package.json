@@ -17,6 +17,7 @@
     "level1b:c02-std": "node tools/node/run-level1b-c02-std-contract.mjs",
     "level1b:c03-prelude": "node tools/node/run-level1b-c03-prelude-contract.mjs",
     "level1b:c04-regex": "node tools/node/run-level1b-c04-regex.mjs",
+    "level1b:c05-chibalex": "node tools/node/run-level1b-c05-chibalex.mjs",
     "level1b:namespace": "node tools/node/run-level1b-namespace-smoke.mjs",
     "level1b:chibalex-mini": "node tools/node/run-level1b-chibalex-mini.mjs",
     "level1b:chibacc-mini": "node tools/node/run-level1b-chibacc-mini.mjs",

@@ -1,0 +1,18 @@
+/// Chibalex code generation contract.
+///
+/// Codegen serializes a validated [compiler.chibalex.ir.LoweredLexer] to
+/// Chiba source. It does not emit pointer-shaped runtime APIs.
+namespace level1b.compiler.chibalex.codegen
+
+use level1b.compiler.chibalex.ir.*
+
+/// Generated lexer source file.
+type GeneratedLexer {
+    source: String,
+}
+
+/// Generate Chiba source for a lowered lexer.
+def generate_lexer(lexer: LoweredLexer): GeneratedLexer = extern "std" "chibalex_generate"
+
+/// Return the generated source text.
+def GeneratedLexer.text(self): String = self.source

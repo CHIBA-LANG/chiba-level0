@@ -1,0 +1,52 @@
+/// Chibalex source AST for level-1b.
+///
+/// This is the `.chibalex` front surface. Regex bodies are parsed by
+/// [compiler.regex.parser], and modes are explicit nominal values.
+namespace level1b.compiler.chibalex.ast
+
+use level1b.compiler.regex.ast.*
+
+/// Lexer mode name.
+type LexMode {
+    name: str,
+}
+
+/// Action emitted by one lexer rule.
+type LexAction {
+    body: String,
+}
+
+/// Mode transition after a rule fires.
+data LexTransition {
+    LexStay,
+    LexPush(LexMode),
+    LexPop,
+    LexGoto(LexMode),
+}
+
+/// Regex definition declared with `@name = ...`.
+type LexRegexDef {
+    name: str,
+    ast: RegexAst,
+}
+
+/// Token rule in one mode.
+type LexRule {
+    mode: LexMode,
+    pattern: RegexAst,
+    action: LexAction,
+    transition: LexTransition,
+    trivia: bool,
+}
+
+/// Parsed `.chibalex` file.
+type ChibalexSpec {
+    namespace_name: str,
+    modes: List[LexMode],
+    regex_defs: List[LexRegexDef],
+    rules: List[LexRule],
+    token_data: String,
+}
+
+/// Return true when a rule emits no token.
+def LexRule.is_trivia(self): bool = self.trivia

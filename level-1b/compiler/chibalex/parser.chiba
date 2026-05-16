@@ -1,0 +1,22 @@
+/// Parser contract for `.chibalex` files.
+namespace level1b.compiler.chibalex.parser
+
+use level1b.compiler.chibalex.ast.*
+
+/// Diagnostic produced while parsing a `.chibalex` file.
+type ChibalexParseError {
+    offset: usize,
+    message: String,
+}
+
+/// Parse a `.chibalex` source file.
+def parse_chibalex(source: str): Result[ChibalexSpec, ChibalexParseError] =
+    extern "std" "chibalex_parse"
+
+/// Parse a regex definition line.
+def parse_regex_def(source: str): Result[LexRegexDef, ChibalexParseError] =
+    extern "std" "chibalex_parse_regex_def"
+
+/// Parse a token rule line.
+def parse_rule(source: str, mode: LexMode): Result[LexRule, ChibalexParseError] =
+    extern "std" "chibalex_parse_rule"
