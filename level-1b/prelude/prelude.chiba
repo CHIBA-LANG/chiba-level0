@@ -2,20 +2,20 @@
 ///
 /// `prelude` re-exports common `std` values. It does not depend on
 /// `metalstd`, and it is not implicitly imported into `#![Metal]` files.
-namespace level1b.prelude
+namespace prelude
 
-use level1b.std.option.*
-use level1b.std.result.*
-use level1b.std.array.*
-use level1b.std.slice.*
-use level1b.std.string.*
-use level1b.std.list.*
-use level1b.std.vec.*
-use level1b.std.map.*
-use level1b.std.range.*
-use level1b.std.io.*
-use level1b.std.process.*
-use level1b.std.diagnostic.*
+use std.option.*
+use std.result.*
+use std.array.*
+use std.slice.*
+use std.string.*
+use std.list.*
+use std.vec.*
+use std.map.*
+use std.range.*
+use std.io.*
+use std.process.*
+use std.diagnostic.*
 
 /// Print a string slice to stdout.
 def print(text: str): Result[(), IoError] = Print.stdout(text)

@@ -2,9 +2,9 @@
 ///
 /// This is the `.chibalex` front surface. Regex bodies are parsed by
 /// [std.regex.parser], and modes are explicit nominal values.
-namespace level1b.std.chibalex.ast
+namespace std.chibalex.ast
 
-use level1b.std.regex.ast.*
+use std.regex.ast.*
 
 /// Lexer mode name.
 type LexMode {

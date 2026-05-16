@@ -1,5 +1,5 @@
 /// Diagnostic string builder facade.
-namespace level1b.std.diagnostic
+namespace std.diagnostic
 
 /// Builder for deterministic diagnostic messages.
 type DiagnosticBuilder {

@@ -18,7 +18,7 @@ def prelude_policy_for_header(is_metal: bool, no_prelude_import: bool): PreludeI
     else if no_prelude_import { PreludeImportDisabled }
     else { PreludeImportDefault }
 
-/// Return true when the source driver must inject `use level1b.prelude.*`.
+/// Return true when the source driver must inject `use prelude.*`.
 def PreludeImportPolicy.should_inject(self): bool =
     match self {
         PreludeImportDefault => true
@@ -27,4 +27,4 @@ def PreludeImportPolicy.should_inject(self): bool =
     }
 
 /// Fully qualified namespace imported by the default prelude rule.
-def default_prelude_namespace(): Str = "level1b.prelude"
+def default_prelude_namespace(): Str = "prelude"

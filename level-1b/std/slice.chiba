@@ -1,7 +1,7 @@
 /// Managed slice surface.
 ///
 /// `Slice[T]` is a Wasm-GC managed view `{backing: Array[T], offset, len}`.
-namespace level1b.std.slice
+namespace std.slice
 
 /// Return the number of elements in a managed slice.
 def Slice[T].len(self): usize = __compiler_builtin("std.slice_len")

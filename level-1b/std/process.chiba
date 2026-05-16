@@ -1,5 +1,5 @@
 /// Process argument, environment, and exit facade.
-namespace level1b.std.process
+namespace std.process
 
 /// Process namespace facade.
 type Process {

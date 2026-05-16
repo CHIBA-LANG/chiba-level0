@@ -1,5 +1,5 @@
 /// Optional value support for ordinary Chiba code.
-namespace level1b.std.option
+namespace std.option
 
 /// Value that is either present or absent.
 data Option[T] {

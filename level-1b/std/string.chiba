@@ -2,7 +2,7 @@
 ///
 /// `String == Array[u8]` and `str == Slice[u8]`. Indexing returns bytes;
 /// character inspection is explicit through `.char_at(index)`.
-namespace level1b.std.string
+namespace std.string
 
 /// Unicode scalar value decoded from a UTF-8/WTF-8 string view.
 type Char {

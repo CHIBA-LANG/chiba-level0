@@ -2,9 +2,9 @@
 ///
 /// Codegen serializes a validated [std.chibalex.ir.LoweredLexer] to
 /// Chiba source. It does not emit pointer-shaped runtime APIs.
-namespace level1b.std.chibalex.codegen
+namespace std.chibalex.codegen
 
-use level1b.std.chibalex.ir.*
+use std.chibalex.ir.*
 
 /// Generated lexer source file.
 type GeneratedLexer {

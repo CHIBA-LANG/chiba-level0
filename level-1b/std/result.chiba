@@ -1,5 +1,5 @@
 /// Result values for fallible ordinary Chiba APIs.
-namespace level1b.std.result
+namespace std.result
 
 /// Value that is either successful or failed with an error.
 data Result[T, E] {

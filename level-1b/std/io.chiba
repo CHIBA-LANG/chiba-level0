@@ -2,7 +2,7 @@
 ///
 /// This module hides WASI descriptors and ABI scratch memory behind ordinary
 /// `String` and `str` values.
-namespace level1b.std.io
+namespace std.io
 
 /// File namespace facade.
 type File {

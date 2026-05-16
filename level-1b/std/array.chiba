@@ -1,7 +1,7 @@
 /// Immutable managed array surface.
 ///
 /// `Array[T]` lowers to a Wasm-GC array. It has no safe internal mutability.
-namespace level1b.std.array
+namespace std.array
 
 /// Return the number of elements in an immutable managed array.
 def Array[T].len(self): usize = __compiler_builtin("std.array_len")

@@ -1,7 +1,7 @@
 /// Growable builder surface over managed array storage.
 ///
 /// `Vec[T]` is a builder. Freezing it produces immutable `Array[T]`.
-namespace level1b.std.vec
+namespace std.vec
 
 /// Growable builder for a managed array.
 type Vec[T] {

@@ -2,9 +2,9 @@
 ///
 /// Matching works over managed `str` values. Longest-match behavior is explicit
 /// because chibalex depends on deterministic tie-breaking.
-namespace level1b.std.regex.matcher
+namespace std.regex.matcher
 
-use level1b.std.regex.program.*
+use std.regex.program.*
 
 /// Captured byte range.
 type RegexCaptureRange {

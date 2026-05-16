@@ -7,14 +7,14 @@ const PRELUDE_ROOT = "level-1b/prelude";
 const POLICY = "level-1b/compiler/source/import_policy.chiba";
 const SMOKE_ROOT = "level-1b/supports/pre-c03-smokes";
 const REQUIRED_PRELUDE = [
-  "use level1b.std.option.*",
-  "use level1b.std.result.*",
-  "use level1b.std.array.*",
-  "use level1b.std.slice.*",
-  "use level1b.std.string.*",
-  "use level1b.std.vec.*",
-  "use level1b.std.map.*",
-  "use level1b.std.range.*",
+  "use std.option.*",
+  "use std.result.*",
+  "use std.array.*",
+  "use std.slice.*",
+  "use std.string.*",
+  "use std.vec.*",
+  "use std.map.*",
+  "use std.range.*",
   "def print",
   "def println",
   "def panic",
@@ -107,7 +107,7 @@ function main() {
     "PreludeImportMetal",
     "def prelude_policy_for_header",
     "def PreludeImportPolicy.should_inject",
-    "\"level1b.prelude\"",
+    "\"prelude\"",
   ];
   for (const needle of policyNeedles) {
     if (!policy.includes(needle)) fail(`missing import policy text: ${needle}`);
@@ -123,7 +123,7 @@ function main() {
   const defaultSmoke = read(path.join(SMOKE_ROOT, "default_prelude.chiba"));
   const noPrelude = read(path.join(SMOKE_ROOT, "no_prelude_invalid.chiba"));
   const metal = read(path.join(SMOKE_ROOT, "metal_no_prelude_invalid.chiba"));
-  if (defaultSmoke.includes("use level1b.prelude")) fail("default prelude smoke must rely on implicit import");
+  if (defaultSmoke.includes("use prelude")) fail("default prelude smoke must rely on implicit import");
   if (!noPrelude.includes("#![no_prelude_import]")) fail("no_prelude invalid smoke missing attribute");
   if (!metal.includes("#![Metal]")) fail("Metal invalid smoke missing #![Metal]");
   pass("prelude smoke source shape");

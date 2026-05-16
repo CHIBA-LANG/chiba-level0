@@ -1,5 +1,5 @@
 /// Persistent list surface for compiler IR and summaries.
-namespace level1b.std.list
+namespace std.list
 
 /// Persistent singly-linked list.
 data List[T] {

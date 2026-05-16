@@ -1,5 +1,5 @@
 /// Deterministic map surfaces for compiler tables.
-namespace level1b.std.map
+namespace std.map
 
 /// Deterministic map from keys to values.
 type Map[K, V] {

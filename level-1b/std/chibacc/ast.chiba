@@ -1,5 +1,5 @@
 /// Chibacc source AST for level-1b grammar files.
-namespace level1b.std.chibacc.ast
+namespace std.chibacc.ast
 
 /// Grammar rule name.
 type GrammarName {
