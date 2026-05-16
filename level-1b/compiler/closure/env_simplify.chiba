@@ -21,7 +21,17 @@ type OptimizedClosureModule {
 /// Shrink environments, erase no-capture closures, and directify single-use
 /// known closures.
 def simplify_closure_envs(module: LiftedClosureModule): OptimizedClosureModule =
-    __compiler_builtin("std.closure_simplify_envs")
+    OptimizedClosureModule(module, closure_simplifications(module.functions, 0, Vec[ClosureSimplification].new()))
+
+/// Pick the final simplification for one lifted closure.
+def lifted_function_simplification(function: LiftedFunction): ClosureSimplification =
+    if function.no_capture() { ClosureEnvErased(function.owner) }
+    else { ClosureKeptEscaping(function.owner) }
+
+/// Build closure simplifications in stable lifted-function order.
+def closure_simplifications(functions: Array[LiftedFunction], index: usize, out: Vec[ClosureSimplification]): Array[ClosureSimplification] =
+    if index == functions.len() { out.freeze() }
+    else { closure_simplifications(functions, index + 1, out.push(lifted_function_simplification(functions.get(index)))) }
 
 /// Return true when a simplification removes runtime allocation.
 def ClosureSimplification.removes_allocation(self): bool =

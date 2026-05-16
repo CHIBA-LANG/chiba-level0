@@ -40,7 +40,23 @@ type ClosureConvertedModule {
 
 /// Convert escaping lambdas and packaged continuations to explicit env layouts.
 def convert_closures(module: SimplifiedContinuationModule): Result[ClosureConvertedModule, SemanticDiagnostics] =
-    __compiler_builtin("std.closure_convert")
+    Ok(ClosureConvertedModule(module, closure_env_layouts(module.decisions, 0, Vec[ClosureEnvLayout].new())))
+
+/// Empty capture list for a directified closure or continuation package.
+def empty_capture_fields(): Array[CaptureField] =
+    Vec[CaptureField].new().freeze()
+
+/// Append a closure environment layout for decisions that materialize.
+def push_closure_env_layout(out: Vec[ClosureEnvLayout], decision: ContinuationSimplification): Vec[ClosureEnvLayout] =
+    match decision {
+        ContinuationPackaged(binder) => out.push(ClosureEnvLayout(binder, empty_capture_fields()))
+        _ => out
+    }
+
+/// Build closure environment layouts in stable decision order.
+def closure_env_layouts(decisions: Array[ContinuationSimplification], index: usize, out: Vec[ClosureEnvLayout]): Array[ClosureEnvLayout] =
+    if index == decisions.len() { out.freeze() }
+    else { closure_env_layouts(decisions, index + 1, push_closure_env_layout(out, decisions.get(index))) }
 
 /// Return true when a capture is legal to place in a runtime package.
 def CaptureKind.package_legal(self): bool =

@@ -19,7 +19,24 @@ type SimplifiedContinuationModule {
 /// Delete unused continuations, inline single-use continuations, and mark
 /// many-use continuations as package-lowering inputs.
 def simplify_continuations(module: CpsUsageModule): SimplifiedContinuationModule =
-    __compiler_builtin("std.closure_simplify_continuations")
+    SimplifiedContinuationModule(module, simplify_continuation_facts(module.facts, 0, Vec[ContinuationSimplification].new()))
+
+/// Convert one use fact into a continuation simplification decision if needed.
+def push_continuation_simplification(out: Vec[ContinuationSimplification], fact: CpsUseFact): Vec[ContinuationSimplification] =
+    match fact.subject {
+        UseSubjectContinuation(binder) =>
+            match fact.count {
+                UseZero => out.push(ContinuationDeleted(binder))
+                UseOne => out.push(ContinuationInlined(binder))
+                UseMany => out.push(ContinuationPackaged(binder))
+            }
+        _ => out
+    }
+
+/// Build continuation simplification decisions in stable fact order.
+def simplify_continuation_facts(facts: Array[CpsUseFact], index: usize, out: Vec[ContinuationSimplification]): Array[ContinuationSimplification] =
+    if index == facts.len() { out.freeze() }
+    else { simplify_continuation_facts(facts, index + 1, push_continuation_simplification(out, facts.get(index))) }
 
 /// Return true when a continuation decision allocates a runtime package.
 def ContinuationSimplification.materializes_package(self): bool =

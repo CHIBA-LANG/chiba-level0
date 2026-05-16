@@ -26,7 +26,15 @@ type CpsUsageModule {
 
 /// Recompute use counts on CPS Core.
 def analyze_cps_usage(module: CpsModule): CpsUsageModule =
-    __compiler_builtin("std.closure_analyze_cps_usage")
+    CpsUsageModule(module, cps_usage_facts(module.source.usage.facts, 0, Vec[CpsUseFact].new()))
+
+/// Convert answer/control usage facts into CPS usage facts.
+def cps_usage_facts(facts: Array[UsageFact], index: usize, out: Vec[CpsUseFact]): Array[CpsUseFact] =
+    if index == facts.len() { out.freeze() }
+    else {
+        let fact = facts.get(index)
+        cps_usage_facts(facts, index + 1, out.push(CpsUseFact(UseSubjectBinder(fact.binder), fact.count)))
+    }
 
 /// Return true when a fact permits direct call/direct continuation lowering.
 def CpsUseFact.single_use(self): bool =

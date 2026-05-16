@@ -18,7 +18,15 @@ type LiftedClosureModule {
 
 /// Lift nested functions into stable function symbols.
 def lift_lambdas(module: ClosureConvertedModule): LiftedClosureModule =
-    __compiler_builtin("std.closure_lift_lambdas")
+    LiftedClosureModule(module, lifted_functions_from_layouts(module.layouts, 0, Vec[LiftedFunction].new()))
+
+/// Each closure environment owner becomes a stable lifted function symbol.
+def lifted_functions_from_layouts(layouts: Array[ClosureEnvLayout], index: usize, out: Vec[LiftedFunction]): Array[LiftedFunction] =
+    if index == layouts.len() { out.freeze() }
+    else {
+        let layout = layouts.get(index)
+        lifted_functions_from_layouts(layouts, index + 1, out.push(LiftedFunction(layout.owner, layout.owner, layout)))
+    }
 
 /// Return true when the lifted function can be called without an env object.
 def LiftedFunction.no_capture(self): bool =
