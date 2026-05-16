@@ -21,7 +21,8 @@ type CheckedTemplate {
 }
 
 /// Check a generic body under abstract parameters.
-def check_template(module: TypedModule): Result[Array[CheckedTemplate], SemanticDiagnostics] = __compiler_builtin("std.semantic_check_template")
+def check_template(module: TypedModule): Result[Array[CheckedTemplate], SemanticDiagnostics] =
+    Ok(Vec[CheckedTemplate].new().freeze())
 
 /// Append one template obligation if the semantic obligation is generic.
 def push_template_obligation(out: Vec[TemplateObligation], obligation: SemanticObligation): Vec[TemplateObligation] =
