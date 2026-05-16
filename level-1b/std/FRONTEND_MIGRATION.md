@@ -13,7 +13,7 @@ live outside `std`.
 | Unicode XID property tables | `std/regex/utf8.chiba` plus generated data | contract only |
 | Regex parser | `std/regex/parser.chiba` | contract only |
 | Regex compiler | `std/regex/program.chiba` | contract only |
-| Regex matcher and longest match | `std/regex/matcher.chiba` | contract only |
+| Regex matcher and longest match | `std/regex/matcher.chiba` | partial rewrite: find/longest_at traversal rewritten; match_at VM still builtin |
 
 ## Chibalex
 

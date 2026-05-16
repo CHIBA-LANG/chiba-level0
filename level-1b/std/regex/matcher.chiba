@@ -22,8 +22,20 @@ type RegexMatch {
 /// Match a regex at exactly `start`.
 def RegexProgram.match_at(self, input: str, start: usize): Option[RegexMatch] = __compiler_builtin("std.regex_match_at")
 
+/// Find the first match at or after `start`.
+def RegexProgram.find_from(self, input: str, start: usize): Option[RegexMatch] =
+    if start > input.len() { None }
+    else {
+        match self.match_at(input, start) {
+            Some(found) => Some(found)
+            None => self.find_from(input, start + 1)
+        }
+    }
+
 /// Find the first match in `input`.
-def RegexProgram.find(self, input: str): Option[RegexMatch] = __compiler_builtin("std.regex_find")
+def RegexProgram.find(self, input: str): Option[RegexMatch] =
+    self.find_from(input, 0)
 
 /// Find the longest match beginning at `start`.
-def RegexProgram.longest_at(self, input: str, start: usize): Option[RegexMatch] = __compiler_builtin("std.regex_longest_at")
+def RegexProgram.longest_at(self, input: str, start: usize): Option[RegexMatch] =
+    self.match_at(input, start)
