@@ -24,9 +24,20 @@ type AggregateShape {
     row: CanonicalRow,
 }
 
+/// Convert aggregate declarations into row fields.
+def aggregate_fields_to_row_fields(fields: Array[AggregateField], index: usize, out: Vec[CanonicalRowField]): Array[CanonicalRowField] =
+    if index == fields.len() { out.freeze() }
+    else {
+        let field = fields.get(index)
+        aggregate_fields_to_row_fields(fields, index + 1, out.push(CanonicalRowField { id: field.name, ty: field.ty }))
+    }
+
 /// Build a record/tuple/data/union aggregate shape.
 def build_aggregate_shape(kind: AggregateKind, fields: Array[AggregateField]): AggregateShape =
-    __compiler_builtin("std.semantic_build_aggregate_shape")
+    AggregateShape {
+        kind: kind,
+        row: canonicalize_row(aggregate_fields_to_row_fields(fields, 0, Vec[CanonicalRowField].new()), None),
+    }
 
 /// Return true when aggregate field access uses row-field lowering.
 def AggregateKind.uses_row_field_lowering(self): bool =

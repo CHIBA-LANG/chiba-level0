@@ -55,6 +55,7 @@ const REWRITTEN_OWNER_FORBIDDEN_BUILTINS = new Map([
   ["compiler/semantic/type_row.chiba", ["std.semantic_canonicalize_row", "std.semantic_unify_rows"]],
   ["compiler/semantic/type_nominal.chiba", ["std.semantic_nominal_lookup"]],
   ["compiler/semantic/type_generalize.chiba", ["std.semantic_generalize_type"]],
+  ["compiler/semantic/type_record.chiba", ["std.semantic_build_aggregate_shape"]],
 ]);
 
 function fail(message) {
