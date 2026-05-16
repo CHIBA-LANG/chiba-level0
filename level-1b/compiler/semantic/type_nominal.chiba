@@ -16,4 +16,13 @@ type NominalIndex {
 
 /// Look up a nominal id by namespace and local name.
 def NominalIndex.lookup(self, namespace_name: String, name: String): Option[NominalId] =
-    __compiler_builtin("std.semantic_nominal_lookup")
+    self.lookup_at(namespace_name, name, 0)
+
+/// Recursive lookup preserving deterministic declaration order.
+def NominalIndex.lookup_at(self, namespace_name: String, name: String, index: usize): Option[NominalId] =
+    if index == self.decls.len() { None }
+    else {
+        let decl = self.decls.get(index)
+        if decl.id.namespace_name == namespace_name && decl.id.name == name { Some(decl.id) }
+        else { self.lookup_at(namespace_name, name, index + 1) }
+    }

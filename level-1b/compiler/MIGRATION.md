@@ -20,11 +20,11 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `type_unify.chiba` | `compiler/semantic/type_unify.chiba` | rewritten |
 | `type_row.chiba` | `compiler/semantic/type_row.chiba` | rewritten |
 | `type_record.chiba` | `compiler/semantic/type_record.chiba`, `compiler/semantic/type_row.chiba` | contract only |
-| `type_nominal.chiba` | `compiler/semantic/type_nominal.chiba` | contract only |
+| `type_nominal.chiba` | `compiler/semantic/type_nominal.chiba` | rewritten |
 | `type_method.chiba` | `compiler/semantic/method_operator.chiba` | contract only |
 | `type_template.chiba` | `compiler/semantic/template.chiba` | contract only |
 | `type_generic_body.chiba` | `compiler/semantic/generic_body.chiba`, `compiler/semantic/template.chiba` | contract only |
-| `type_generalize.chiba` | `compiler/semantic/type_generalize.chiba` | contract only |
+| `type_generalize.chiba` | `compiler/semantic/type_generalize.chiba` | rewritten |
 | `type_facts.chiba` | `compiler/semantic/type_facts.chiba` | contract only |
 | `type_capability.chiba` | `compiler/semantic/capability_rules.chiba`, `compiler/semantic/abi_capability.chiba` | contract only |
 | `answer_control.chiba` | `compiler/control/answer_control.chiba` | contract only |
