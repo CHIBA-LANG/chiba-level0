@@ -1,0 +1,40 @@
+/// Default imports for ordinary level-1b source files.
+///
+/// `prelude` re-exports common `std` values. It does not depend on
+/// `metalstd`, and it is not implicitly imported into `#![Metal]` files.
+namespace level1b.prelude
+
+use level1b.std.option.*
+use level1b.std.result.*
+use level1b.std.array.*
+use level1b.std.slice.*
+use level1b.std.string.*
+use level1b.std.list.*
+use level1b.std.vec.*
+use level1b.std.map.*
+use level1b.std.range.*
+use level1b.std.io.*
+use level1b.std.process.*
+use level1b.std.diagnostic.*
+
+/// Print a string slice to stdout.
+def print(text: str): Result[(), IoError] = Print.stdout(text)
+
+/// Print a string slice to stdout followed by a newline.
+def println(text: str): Result[(), IoError] = extern "std" "println"
+
+/// Abort execution with a user-facing message.
+def panic(message: str): () = extern "std" "panic"
+
+/// Abort execution when `condition` is false.
+def assert(condition: bool, message: str): () =
+    if condition { () } else { panic(message) }
+
+/// Pipe-friendly sequence map facade.
+def map[T, U](values: List[T], f: (T) => U): List[U] = extern "std" "prelude_map"
+
+/// Pipe-friendly sequence filter facade.
+def filter[T](values: List[T], keep: (T) => bool): List[T] = extern "std" "prelude_filter"
+
+/// Pipe-friendly sequence fold facade.
+def fold[T, U](values: List[T], init: U, f: (U, T) => U): U = values.fold(init, f)
