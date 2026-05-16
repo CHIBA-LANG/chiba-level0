@@ -1,0 +1,22 @@
+/// Parser contract for `.chibacc` grammar files.
+namespace level1b.compiler.chibacc.parser
+
+use level1b.compiler.chibacc.ast.*
+
+/// Diagnostic produced while parsing `.chibacc`.
+type ChibaccParseError {
+    offset: usize,
+    message: String,
+}
+
+/// Parse one `.chibacc` source file.
+def parse_chibacc(source: str): Result[ChibaccSpec, ChibaccParseError] =
+    extern "std" "chibacc_parse"
+
+/// Parse a normal grammar rule.
+def parse_rule(source: str): Result[GrammarRule, ChibaccParseError] =
+    extern "std" "chibacc_parse_rule"
+
+/// Parse a Pratt rule body.
+def parse_pratt(source: str): Result[GrammarRuleBody, ChibaccParseError] =
+    extern "std" "chibacc_parse_pratt"

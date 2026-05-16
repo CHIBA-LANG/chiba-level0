@@ -1,0 +1,15 @@
+/// Chibacc code generation contract.
+namespace level1b.compiler.chibacc.codegen
+
+use level1b.compiler.chibacc.ir.*
+
+/// Generated parser source.
+type GeneratedParser {
+    source: String,
+}
+
+/// Generate Chiba source for a lowered parser.
+def generate_parser(parser: LoweredParser): GeneratedParser = extern "std" "chibacc_generate"
+
+/// Return the generated source text.
+def GeneratedParser.text(self): String = self.source

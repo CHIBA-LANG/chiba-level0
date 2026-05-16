@@ -1,0 +1,43 @@
+/// Parser alternative and recovery engine contract.
+///
+/// Alternatives use `reset` / `shift` so parser retry and diagnostic recovery
+/// stay explicit in source before CPS/directification.
+namespace level1b.compiler.chibacc.engine
+
+use level1b.compiler.chibacc.ir.*
+
+/// Token stream position.
+type ParsePosition {
+    index: usize,
+}
+
+/// Candidate parse result.
+type ParseCandidate[T] {
+    value: T,
+    position: ParsePosition,
+}
+
+/// Parse failure with recovery position.
+type ParseFailure {
+    expected: List[str],
+    position: ParsePosition,
+}
+
+/// Parse result for generated parsers.
+type ParseResult[T] = Result[ParseCandidate[T], ParseFailure]
+
+/// Retry one parser alternative with a multi-resume continuation.
+def retry_alternative[T](candidate: ParseCandidate[T]): ParseCandidate[T] = reset {
+    shift retry {
+        let first = retry(candidate)
+        retry(first)
+    }
+}
+
+/// Apply a recovery action at a failed position.
+def recover(action: RecoveryAction, failure: ParseFailure): ParseFailure =
+    extern "std" "chibacc_recover"
+
+/// Parse a Pratt expression at a binding power.
+def parse_pratt_at(rule: LoweredRule, position: ParsePosition, min_bp: usize): ParseResult[T] =
+    extern "std" "chibacc_parse_pratt_at"

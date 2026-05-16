@@ -1,0 +1,12 @@
+namespace level1b.chibacc_continuation.alternative_recovery
+
+type Candidate {
+    pos: usize,
+}
+
+def retry_parser_alternative(candidate: Candidate): Candidate = reset {
+    shift retry {
+        let first = retry(candidate)
+        retry(first)
+    }
+}
