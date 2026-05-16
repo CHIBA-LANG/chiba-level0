@@ -1,0 +1,24 @@
+/// `compile_if` filtering for source item collection.
+namespace level1b.compiler.source.compile_if
+
+/// Target/backend facts available before item collection.
+type CompileTargetFacts {
+    target: String,
+    backend: String,
+}
+
+/// Compile-time predicate expression.
+data CompileIfPredicate {
+    CompileIfEq(str, String),
+    CompileIfAll(List[CompileIfPredicate]),
+    CompileIfAny(List[CompileIfPredicate]),
+    CompileIfNot(CompileIfPredicate),
+}
+
+/// Evaluate a compile_if predicate against target facts.
+def CompileIfPredicate.eval(self, facts: CompileTargetFacts): bool =
+    extern "std" "compile_if_eval"
+
+/// Return the level-1b wasm target facts.
+def wasm_gc_wasi_facts(): CompileTargetFacts =
+    CompileTargetFacts { target: "wasm32-unknown-wasi", backend: "wasm-gc" }

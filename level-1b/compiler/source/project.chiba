@@ -1,0 +1,40 @@
+/// Project source loading and namespace scan contract.
+namespace level1b.compiler.source.project
+
+/// Source file identifier after deterministic project scan.
+type SourceFileId {
+    index: usize,
+}
+
+/// Include directory supplied by `-I/--include`.
+type IncludeDir {
+    path: String,
+}
+
+/// Source file loaded from an include root or explicit CLI input.
+type SourceFile {
+    id: SourceFileId,
+    path: String,
+    text: String,
+}
+
+/// Namespace declaration surface.
+type NamespaceSurface {
+    name: str,
+    doc_path: Option[String],
+    doc_comment: Option[String],
+    file: SourceFileId,
+}
+
+/// Source-level project summary.
+type ProjectSurface {
+    files: Array[SourceFile],
+    namespaces: Array[NamespaceSurface],
+}
+
+/// Load project files in deterministic path order.
+def load_project(inputs: Array[String], includes: Array[IncludeDir]): ProjectSurface =
+    extern "std" "source_load_project"
+
+/// Return namespaces sorted by file path and source span.
+def ProjectSurface.sorted_namespaces(self): Array[NamespaceSurface] = self.namespaces

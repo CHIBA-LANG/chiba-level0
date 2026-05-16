@@ -1,0 +1,18 @@
+/// Doc comment and namespace documentation capture.
+namespace level1b.compiler.source.doc_surface
+
+/// Captured `///` block before an item.
+type DocCommentBlock {
+    text: String,
+    line: usize,
+    column: usize,
+}
+
+/// Captured `#[doc(path="...")]` namespace attachment.
+type DocPath {
+    path: String,
+}
+
+/// Attach namespace documentation from comment and attribute facts.
+def attach_namespace_doc(name: str, comment: Option[DocCommentBlock], doc_path: Option[DocPath]): NamespaceSurface =
+    extern "std" "source_attach_namespace_doc"

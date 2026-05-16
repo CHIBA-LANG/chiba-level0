@@ -1,0 +1,33 @@
+/// Single-threaded level-1b pass driver contract.
+namespace level1b.compiler.driver.pass_driver
+
+use level1b.compiler.cli.*
+use level1b.compiler.source.project.*
+use level1b.compiler.source.compile_if.*
+
+/// Driver diagnostic with stable ordering key.
+type DriverDiagnostic {
+    file: String,
+    line: usize,
+    column: usize,
+    message: String,
+}
+
+/// Ordered diagnostic list.
+type DriverDiagnostics {
+    items: Array[DriverDiagnostic],
+}
+
+/// One driver input.
+type DriverInput {
+    cli: ChibacCliConfig,
+    project: ProjectSurface,
+    target_facts: CompileTargetFacts,
+}
+
+/// Run source loading and header filtering.
+def run_source_driver(input: DriverInput): Result[ProjectSurface, DriverDiagnostics] =
+    extern "std" "driver_run_source"
+
+/// Sort diagnostics by file, line, column, then message.
+def DriverDiagnostics.stable_sort(self): DriverDiagnostics = extern "std" "driver_diagnostics_stable_sort"
