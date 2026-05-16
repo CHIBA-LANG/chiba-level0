@@ -1,0 +1,16 @@
+/// Dumb WAT emitter for validated Wasm-GC Core.
+namespace compiler.backend.wat_emit
+
+use compiler.backend.validate_core.*
+
+/// Textual WAT module.
+type WatModule {
+    text: String,
+}
+
+/// Emit validated Core as WAT without semantic decisions.
+def emit_wat(module: ValidatedCoreModule): WatModule =
+    __compiler_builtin("std.backend_emit_wat")
+
+/// Return the text carried by a WAT module.
+def WatModule.as_string(self): String = self.text

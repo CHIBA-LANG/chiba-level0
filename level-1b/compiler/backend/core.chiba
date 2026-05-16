@@ -1,0 +1,56 @@
+/// Wasm-GC Core IR after closure and continuation lowering.
+namespace compiler.backend.core
+
+use compiler.closure.env_simplify.*
+use compiler.backend.layout.*
+
+/// Direct import target selected before emit.
+data CoreImportModule {
+    CoreImportWasi,
+    CoreImportEnv,
+}
+
+/// Tail position fact attached before WAT emit.
+data CoreTailPosition {
+    CoreTailCall,
+    CorePlainCall,
+}
+
+/// Core operation class understood by the dumb backend emitter.
+data CoreOpKind {
+    CoreOpFunction,
+    CoreOpStructNew,
+    CoreOpArrayNew,
+    CoreOpClosureCall,
+    CoreOpContinuationPackage,
+    CoreOpTailCall,
+    CoreOpImportCall(CoreImportModule),
+}
+
+/// One lowered Core operation.
+type CoreOp {
+    kind: CoreOpKind,
+    layout: Option[WasmGcLayout],
+    tail: CoreTailPosition,
+}
+
+/// Wasm-GC Core module with a stable layout table.
+type WasmGcCoreModule {
+    source: OptimizedClosureModule,
+    layouts: WasmGcLayoutTable,
+    ops: Array[CoreOp],
+}
+
+/// Lower optimized closure Core to Wasm-GC Core.
+def lower_wasm_gc_core(module: OptimizedClosureModule): WasmGcCoreModule =
+    __compiler_builtin("std.backend_lower_wasm_gc_core")
+
+/// Return true when a Core op requires a layout reference.
+def CoreOpKind.requires_layout(self): bool =
+    match self {
+        CoreOpStructNew => true
+        CoreOpArrayNew => true
+        CoreOpClosureCall => true
+        CoreOpContinuationPackage => true
+        _ => false
+    }

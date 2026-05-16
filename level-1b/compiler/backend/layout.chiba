@@ -1,0 +1,46 @@
+/// Stable Wasm-GC layout table construction.
+namespace compiler.backend.layout
+
+use compiler.closure.env_simplify.*
+
+/// Wasm-GC heap layout kind.
+data WasmGcLayoutKind {
+    LayoutStruct,
+    LayoutArray,
+    LayoutClosureEnv,
+    LayoutContinuationFrame,
+    LayoutContinuationPackage,
+    LayoutSliceView,
+}
+
+/// Field entry in a Wasm-GC layout.
+type WasmGcFieldLayout {
+    name: str,
+    value_type: str,
+}
+
+/// Stable layout table entry.
+type WasmGcLayout {
+    id: usize,
+    key: str,
+    kind: WasmGcLayoutKind,
+    fields: Array[WasmGcFieldLayout],
+}
+
+/// Layout table consumed by Core lowering and WAT emit.
+type WasmGcLayoutTable {
+    entries: Array[WasmGcLayout],
+}
+
+/// Build canonical Wasm-GC layouts from optimized closure Core.
+def build_wasm_gc_layouts(module: OptimizedClosureModule): WasmGcLayoutTable =
+    __compiler_builtin("std.backend_build_wasm_gc_layouts")
+
+/// Return true when a layout is a runtime package.
+def WasmGcLayoutKind.is_package(self): bool =
+    match self {
+        LayoutClosureEnv => true
+        LayoutContinuationFrame => true
+        LayoutContinuationPackage => true
+        _ => false
+    }

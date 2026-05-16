@@ -1,0 +1,24 @@
+/// Wasm-GC Core validator.
+namespace compiler.backend.validate_core
+
+use compiler.backend.core.*
+
+/// Core validation error.
+data CoreValidationError {
+    CoreDanglingLayout(str),
+    CoreDanglingSymbol(str),
+    CoreIllegalTailCall(str),
+    CoreIllegalContinuationPackage(str),
+}
+
+/// Validated Core module accepted by backend emit.
+type ValidatedCoreModule {
+    core: WasmGcCoreModule,
+}
+
+/// Validate symbols, layouts, tailcall facts, and continuation packages.
+def validate_wasm_gc_core(module: WasmGcCoreModule): Result[ValidatedCoreModule, Array[CoreValidationError]] =
+    __compiler_builtin("std.backend_validate_wasm_gc_core")
+
+/// Return true when an error blocks WAT emission.
+def CoreValidationError.blocks_emit(self): bool = true

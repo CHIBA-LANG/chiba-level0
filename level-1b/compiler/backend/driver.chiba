@@ -1,0 +1,19 @@
+/// C11 Wasm-GC Core/backend pass driver.
+namespace compiler.backend.driver
+
+use compiler.closure.driver.*
+use compiler.backend.layout.*
+use compiler.backend.core.*
+use compiler.backend.validate_core.*
+use compiler.backend.wat_emit.*
+
+/// Run closure lowering, Wasm-GC Core lowering, Core validation, and WAT emit.
+def run_wasm_gc_wat(module: TypedModule): Result[WatModule, SemanticDiagnostics] =
+    match run_closure_package(module) {
+        Ok(closure) =>
+            match validate_wasm_gc_core(lower_wasm_gc_core(closure)) {
+                Ok(validated) => Ok(emit_wat(validated))
+                Err(_) => Err(__compiler_builtin("std.backend_core_validation_diagnostics"))
+            }
+        Err(errors) => Err(errors)
+    }
