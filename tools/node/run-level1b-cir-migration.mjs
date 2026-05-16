@@ -18,6 +18,7 @@ const REQUIRED_OWNERS = [
   "compiler/semantic/type_infer.chiba",
   "compiler/semantic/type_facts.chiba",
   "compiler/semantic/capability_rules.chiba",
+  "compiler/semantic/generic_body.chiba",
   "compiler/semantic/method_operator.chiba",
   "compiler/semantic/template.chiba",
   "compiler/semantic/abi_capability.chiba",

@@ -23,7 +23,7 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `type_nominal.chiba` | `compiler/semantic/type_nominal.chiba` | contract only |
 | `type_method.chiba` | `compiler/semantic/method_operator.chiba` | contract only |
 | `type_template.chiba` | `compiler/semantic/template.chiba` | contract only |
-| `type_generic_body.chiba` | `compiler/semantic/template.chiba` | missing rewrite |
+| `type_generic_body.chiba` | `compiler/semantic/generic_body.chiba`, `compiler/semantic/template.chiba` | contract only |
 | `type_generalize.chiba` | `compiler/semantic/type_generalize.chiba` | contract only |
 | `type_facts.chiba` | `compiler/semantic/type_facts.chiba` | contract only |
 | `type_capability.chiba` | `compiler/semantic/capability_rules.chiba`, `compiler/semantic/abi_capability.chiba` | contract only |

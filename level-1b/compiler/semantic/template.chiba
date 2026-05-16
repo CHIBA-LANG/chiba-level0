@@ -1,13 +1,17 @@
 /// Checked structural template contracts.
 namespace compiler.semantic.template
 
+use compiler.ir.type_ir.*
 use compiler.semantic.types.*
+use compiler.semantic.type_facts.*
 
 /// Template obligation recorded at definition time.
 data TemplateObligation {
     TemplateField(TypeVar, RowFieldId, SemType),
     TemplateMethod(TypeVar, String),
     TemplateOperator(TypeVar, String),
+    TemplateShapeDispatch(TypeVar, String),
+    TemplateContinuationCapability(TypeVar, ContinuationResumeKind),
 }
 
 /// Checked generic body summary.
@@ -18,3 +22,7 @@ type CheckedTemplate {
 
 /// Check a generic body under abstract parameters.
 def check_template(module: TypedModule): Result[Array[CheckedTemplate], SemanticDiagnostics] = __compiler_builtin("std.semantic_check_template")
+
+/// Convert typed-fact obligations into template obligations.
+def collect_template_obligations(facts: TypedFacts): Array[TemplateObligation] =
+    __compiler_builtin("std.semantic_collect_template_obligations")
