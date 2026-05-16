@@ -14,6 +14,7 @@
     "level1b:c00-source": "node tools/node/run-level1b-c00-source-surface.mjs",
     "level1b:c00-wasmtime": "node tools/node/run-level1b-c00-wasmtime.mjs",
     "level1b:c01-metalstd": "node tools/node/run-level1b-c01-metalstd-contract.mjs",
+    "level1b:c02-std": "node tools/node/run-level1b-c02-std-contract.mjs",
     "level1b:namespace": "node tools/node/run-level1b-namespace-smoke.mjs",
     "level1b:chibalex-mini": "node tools/node/run-level1b-chibalex-mini.mjs",
     "level1b:chibacc-mini": "node tools/node/run-level1b-chibacc-mini.mjs",

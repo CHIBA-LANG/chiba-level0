@@ -1,0 +1,22 @@
+/// Immutable managed array surface.
+///
+/// `Array[T]` lowers to a Wasm-GC array. It has no safe internal mutability.
+namespace level1b.std.array
+
+/// Return the number of elements in an immutable managed array.
+def Array[T].len(self): usize = extern "std" "array_len"
+
+/// Return true when an array has no elements.
+def Array[T].is_empty(self): bool = self.len() == 0
+
+/// Read an element by index with bounds checking.
+def Array[T].get(self, index: usize): T = extern "std" "array_get"
+
+/// Produce a managed view over an array range.
+def Array[T].slice(self, offset: usize, len: usize): Slice[T] = extern "std" "array_slice"
+
+/// Pipe-friendly form of [std.array.Array.len].
+def array_len[T](array: Array[T]): usize = array.len()
+
+/// Pipe-friendly form of [std.array.Array.get].
+def array_get[T](array: Array[T], index: usize): T = array.get(index)

@@ -1,0 +1,17 @@
+/// Diagnostic string builder facade.
+namespace level1b.std.diagnostic
+
+/// Builder for deterministic diagnostic messages.
+type DiagnosticBuilder {
+    len: usize,
+}
+
+/// Create an empty diagnostic builder.
+def DiagnosticBuilder.new(): DiagnosticBuilder = extern "std" "diagnostic_builder_new"
+
+/// Append a string slice to the builder.
+def DiagnosticBuilder.push_str(self, text: str): DiagnosticBuilder =
+    extern "std" "diagnostic_builder_push_str"
+
+/// Freeze a diagnostic builder into an owned string.
+def DiagnosticBuilder.finish(self): String = extern "std" "diagnostic_builder_finish"

@@ -1,0 +1,25 @@
+/// Persistent list surface for compiler IR and summaries.
+namespace level1b.std.list
+
+/// Persistent singly-linked list.
+data List[T] {
+    ListNil,
+    ListCons(T, List[T]),
+}
+
+/// Return true when the list is empty.
+def List[T].is_empty(self): bool =
+    match self { ListNil => true  ListCons(_, _) => false }
+
+/// Add a value to the front of a list.
+def List[T].push_front(self, value: T): List[T] = ListCons(value, self)
+
+/// Fold a list from left to right.
+def List[T].fold[U](self, init: U, f: (U, T) => U): U =
+    match self {
+        ListNil => init
+        ListCons(head, tail) => tail.fold(f(init, head), f)
+    }
+
+/// Pipe-friendly form of [std.list.List.fold].
+def list_fold[T, U](list: List[T], init: U, f: (U, T) => U): U = list.fold(init, f)

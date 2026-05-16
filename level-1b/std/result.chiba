@@ -1,0 +1,22 @@
+/// Result values for fallible ordinary Chiba APIs.
+namespace level1b.std.result
+
+/// Value that is either successful or failed with an error.
+data Result[T, E] {
+    Ok(T),
+    Err(E),
+}
+
+/// Return true when a result is `Ok`.
+def Result[T, E].is_ok(self): bool =
+    match self { Ok(_) => true  Err(_) => false }
+
+/// Return true when a result is `Err`.
+def Result[T, E].is_err(self): bool = self.is_ok() == false
+
+/// Map the successful value while preserving the error type.
+def Result[T, E].map[U](self, f: (T) => U): Result[U, E] =
+    match self { Ok(value) => Ok(f(value))  Err(error) => Err(error) }
+
+/// Pipe-friendly form of [std.result.Result.map].
+def result_map[T, E, U](value: Result[T, E], f: (T) => U): Result[U, E] = value.map(f)

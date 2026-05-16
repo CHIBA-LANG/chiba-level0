@@ -1,0 +1,18 @@
+/// Range values for iteration and slicing.
+namespace level1b.std.range
+
+/// Half-open range `[start, end)`.
+type Range[T] {
+    start: T,
+    end: T,
+}
+
+/// Construct a half-open range.
+def range[T](start: T, end: T): Range[T] =
+    Range { start: start, end: end }
+
+/// Return the first value of a range.
+def Range[T].start(self): T = self.start
+
+/// Return the exclusive end value of a range.
+def Range[T].end(self): T = self.end

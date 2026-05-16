@@ -1,0 +1,32 @@
+/// User-facing file and standard stream facade.
+///
+/// This module hides WASI descriptors and ABI scratch memory behind ordinary
+/// `String` and `str` values.
+namespace level1b.std.io
+
+/// File namespace facade.
+type File {
+    _: (),
+}
+
+/// Standard stream namespace facade.
+type Print {
+    _: (),
+}
+
+/// Read a file into an owned byte string.
+def File.read(path: str): Result[String, IoError] = extern "std" "file_read"
+
+/// Write an owned byte string to a file.
+def File.write(path: str, contents: String): Result[(), IoError] = extern "std" "file_write"
+
+/// Write bytes to stdout.
+def Print.stdout(contents: str): Result[(), IoError] = extern "std" "stdout_write"
+
+/// Write bytes to stderr.
+def Print.stderr(contents: str): Result[(), IoError] = extern "std" "stderr_write"
+
+/// IO error reported by the user-facing std facade.
+type IoError {
+    code: i32,
+}
