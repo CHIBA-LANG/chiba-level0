@@ -8,9 +8,34 @@ type WatModule {
     text: String,
 }
 
+/// Return a stable label for a Core operation kind.
+def CoreOpKind.wat_label(self): String =
+    match self {
+        CoreOpFunction => "function"
+        CoreOpStructNew => "struct.new"
+        CoreOpArrayNew => "array.new"
+        CoreOpClosureCall => "closure.call"
+        CoreOpContinuationPackage => "continuation.package"
+        CoreOpTailCall => "return_call"
+        CoreOpImportCall(module) =>
+            match module {
+                CoreImportWasi => "import.wasi"
+                CoreImportEnv => "import.env"
+            }
+    }
+
+/// Emit one Core op as stable WAT text.
+def emit_core_op(op: CoreOp): String =
+    "  ;; core-op ".concat(op.kind.wat_label()).concat("\n")
+
+/// Emit Core ops in validation order.
+def emit_core_ops(ops: Array[CoreOp], index: usize, out: String): String =
+    if index == ops.len() { out }
+    else { emit_core_ops(ops, index + 1, out.concat(emit_core_op(ops.get(index)))) }
+
 /// Emit validated Core as WAT without semantic decisions.
 def emit_wat(module: ValidatedCoreModule): WatModule =
-    __compiler_builtin("std.backend_emit_wat")
+    WatModule { text: "(module\n".concat(emit_core_ops(module.core.ops, 0, "")).concat(")\n") }
 
 /// Return the text carried by a WAT module.
 def WatModule.as_string(self): String = self.text

@@ -59,6 +59,7 @@ const REWRITTEN_OWNER_FORBIDDEN_BUILTINS = new Map([
   ["compiler/backend/validate_core.chiba", ["std.backend_validate_wasm_gc_core"]],
   ["compiler/backend/core.chiba", ["std.backend_lower_wasm_gc_core"]],
   ["compiler/backend/layout.chiba", ["std.backend_build_wasm_gc_layouts"]],
+  ["compiler/backend/wat_emit.chiba", ["std.backend_emit_wat"]],
 ]);
 
 function fail(message) {
