@@ -1,0 +1,38 @@
+/// Wasm-GC Core IR consumed by the WAT emitter.
+namespace compiler.ir.core
+
+use compiler.ir.common.*
+use compiler.ir.closure.*
+
+/// Wasm-GC layout kind.
+data CoreLayoutKind {
+    CoreLayoutStruct,
+    CoreLayoutArray,
+    CoreLayoutClosureEnv,
+    CoreLayoutContinuationFrame,
+    CoreLayoutContinuationPackage,
+    CoreLayoutSliceView,
+}
+
+/// Stable layout id.
+type CoreLayoutId {
+    id: usize,
+}
+
+/// Core layout entry.
+type CoreLayout {
+    id: CoreLayoutId,
+    key: str,
+    kind: CoreLayoutKind,
+}
+
+/// Core module after backend lowering.
+type CoreModule {
+    source: ClosureIrModule,
+    layouts: Array[CoreLayout],
+}
+
+/// Validated Core module accepted by WAT emit.
+type ValidatedCoreModule {
+    core: CoreModule,
+}

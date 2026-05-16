@@ -1,0 +1,17 @@
+/// Stable text dumps for level-1b IR.
+namespace compiler.ir.show
+
+use compiler.ir.core.*
+
+/// IR dump payload.
+type IrDump {
+    text: String,
+}
+
+/// Dump a Core module in deterministic order.
+def CoreModule.dump(self): IrDump =
+    __compiler_builtin("std.ir_dump_core")
+
+/// Dump a validated Core module in deterministic order.
+def ValidatedCoreModule.dump(self): IrDump =
+    self.core.dump()

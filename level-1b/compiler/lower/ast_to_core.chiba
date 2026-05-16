@@ -1,0 +1,8 @@
+/// AST-to-surface lowering entry for level-1b.
+namespace compiler.lower.ast_to_core
+
+use compiler.ir.surface.*
+
+/// Lower a parsed source file to Surface IR.
+def lower_ast_to_surface(ast: ParsedSourceFile): Result[SurfaceModule, Array[IrDiagnostic]] =
+    __compiler_builtin("std.lower_ast_to_surface")

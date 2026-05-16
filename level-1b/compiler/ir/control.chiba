@@ -1,0 +1,32 @@
+/// Control IR after answer/control and CPS passes.
+namespace compiler.ir.control
+
+use compiler.ir.common.*
+use compiler.ir.typed.*
+
+/// Usage count used by control and closure passes.
+data UseCount {
+    UseZero,
+    UseOne,
+    UseMany,
+}
+
+/// Control boundary kind.
+data ControlBoundary {
+    ControlNone,
+    ControlReset,
+    ControlShift,
+    ControlDelimited,
+}
+
+/// CPS module after one-pass CPS and beta reduction.
+type CpsIrModule {
+    source: TypedModule,
+    usage: Array[UseFact],
+}
+
+/// Use fact for a binder or continuation.
+type UseFact {
+    binder: BinderId,
+    count: UseCount,
+}

@@ -22,6 +22,17 @@ const REQUIRED_OWNERS = [
   "compiler/backend/validate_core.chiba",
   "compiler/driver/pass_driver.chiba",
 ];
+const REQUIRED_IR_FILES = [
+  "level-1b/compiler/ir/common.chiba",
+  "level-1b/compiler/ir/type_ir.chiba",
+  "level-1b/compiler/ir/surface.chiba",
+  "level-1b/compiler/ir/typed.chiba",
+  "level-1b/compiler/ir/control.chiba",
+  "level-1b/compiler/ir/closure.chiba",
+  "level-1b/compiler/ir/core.chiba",
+  "level-1b/compiler/ir/show.chiba",
+  "level-1b/compiler/lower/ast_to_core.chiba",
+];
 
 function fail(message) {
   console.error("[FAIL] level-1b CIR migration");
@@ -40,6 +51,19 @@ if (missingRows.length !== 0) fail(`migration map missing old CIR files:\n${miss
 
 const missingOwners = REQUIRED_OWNERS.filter((owner) => !migration.includes(owner));
 if (missingOwners.length !== 0) fail(`migration map missing owners:\n${missingOwners.join("\n")}`);
+
+const missingIrFiles = REQUIRED_IR_FILES.filter((file) => !fs.existsSync(file));
+if (missingIrFiles.length !== 0) fail(`missing level-1b IR/lower files:\n${missingIrFiles.join("\n")}`);
+
+for (const file of REQUIRED_IR_FILES) {
+  const source = fs.readFileSync(file, "utf8");
+  if (/\bL[0-9]+Op|\bL[0-9]+Item|\bbackend\.cir\b/.test(source)) {
+    fail(`${file} copies old CIR level tags`);
+  }
+  if (!source.includes("///")) {
+    fail(`${file} is missing doc comments`);
+  }
+}
 
 if (!migration.includes("C12 cannot start while any row is `missing rewrite` or `contract only`.")) {
   fail("migration map must make C12 blocking criteria explicit");

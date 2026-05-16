@@ -1,0 +1,29 @@
+/// Closure IR after continuation simplification and closure conversion.
+namespace compiler.ir.closure
+
+use compiler.ir.common.*
+use compiler.ir.control.*
+
+/// Capture legality kind.
+data CaptureClass {
+    CaptureValue,
+    CaptureReplaySafeContinuation,
+}
+
+/// Captured field in an environment.
+type EnvField {
+    binder: BinderId,
+    class: CaptureClass,
+}
+
+/// Closure environment layout before backend lowering.
+type ClosureEnv {
+    owner: BinderId,
+    fields: Array[EnvField],
+}
+
+/// Optimized closure module consumed by Wasm-GC Core lowering.
+type ClosureIrModule {
+    source: CpsIrModule,
+    envs: Array[ClosureEnv],
+}
