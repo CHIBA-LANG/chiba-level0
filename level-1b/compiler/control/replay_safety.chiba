@@ -1,0 +1,27 @@
+/// Replay-safety and world/thread boundary checks for multi-shot continuations.
+namespace level1b.compiler.control.replay_safety
+
+use level1b.compiler.control.continuation_usage.*
+
+/// Boundary where continuation capture or resume is illegal.
+data ControlBoundaryError {
+    ControlCrossWorld,
+    ControlCrossThread,
+    ControlNonReplayState,
+}
+
+/// Replay-safety fact for a continuation.
+type ReplaySafetyFact {
+    binder: BinderId,
+    safe: bool,
+}
+
+/// Check multi-shot replay-safety and world/thread boundaries.
+def check_replay_safety(module: UsageModule): Result[ReplaySafeModule, SemanticDiagnostics] =
+    extern "std" "control_check_replay_safety"
+
+/// Module whose continuations are legal for lowering.
+type ReplaySafeModule {
+    usage: UsageModule,
+    replay: Array[ReplaySafetyFact],
+}

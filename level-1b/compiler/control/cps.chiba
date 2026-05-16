@@ -1,0 +1,26 @@
+/// One-pass CPS conversion with administrative beta-reduction.
+namespace level1b.compiler.control.cps
+
+use level1b.compiler.control.replay_safety.*
+
+/// CPS continuation representation.
+data CpsContinuation {
+    CpsInline,
+    CpsDirect(BinderId),
+    CpsPackage(BinderId),
+}
+
+/// CPS expression marker.
+type CpsModule {
+    source: ReplaySafeModule,
+}
+
+/// Transform a replay-safe module to CPS while beta-reducing administrative continuations.
+def one_pass_cps(module: ReplaySafeModule): CpsModule = extern "std" "control_one_pass_cps"
+
+/// Return true when a continuation must materialize as a package.
+def CpsContinuation.materialized(self): bool =
+    match self {
+        CpsPackage(_) => true
+        _ => false
+    }

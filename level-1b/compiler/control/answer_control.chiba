@@ -1,0 +1,26 @@
+/// Answer type and delimited-control checks.
+namespace level1b.compiler.control.answer_control
+
+/// Control boundary kind observed in an expression.
+data ControlBoundary {
+    ControlNone,
+    ControlReset,
+    ControlShift,
+    ControlDelimited,
+}
+
+/// Answer type fact for one reset boundary.
+type AnswerFact {
+    boundary: ControlBoundary,
+    answer: SemType,
+}
+
+/// Check `reset` and `shift` answer consistency.
+def check_answer_control(module: TypedModule): Result[AnswerControlModule, SemanticDiagnostics] =
+    extern "std" "control_check_answer"
+
+/// Typed module annotated with answer/control facts.
+type AnswerControlModule {
+    typed: TypedModule,
+    facts: Array[AnswerFact],
+}

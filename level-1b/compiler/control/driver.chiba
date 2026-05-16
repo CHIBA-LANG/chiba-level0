@@ -1,0 +1,18 @@
+/// C09 control and CPS pass driver.
+namespace level1b.compiler.control.driver
+
+use level1b.compiler.control.answer_control.*
+use level1b.compiler.control.continuation_usage.*
+use level1b.compiler.control.replay_safety.*
+use level1b.compiler.control.cps.*
+
+/// Run answer/control, usage, replay-safety, boundary, and CPS passes.
+def run_control_cps(module: TypedModule): Result[CpsModule, SemanticDiagnostics] =
+    match check_answer_control(module) {
+        Ok(answer) =>
+            match check_replay_safety(analyze_usage(answer)) {
+                Ok(replay) => Ok(one_pass_cps(replay))
+                Err(errors) => Err(errors)
+            }
+        Err(errors) => Err(errors)
+    }
