@@ -28,10 +28,10 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `type_facts.chiba` | `compiler/semantic/type_facts.chiba` | contract only |
 | `type_capability.chiba` | `compiler/semantic/capability_rules.chiba`, `compiler/semantic/abi_capability.chiba` | contract only |
 | `answer_control.chiba` | `compiler/control/answer_control.chiba` | contract only |
-| `continuation_check.chiba` | `compiler/control/answer_control.chiba` | missing rewrite |
-| `continuation_boundary_check.chiba` | `compiler/control/replay_safety.chiba` | missing rewrite |
+| `continuation_check.chiba` | `compiler/control/answer_type.chiba`, `compiler/control/answer_control.chiba` | contract only |
+| `continuation_boundary_check.chiba` | `compiler/control/continuation_boundary.chiba`, `compiler/control/replay_safety.chiba` | contract only |
 | `continuation_usage.chiba` | `compiler/control/continuation_usage.chiba` | contract only |
-| `usage.chiba` | `compiler/control/continuation_usage.chiba`, `compiler/closure/usage_cps.chiba` | missing rewrite |
+| `usage.chiba` | `compiler/control/usage_subject.chiba`, `compiler/control/continuation_usage.chiba`, `compiler/closure/usage_cps.chiba` | contract only |
 | `cps.chiba` | `compiler/control/cps.chiba` | contract only |
 | `closure.chiba` | `compiler/closure/*.chiba` | contract only |
 | `core.chiba` | `compiler/backend/core.chiba`, `compiler/backend/layout.chiba` | contract only |

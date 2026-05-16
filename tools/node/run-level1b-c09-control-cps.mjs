@@ -4,13 +4,28 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 
 const ROOT = "level-1b/compiler/control";
-const REQUIRED_FILES = ["answer_control.chiba", "continuation_usage.chiba", "cps.chiba", "driver.chiba", "replay_safety.chiba"];
+const REQUIRED_FILES = [
+  "answer_control.chiba",
+  "answer_type.chiba",
+  "continuation_boundary.chiba",
+  "continuation_usage.chiba",
+  "cps.chiba",
+  "driver.chiba",
+  "replay_safety.chiba",
+  "usage_subject.chiba",
+];
 const REQUIRED_TEXT = [
   "data ControlBoundary",
+  "data AnswerTypeCheck",
+  "def check_answer_type",
   "def check_answer_control",
   "data UsageCount",
+  "data UsageSubject",
+  "def UsageCount.merge",
   "data ContinuationKind",
   "def analyze_usage",
+  "data ContinuationBoundary",
+  "def check_continuation_boundary",
   "data ControlBoundaryError",
   "ControlCrossWorld",
   "ControlCrossThread",

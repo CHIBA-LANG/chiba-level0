@@ -2,7 +2,9 @@
 namespace compiler.control.driver
 
 use compiler.control.answer_control.*
+use compiler.control.answer_type.*
 use compiler.control.continuation_usage.*
+use compiler.control.continuation_boundary.*
 use compiler.control.replay_safety.*
 use compiler.control.cps.*
 
@@ -10,8 +12,12 @@ use compiler.control.cps.*
 def run_control_cps(module: TypedModule): Result[CpsModule, SemanticDiagnostics] =
     match check_answer_control(module) {
         Ok(answer) =>
-            match check_replay_safety(analyze_usage(answer)) {
-                Ok(replay) => Ok(one_pass_cps(replay))
+            match check_continuation_boundary(analyze_usage(answer)) {
+                Ok(boundary_checked) =>
+                    match check_replay_safety(boundary_checked) {
+                        Ok(replay) => Ok(one_pass_cps(replay))
+                        Err(errors) => Err(errors)
+                    }
                 Err(errors) => Err(errors)
             }
         Err(errors) => Err(errors)

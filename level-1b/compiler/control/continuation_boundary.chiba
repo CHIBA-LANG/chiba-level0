@@ -1,0 +1,28 @@
+/// World and thread boundary checks for captured continuations.
+namespace compiler.control.continuation_boundary
+
+use compiler.control.continuation_usage.*
+
+/// Boundary target where a continuation cannot cross.
+data ContinuationBoundary {
+    BoundaryWorld,
+    BoundaryThread,
+}
+
+/// Active captured continuation id set.
+type ActiveContinuationSet {
+    binders: Array[BinderId],
+}
+
+/// Boundary check result.
+data ContinuationBoundaryCheck {
+    BoundaryOk,
+    BoundaryCrossed(ContinuationBoundary, BinderId),
+}
+
+/// Check whether active continuations cross a world/thread boundary.
+def check_continuation_boundary(module: UsageModule): Result[UsageModule, SemanticDiagnostics] =
+    __compiler_builtin("std.control_check_continuation_boundary")
+
+/// Return true when the boundary is illegal for continuation capture/resume.
+def ContinuationBoundary.illegal_for_continuation(self): bool = true

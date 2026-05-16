@@ -2,6 +2,7 @@
 namespace compiler.control.replay_safety
 
 use compiler.control.continuation_usage.*
+use compiler.control.continuation_boundary.*
 
 /// Boundary where continuation capture or resume is illegal.
 data ControlBoundaryError {
@@ -16,7 +17,7 @@ type ReplaySafetyFact {
     safe: bool,
 }
 
-/// Check multi-shot replay-safety and world/thread boundaries.
+/// Check multi-shot replay-safety after world/thread boundaries are rejected.
 def check_replay_safety(module: UsageModule): Result[ReplaySafeModule, SemanticDiagnostics] = __compiler_builtin("std.control_check_replay_safety")
 
 /// Module whose continuations are legal for lowering.
