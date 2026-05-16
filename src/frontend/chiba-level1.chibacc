@@ -176,8 +176,17 @@ rule type_item ::=
     ;
 
 rule data_item ::= 
-    KwData name:Ident generics:opt_generics LBrace _:trivia_list first:Ident Colon _:trivia_list ty:type_expr tail:nominal_field_tail _:trivia_list RBrace => AdtRecordItem(name, generics, NominalField_Cons(NominalField(first, ty), tail))
-    | KwData name:Ident generics:opt_generics LBrace variants:data_variant_list RBrace => AdtItem(name, generics, variants)
+    KwData name:Ident generics:opt_generics LBrace body:data_item_body RBrace => data_item_from_body(name, generics, body)
+    ;
+
+rule data_item_body ::=
+    _:trivia_list first:Ident rest:data_item_body_after_ident => data_body_from_first(first, rest)
+    | _:trivia_list => DataBody_Variants(AdtVariant_End)
+    ;
+
+rule data_item_body_after_ident ::=
+    Colon _:trivia_list ty:type_expr tail:nominal_field_tail _:trivia_list => DataAfterFirst_Record(ty, tail)
+    | args:data_variant_args tail:data_variant_tail => DataAfterFirst_Variant(args, tail)
     ;
 
 rule nominal_field_list ::= 
@@ -227,7 +236,9 @@ rule data_variant_arg_list ::=
 
 rule data_variant_arg_after_ident ::= 
     Colon _:trivia_list ty:type_expr tail:data_variant_field_tail => AdtVariantArg_Field(ty, tail)
-    | tail:type_expr_tail rest:type_arg_tail => AdtVariantArg_Type(tail, rest)
+    | Dot tail:type_expr rest:type_arg_tail => AdtVariantArg_Type(Type_Tail_Dot(tail), rest)
+    | LBracket args:type_arg_list RBracket rest:type_arg_tail => AdtVariantArg_Type(Type_Tail_Generic(args), rest)
+    | rest:type_arg_tail => AdtVariantArg_Type(Type_Tail_End, rest)
     ;
 
 rule data_variant_field_tail ::= 
@@ -1000,6 +1011,10 @@ rule arg_tail ::=
         TypeItem(Str, AST, AST),
         AdtItem(Str, AST, AST),
         AdtRecordItem(Str, AST, AST),
+        DataBody_Record(AST),
+        DataBody_Variants(AST),
+        DataAfterFirst_Record(AST, AST),
+        DataAfterFirst_Variant(AST, AST),
         AdtVariant_Cons(AST, AST),
         AdtVariant_End,
         AdtVariant(Str, AST),
@@ -1201,4 +1216,20 @@ rule arg_tail ::=
         OpOr,
         OpPipeGt,
     }
+
+    def data_body_from_first(first: Str, rest: AST): AST =
+        match rest {
+            DataAfterFirst_Record(ty, tail) =>
+                DataBody_Record(NominalField_Cons(NominalField(first, ty), tail))
+            DataAfterFirst_Variant(args, tail) =>
+                DataBody_Variants(AdtVariant_Cons(AdtVariant(first, args), tail))
+            _ => DataBody_Variants(AdtVariant_End)
+        }
+
+    def data_item_from_body(name: Str, generics: AST, body: AST): AST =
+        match body {
+            DataBody_Record(fields) => AdtRecordItem(name, generics, fields)
+            DataBody_Variants(variants) => AdtItem(name, generics, variants)
+            _ => AdtItem(name, generics, AdtVariant_End)
+        }
 }

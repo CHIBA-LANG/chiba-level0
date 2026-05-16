@@ -1,8 +1,8 @@
 namespace semantic.gates.adt_tuple_lowering
 
 data HttpResult[T] {
-    HttpOk(T)
-    HttpError(u8, String)
+    HttpOk(T),
+    HttpError(u8, String),
 }
 
 def HttpResult[T].adt_to_tuple(self): Tuple[Symbol, u8, String] = adt_to_tuple[Tuple[Symbol, u8, String]](self)
