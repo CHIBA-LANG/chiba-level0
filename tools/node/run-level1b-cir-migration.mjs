@@ -48,6 +48,10 @@ const REQUIRED_IR_FILES = [
   "level-1b/compiler/ir/show.chiba",
   "level-1b/compiler/lower/ast_to_core.chiba",
 ];
+const REWRITTEN_OWNER_FORBIDDEN_BUILTINS = new Map([
+  ["compiler/source/compile_if.chiba", ["std.compile_if_eval"]],
+  ["compiler/semantic/type_kind.chiba", ["std.semantic_check_type_kind"]],
+]);
 
 function fail(message) {
   console.error("[FAIL] level-1b CIR migration");
@@ -82,6 +86,20 @@ for (const file of REQUIRED_IR_FILES) {
 
 if (!migration.includes("C12 cannot start while any row is `missing rewrite` or `contract only`.")) {
   fail("migration map must make C12 blocking criteria explicit");
+}
+
+for (const line of migration.split(/\n/)) {
+  if (!line.startsWith("| `") || !line.includes("| rewritten |")) continue;
+  for (const [owner, forbiddenBuiltins] of REWRITTEN_OWNER_FORBIDDEN_BUILTINS) {
+    if (!line.includes(owner)) continue;
+    const ownerPath = `level-1b/${owner}`;
+    const source = fs.readFileSync(ownerPath, "utf8");
+    for (const builtin of forbiddenBuiltins) {
+      if (source.includes(`__compiler_builtin("${builtin}")`)) {
+        fail(`${ownerPath} is marked rewritten but still calls ${builtin}`);
+      }
+    }
+  }
 }
 
 pass("CIR migration map coverage");

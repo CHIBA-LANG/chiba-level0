@@ -8,16 +8,26 @@ type TypeVar {
     index: usize,
 }
 
+/// Compare type variables by stable alpha-allocated index.
+def TypeVar.eq(self, other: TypeVar): bool = self.index == other.index
+
 /// Nominal type identifier bound to namespace-qualified names.
 type NominalId {
     namespace_name: String,
     name: String,
 }
 
+/// Compare nominal ids by fully qualified source identity.
+def NominalId.eq(self, other: NominalId): bool =
+    self.namespace_name == other.namespace_name && self.name == other.name
+
 /// Row field identifier after canonical sorting.
 type RowFieldId {
     name: String,
 }
+
+/// Compare row fields by canonical field name.
+def RowFieldId.eq(self, other: RowFieldId): bool = self.name == other.name
 
 /// Type expression used by semantic checking.
 data SemType {
