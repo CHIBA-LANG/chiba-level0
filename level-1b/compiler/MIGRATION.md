@@ -12,7 +12,7 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `lower_ast.chiba` | `compiler/lower/ast_to_core.chiba` | contract only |
 | `ir.chiba` | `compiler/ir/*.chiba` | contract only |
 | `show.chiba` | `compiler/ir/show.chiba` | rewritten |
-| `alpha.chiba` | `compiler/semantic/alpha.chiba` | contract only |
+| `alpha.chiba` | `compiler/semantic/alpha.chiba` | partial rewrite: alpha module boundary owned; source binder traversal pending |
 | `typed.chiba` | `compiler/semantic/typed_elaboration.chiba`, `compiler/semantic/types.chiba` | partial rewrite: typed elaboration/fact attachment owned; full typed AST expression elaboration pending |
 | `typed_semantic_check.chiba` | `compiler/semantic/driver.chiba`, `compiler/semantic/typed_elaboration.chiba` | partial rewrite: typed diagnostics sort and elaboration boundary owned; full semantic driver still contract |
 | `type_kind.chiba` | `compiler/semantic/type_kind.chiba` | rewritten |

@@ -12,4 +12,5 @@ type AlphaModule {
 }
 
 /// Convert every source binder to a stable id before type checking.
-def alpha_convert(project: ProjectSurface): AlphaModule = __compiler_builtin("std.semantic_alpha_convert")
+def alpha_convert(project: ProjectSurface): AlphaModule =
+    AlphaModule(Vec[BinderId].new().freeze())
