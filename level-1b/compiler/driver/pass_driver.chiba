@@ -29,5 +29,45 @@ type DriverInput {
 /// Run source loading, header filtering, and source-level semantic gates.
 def run_source_driver(input: DriverInput): Result[ProjectSurface, DriverDiagnostics] = __compiler_builtin("std.driver_run_source")
 
+/// Return true when `left` should appear before `right` in diagnostic order.
+def driver_diagnostic_before(left: DriverDiagnostic, right: DriverDiagnostic): bool =
+    if left.file < right.file { true }
+    else if right.file < left.file { false }
+    else if left.line < right.line { true }
+    else if right.line < left.line { false }
+    else if left.column < right.column { true }
+    else if right.column < left.column { false }
+    else { left.message < right.message }
+
+/// Copy all diagnostics before `index` into `out`.
+def driver_diagnostics_copy_prefix(items: Array[DriverDiagnostic], index: usize, out: Vec[DriverDiagnostic], cursor: usize): Vec[DriverDiagnostic] =
+    if cursor == index { out }
+    else { driver_diagnostics_copy_prefix(items, index, out.push(items.get(cursor)), cursor + 1) }
+
+/// Copy all diagnostics from `index` to the end into `out`.
+def driver_diagnostics_copy_suffix(items: Array[DriverDiagnostic], index: usize, out: Vec[DriverDiagnostic]): Vec[DriverDiagnostic] =
+    if index == items.len() { out }
+    else { driver_diagnostics_copy_suffix(items, index + 1, out.push(items.get(index))) }
+
+/// Insert one diagnostic into an already sorted diagnostic array.
+def driver_diagnostics_insert(sorted: Array[DriverDiagnostic], item: DriverDiagnostic, index: usize): Array[DriverDiagnostic] =
+    if index == sorted.len() {
+        driver_diagnostics_copy_prefix(sorted, index, Vec[DriverDiagnostic].new(), 0)
+            .push(item)
+            .freeze()
+    } else if driver_diagnostic_before(item, sorted.get(index)) {
+        driver_diagnostics_copy_suffix(sorted, index,
+            driver_diagnostics_copy_prefix(sorted, index, Vec[DriverDiagnostic].new(), 0).push(item))
+            .freeze()
+    } else { driver_diagnostics_insert(sorted, item, index + 1) }
+
+/// Sort diagnostic arrays with stable insertion order for equal keys.
+def driver_diagnostics_sort_items(items: Array[DriverDiagnostic], index: usize, sorted: Array[DriverDiagnostic]): Array[DriverDiagnostic] =
+    if index == items.len() { sorted }
+    else { driver_diagnostics_sort_items(items, index + 1, driver_diagnostics_insert(sorted, items.get(index), 0)) }
+
 /// Sort diagnostics by file, line, column, then message.
-def DriverDiagnostics.stable_sort(self): DriverDiagnostics = __compiler_builtin("std.driver_diagnostics_stable_sort")
+def DriverDiagnostics.stable_sort(self): DriverDiagnostics =
+    DriverDiagnostics {
+        items: driver_diagnostics_sort_items(self.items, 0, Vec[DriverDiagnostic].new().freeze()),
+    }

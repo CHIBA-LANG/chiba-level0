@@ -11,7 +11,7 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `source_semantic_check.chiba` | `compiler/source/semantic_gate.chiba`, `compiler/driver/pass_driver.chiba` | contract only |
 | `lower_ast.chiba` | `compiler/lower/ast_to_core.chiba` | contract only |
 | `ir.chiba` | `compiler/ir/*.chiba` | contract only |
-| `show.chiba` | `compiler/ir/show.chiba` | contract only |
+| `show.chiba` | `compiler/ir/show.chiba` | rewritten |
 | `alpha.chiba` | `compiler/semantic/alpha.chiba` | contract only |
 | `typed.chiba` | `compiler/semantic/typed_elaboration.chiba`, `compiler/semantic/types.chiba` | contract only |
 | `typed_semantic_check.chiba` | `compiler/semantic/driver.chiba`, `compiler/semantic/typed_elaboration.chiba` | contract only |

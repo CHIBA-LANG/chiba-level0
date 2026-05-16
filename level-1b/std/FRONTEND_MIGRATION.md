@@ -22,7 +22,7 @@ live outside `std`.
 | `.chibalex` AST | `std/chibalex/ast.chiba` | rewritten |
 | `.chibalex` parser | `std/chibalex/parser.chiba` | contract only |
 | Lexer IR lowering | `std/chibalex/ir.chiba` | contract only |
-| Longest-match engine | `std/chibalex/engine.chiba` | contract only |
+| Longest-match engine | `std/chibalex/engine.chiba` | partial rewrite: state advance and continuation choice rewritten; rule matching still builtin |
 | Lexer source codegen | `std/chibalex/codegen.chiba` | contract only |
 
 ## Chibacc
@@ -32,7 +32,7 @@ live outside `std`.
 | `.chibacc` AST | `std/chibacc/ast.chiba` | rewritten |
 | `.chibacc` parser | `std/chibacc/parser.chiba` | contract only |
 | Grammar IR lowering | `std/chibacc/ir.chiba` | contract only |
-| Pratt/recovery engine | `std/chibacc/engine.chiba` | contract only |
+| Pratt/recovery engine | `std/chibacc/engine.chiba` | partial rewrite: recovery and continuation retry rewritten; Pratt parse still builtin |
 | Parser source codegen | `std/chibacc/codegen.chiba` | contract only |
 
 ## Exit Criteria

@@ -41,5 +41,45 @@ type TypedModule {
 /// Run alpha, pattern, inference, template, method/operator, ABI, and capability passes.
 def run_typed_semantics(project: ProjectSurface): Result[TypedModule, SemanticDiagnostics] = __compiler_builtin("std.semantic_run_typed")
 
+/// Return true when `left` should appear before `right`.
+def semantic_diagnostic_before(left: SemanticDiagnostic, right: SemanticDiagnostic): bool =
+    if left.file < right.file { true }
+    else if right.file < left.file { false }
+    else if left.line < right.line { true }
+    else if right.line < left.line { false }
+    else if left.column < right.column { true }
+    else if right.column < left.column { false }
+    else { left.message < right.message }
+
+/// Copy all semantic diagnostics before `index` into `out`.
+def semantic_diagnostics_copy_prefix(items: Array[SemanticDiagnostic], index: usize, out: Vec[SemanticDiagnostic], cursor: usize): Vec[SemanticDiagnostic] =
+    if cursor == index { out }
+    else { semantic_diagnostics_copy_prefix(items, index, out.push(items.get(cursor)), cursor + 1) }
+
+/// Copy all semantic diagnostics from `index` to the end into `out`.
+def semantic_diagnostics_copy_suffix(items: Array[SemanticDiagnostic], index: usize, out: Vec[SemanticDiagnostic]): Vec[SemanticDiagnostic] =
+    if index == items.len() { out }
+    else { semantic_diagnostics_copy_suffix(items, index + 1, out.push(items.get(index))) }
+
+/// Insert one semantic diagnostic into an already sorted array.
+def semantic_diagnostics_insert(sorted: Array[SemanticDiagnostic], item: SemanticDiagnostic, index: usize): Array[SemanticDiagnostic] =
+    if index == sorted.len() {
+        semantic_diagnostics_copy_prefix(sorted, index, Vec[SemanticDiagnostic].new(), 0)
+            .push(item)
+            .freeze()
+    } else if semantic_diagnostic_before(item, sorted.get(index)) {
+        semantic_diagnostics_copy_suffix(sorted, index,
+            semantic_diagnostics_copy_prefix(sorted, index, Vec[SemanticDiagnostic].new(), 0).push(item))
+            .freeze()
+    } else { semantic_diagnostics_insert(sorted, item, index + 1) }
+
+/// Sort semantic diagnostics with stable insertion order for equal keys.
+def semantic_diagnostics_sort_items(items: Array[SemanticDiagnostic], index: usize, sorted: Array[SemanticDiagnostic]): Array[SemanticDiagnostic] =
+    if index == items.len() { sorted }
+    else { semantic_diagnostics_sort_items(items, index + 1, semantic_diagnostics_insert(sorted, items.get(index), 0)) }
+
 /// Sort semantic diagnostics deterministically.
-def SemanticDiagnostics.stable_sort(self): SemanticDiagnostics = __compiler_builtin("std.semantic_diagnostics_stable_sort")
+def SemanticDiagnostics.stable_sort(self): SemanticDiagnostics =
+    SemanticDiagnostics {
+        items: semantic_diagnostics_sort_items(self.items, 0, Vec[SemanticDiagnostic].new().freeze()),
+    }

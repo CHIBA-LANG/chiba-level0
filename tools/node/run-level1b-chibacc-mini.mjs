@@ -111,6 +111,16 @@ def tokenspan_make(tok: Token, span: Span, leading: Vec, trailing: Vec): TokenSp
 `;
 }
 
+function stripGeneratedHeader(source) {
+  return source
+    .split(/\n/)
+    .filter((line) => {
+      const trimmed = line.trim();
+      return !trimmed.startsWith("namespace ") && !trimmed.startsWith("use ");
+    })
+    .join("\n");
+}
+
 function mainSource(namespace, tokens, check) {
   const pushes = tokens
     .map((token) => `    let _ = push_token(tokens, ${token})`)
@@ -132,11 +142,7 @@ function mainSource(namespace, tokens, check) {
         }
         Err(fail, errors) => 2
     }`;
-  return `namespace ${namespace}
-use metalstd.str.*
-use metalstd.vec.*
-
-def push_token(tokens: Vec, tok: Token): i64 =
+  return `def push_token(tokens: Vec, tok: Token): i64 =
     vec_push(tokens, tokenspan_make(tok, span0(), vec_new(), vec_new()))
 
 #[entry]
@@ -163,7 +169,7 @@ function runGeneratedParser(caseInfo, generated) {
   }
   fs.writeFileSync(
     path.join(src, "main.chiba"),
-    `${tokenPrelude(caseInfo.namespace)}\n${generated}\n${mainSource(caseInfo.namespace, caseInfo.tokens, caseInfo.check)}`,
+    `${tokenPrelude(caseInfo.namespace)}\n${stripGeneratedHeader(generated)}\n${mainSource(caseInfo.namespace, caseInfo.tokens, caseInfo.check)}`,
   );
   run(`generated parser compile ${label}`, "timeout", [
     "10",

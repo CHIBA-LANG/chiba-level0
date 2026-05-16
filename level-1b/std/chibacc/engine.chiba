@@ -23,8 +23,9 @@ type ParseFailure {
     position: ParsePosition,
 }
 
-/// Parse result for generated parsers.
-type ParseResult[T] = Result[ParseCandidate[T], ParseFailure]
+/// Construct a parse failure.
+def parse_failure(expected: List[str], position: ParsePosition): ParseFailure =
+    ParseFailure(expected, position)
 
 /// Retry one parser alternative with a multi-resume continuation.
 def retry_alternative[T](candidate: ParseCandidate[T]): ParseCandidate[T] = reset {
@@ -35,7 +36,14 @@ def retry_alternative[T](candidate: ParseCandidate[T]): ParseCandidate[T] = rese
 }
 
 /// Apply a recovery action at a failed position.
-def recover(action: RecoveryAction, failure: ParseFailure): ParseFailure = __compiler_builtin("std.chibacc_recover")
+def recover(action: RecoveryAction, failure: ParseFailure): ParseFailure =
+    match action {
+        RecoveryNone => failure
+        RecoverySkipUntil(expected) =>
+            parse_failure(expected, failure.position)
+        RecoveryInsert(token) =>
+            parse_failure(ListCons(token, failure.expected), failure.position)
+    }
 
 /// Parse a Pratt expression at a binding power.
-def parse_pratt_at(rule: LoweredRule, position: ParsePosition, min_bp: usize): ParseResult[T] = __compiler_builtin("std.chibacc_parse_pratt_at")
+def parse_pratt_at[T](rule: LoweredRule, position: ParsePosition, min_bp: usize): Result[ParseCandidate[T], ParseFailure] = __compiler_builtin("std.chibacc_parse_pratt_at")
