@@ -16,9 +16,93 @@ type ValidatedCoreModule {
     core: WasmGcCoreModule,
 }
 
+/// Return true when a layout table contains a layout id with the expected kind.
+def WasmGcLayoutTable.contains_layout(self, layout: WasmGcLayout, index: usize): bool =
+    if index == self.entries.len() { false }
+    else {
+        let entry = self.entries.get(index)
+        if entry.id == layout.id && entry.kind.eq(layout.kind) { true }
+        else { self.contains_layout(layout, index + 1) }
+    }
+
+/// Compare layout kinds by ADT variant.
+def WasmGcLayoutKind.eq(self, other: WasmGcLayoutKind): bool =
+    match self {
+        LayoutStruct => match other { LayoutStruct => true  _ => false }
+        LayoutArray => match other { LayoutArray => true  _ => false }
+        LayoutClosureEnv => match other { LayoutClosureEnv => true  _ => false }
+        LayoutContinuationFrame => match other { LayoutContinuationFrame => true  _ => false }
+        LayoutContinuationPackage => match other { LayoutContinuationPackage => true  _ => false }
+        LayoutSliceView => match other { LayoutSliceView => true  _ => false }
+    }
+
+/// Return true when a Core kind may appear in tail position.
+def CoreOpKind.allows_tail_position(self): bool =
+    match self {
+        CoreOpTailCall => true
+        CoreOpClosureCall => true
+        _ => false
+    }
+
+/// Validate a tail-call annotation.
+def validate_core_tail(op: CoreOp): Option[CoreValidationError] =
+    match op.tail {
+        CorePlainCall => None
+        CoreTailCall =>
+            if op.kind.allows_tail_position() { None }
+            else { Some(CoreIllegalTailCall("tailcall attached to non-call Core op")) }
+    }
+
+/// Validate a layout reference required by a Core operation.
+def validate_core_layout(module: WasmGcCoreModule, op: CoreOp): Option[CoreValidationError] =
+    match op.layout {
+        None =>
+            if op.kind.requires_layout() { Some(CoreDanglingLayout("missing required layout")) }
+            else { None }
+        Some(layout) =>
+            if module.layouts.contains_layout(layout, 0) { None }
+            else { Some(CoreDanglingLayout(layout.key)) }
+    }
+
+/// Validate continuation package operations.
+def validate_core_continuation_package(op: CoreOp): Option[CoreValidationError] =
+    match op.kind {
+        CoreOpContinuationPackage =>
+            match op.layout {
+                Some(layout) =>
+                    if layout.kind.eq(LayoutContinuationPackage) { None }
+                    else { Some(CoreIllegalContinuationPackage("continuation package must use package layout")) }
+                None => Some(CoreIllegalContinuationPackage("continuation package missing layout"))
+            }
+        _ => None
+    }
+
+/// Append an optional validation error to a builder.
+def push_validation_error(out: Vec[CoreValidationError], error: Option[CoreValidationError]): Vec[CoreValidationError] =
+    match error {
+        Some(item) => out.push(item)
+        None => out
+    }
+
+/// Validate one Core op.
+def validate_core_op(module: WasmGcCoreModule, op: CoreOp, out: Vec[CoreValidationError]): Vec[CoreValidationError] =
+    out
+        |> push_validation_error(validate_core_layout(module, op))
+        |> push_validation_error(validate_core_tail(op))
+        |> push_validation_error(validate_core_continuation_package(op))
+
+/// Validate Core operations in stable order.
+def validate_core_ops(module: WasmGcCoreModule, index: usize, out: Vec[CoreValidationError]): Array[CoreValidationError] =
+    if index == module.ops.len() { out.freeze() }
+    else { validate_core_ops(module, index + 1, validate_core_op(module, module.ops.get(index), out)) }
+
 /// Validate symbols, layouts, tailcall facts, and continuation packages.
 def validate_wasm_gc_core(module: WasmGcCoreModule): Result[ValidatedCoreModule, Array[CoreValidationError]] =
-    __compiler_builtin("std.backend_validate_wasm_gc_core")
+    match validate_core_ops(module, 0, Vec[CoreValidationError].new()) {
+        errors =>
+            if errors.len() == 0 { Ok(ValidatedCoreModule { core: module }) }
+            else { Err(errors) }
+    }
 
 /// Return true when an error blocks WAT emission.
 def CoreValidationError.blocks_emit(self): bool = true
