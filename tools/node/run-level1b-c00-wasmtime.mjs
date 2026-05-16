@@ -7,6 +7,7 @@ import { compileWat } from "./wat-compile.mjs";
 const WAT = "level-1b/tests/wasmtime/chibac-help-smoke.wat";
 const OUT_DIR = ".scratch/level-1b";
 const WASM = path.join(OUT_DIR, "chibac-help-smoke.wasm");
+const ALLOWED_IMPORT_MODULES = new Set(["wasi_snapshot_preview1"]);
 
 function run(name, command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -26,10 +27,89 @@ function hasCommand(command) {
   return spawnSync("sh", ["-lc", `command -v ${command}`], { encoding: "utf8" }).status === 0;
 }
 
+function readU32(bytes, state) {
+  let result = 0;
+  let shift = 0;
+  while (state.offset < bytes.length) {
+    const byte = bytes[state.offset++];
+    result |= (byte & 0x7f) << shift;
+    if ((byte & 0x80) === 0) return result >>> 0;
+    shift += 7;
+  }
+  throw new Error("unexpected eof in wasm u32");
+}
+
+function readName(bytes, state) {
+  const len = readU32(bytes, state);
+  const start = state.offset;
+  state.offset += len;
+  return Buffer.from(bytes.subarray(start, start + len)).toString("utf8");
+}
+
+function skipLimits(bytes, state) {
+  const flags = bytes[state.offset++];
+  readU32(bytes, state);
+  if ((flags & 1) !== 0) readU32(bytes, state);
+}
+
+function skipImportType(bytes, state, kind) {
+  if (kind === 0) {
+    readU32(bytes, state);
+  } else if (kind === 1) {
+    state.offset += 1;
+    skipLimits(bytes, state);
+  } else if (kind === 2) {
+    skipLimits(bytes, state);
+  } else if (kind === 3) {
+    state.offset += 2;
+  } else {
+    throw new Error(`unsupported wasm import kind ${kind}`);
+  }
+}
+
+function wasmImports(bytes) {
+  if (bytes[0] !== 0 || bytes[1] !== 97 || bytes[2] !== 115 || bytes[3] !== 109) {
+    throw new Error("not a wasm binary");
+  }
+  const imports = [];
+  const state = { offset: 8 };
+  while (state.offset < bytes.length) {
+    const section = bytes[state.offset++];
+    const size = readU32(bytes, state);
+    const end = state.offset + size;
+    if (section === 2) {
+      const count = readU32(bytes, state);
+      for (let i = 0; i < count; i += 1) {
+        const module = readName(bytes, state);
+        const name = readName(bytes, state);
+        const kind = bytes[state.offset++];
+        skipImportType(bytes, state, kind);
+        imports.push({ module, name });
+      }
+    }
+    state.offset = end;
+  }
+  return imports;
+}
+
+async function checkImportPolicy(wasmPath) {
+  const bytes = await fs.readFile(wasmPath);
+  const imports = wasmImports(bytes);
+  for (const imported of imports) {
+    if (!ALLOWED_IMPORT_MODULES.has(imported.module)) {
+      console.error("[FAIL] C00 wasm import policy");
+      console.error(`disallowed import ${imported.module}.${imported.name}`);
+      process.exit(1);
+    }
+  }
+  console.log("[PASS] C00 wasm import policy");
+}
+
 const wat = await fs.readFile(WAT, "utf8");
 await fs.mkdir(OUT_DIR, { recursive: true });
 await fs.writeFile(WASM, compileWat(wat));
 console.log(`[PASS] compile C00 wasmtime smoke ${WASM}`);
+await checkImportPolicy(WASM);
 
 const nodeRun = run("C00 node WASI smoke", process.execPath, [
   "--no-warnings",
