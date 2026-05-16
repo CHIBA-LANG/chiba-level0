@@ -99,6 +99,9 @@ function main() {
   if (/\bdef\s+(map|filter|fold)\s*\[/.test(preludeCode)) {
     fail("prelude must not define naked map/filter/fold; use receiver methods");
   }
+  if (/Pipe-friendly|pipe-friendly/.test(prelude)) {
+    fail("prelude docs must describe method-first APIs, not pipe-friendly wrappers");
+  }
 
   const policyNeedles = [
     "data PreludeImportPolicy",

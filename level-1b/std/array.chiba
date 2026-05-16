@@ -14,9 +14,3 @@ def Array[T].get(self, index: usize): T = __compiler_builtin("std.array_get")
 
 /// Produce a managed view over an array range.
 def Array[T].slice(self, offset: usize, len: usize): Slice[T] = __compiler_builtin("std.array_slice")
-
-/// Pipe-friendly form of [std.array.Array.len].
-def array_len[T](array: Array[T]): usize = array.len()
-
-/// Pipe-friendly form of [std.array.Array.get].
-def array_get[T](array: Array[T], index: usize): T = array.get(index)

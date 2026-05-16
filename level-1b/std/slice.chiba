@@ -14,9 +14,3 @@ def Slice[T].get(self, index: usize): T = __compiler_builtin("std.slice_get")
 
 /// Produce a narrower managed view over a slice range.
 def Slice[T].slice(self, offset: usize, len: usize): Slice[T] = __compiler_builtin("std.slice_slice")
-
-/// Pipe-friendly form of [std.slice.Slice.len].
-def slice_len[T](slice: Slice[T]): usize = slice.len()
-
-/// Pipe-friendly form of [std.slice.Slice.get].
-def slice_get[T](slice: Slice[T], index: usize): T = slice.get(index)

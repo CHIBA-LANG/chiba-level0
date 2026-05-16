@@ -28,6 +28,3 @@ def StrMap[V].insert(self, key: str, value: V): StrMap[V] = __compiler_builtin("
 
 /// Look up a string key.
 def StrMap[V].get(self, key: str): Option[V] = __compiler_builtin("std.strmap_get")
-
-/// Pipe-friendly form of [std.map.Map.get].
-def map_get[K, V](map: Map[K, V], key: K): Option[V] = map.get(key)

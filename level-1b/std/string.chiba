@@ -35,6 +35,3 @@ def str.char_at(self, index: usize): Char = __compiler_builtin("std.str_char_at"
 
 /// Concatenate two owned strings.
 def String.concat(self, other: String): String = __compiler_builtin("std.string_concat")
-
-/// Pipe-friendly form of [std.string.String.char_at].
-def string_char_at(value: String, index: usize): Char = value.char_at(index)

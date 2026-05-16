@@ -27,6 +27,3 @@ def RegexProgram.find(self, input: str): Option[RegexMatch] = __compiler_builtin
 
 /// Find the longest match beginning at `start`.
 def RegexProgram.longest_at(self, input: str, start: usize): Option[RegexMatch] = __compiler_builtin("std.regex_longest_at")
-
-/// Pipe-friendly form of [std.regex.matcher.RegexProgram.find].
-def regex_find(program: RegexProgram, input: str): Option[RegexMatch] = program.find(input)

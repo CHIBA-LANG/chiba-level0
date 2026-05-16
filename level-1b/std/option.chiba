@@ -17,6 +17,3 @@ def Option[T].is_some(self): bool = self.is_none() == false
 /// Return the contained value or a caller-provided default.
 def Option[T].unwrap_or(self, default: T): T =
     match self { Some(value) => value  None => default }
-
-/// Pipe-friendly form of [std.option.Option.unwrap_or].
-def option_unwrap_or[T](value: Option[T], default: T): T = value.unwrap_or(default)

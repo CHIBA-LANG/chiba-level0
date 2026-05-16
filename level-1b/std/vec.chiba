@@ -20,6 +20,3 @@ def Vec[T].push(self, value: T): Vec[T] = __compiler_builtin("std.vec_push")
 
 /// Freeze the builder into an immutable managed array.
 def Vec[T].freeze(self): Array[T] = __compiler_builtin("std.vec_freeze")
-
-/// Pipe-friendly form of [std.vec.Vec.push].
-def vec_push[T](vec: Vec[T], value: T): Vec[T] = vec.push(value)

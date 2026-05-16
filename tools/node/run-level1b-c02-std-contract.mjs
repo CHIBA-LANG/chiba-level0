@@ -105,6 +105,12 @@ function checkSource(file, source) {
   if (/\b(metalstd|Ptr\s*\[|UnsafeRef\s*\[|extern\s+"metal"|extern\s+"std"|extern\s+"wasi"|unsafe\s*\{)/.test(code)) {
     errors.push(`${rel}: std public source leaks Metal or ABI capability`);
   }
+  if (/Pipe-friendly|pipe-friendly/.test(source)) {
+    errors.push(`${rel}: std should use method-first APIs, not pipe-friendly wrapper comments`);
+  }
+  if (/\bdef\s+(array_|slice_|string_|list_|vec_|map_|option_|result_|regex_find)\w*/.test(code)) {
+    errors.push(`${rel}: std contains a redundant method wrapper function`);
+  }
   if (/\b(heap_alloc|load(?:8|16|32|64)|store(?:8|16|32|64))\s*\(/.test(code)) {
     errors.push(`${rel}: std source uses raw memory operation`);
   }
