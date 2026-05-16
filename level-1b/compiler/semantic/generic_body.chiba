@@ -20,15 +20,46 @@ data GenericInstantiationCheck {
 
 /// Check a binary add body under abstract parameters.
 def check_generic_add_body(left: SemType, right: SemType): GenericBodyCheck =
-    __compiler_builtin("std.semantic_check_generic_add_body")
+    match left {
+        TyVar(var) =>
+            match unify(left, right) {
+                Ok(_) => GenericBodyChecked(left, Vec[TemplateObligation].new().push(TemplateOperator(var, "op_add")).freeze())
+                Err(_) => GenericBodyError("generic add operands must unify")
+            }
+        _ =>
+            match unify(left, right) {
+                Ok(_) => GenericBodyChecked(left, Vec[TemplateObligation].new().freeze())
+                Err(_) => GenericBodyError("add operands must unify")
+            }
+    }
 
 /// Check a generic field access body under abstract row facts.
 def check_generic_field_body(receiver: SemType, field: RowFieldId, result: SemType, row: CanonicalRow): GenericBodyCheck =
-    __compiler_builtin("std.semantic_check_generic_field_body")
+    match receiver {
+        TyVar(var) =>
+            GenericBodyChecked(result, Vec[TemplateObligation].new().push(TemplateField(var, field, result)).freeze())
+        TyRow(_, _) =>
+            match row.lookup(field, 0) {
+                RowFieldFound(found) =>
+                    match unify(found, result) {
+                        Ok(_) => GenericBodyChecked(result, Vec[TemplateObligation].new().freeze())
+                        Err(_) => GenericBodyError("generic field result type mismatch")
+                    }
+                RowFieldMissing => GenericBodyError("generic row field missing")
+            }
+        _ => GenericBodyError("field access receiver must be row-like")
+    }
 
 /// Check a concrete row against a field obligation.
 def instantiate_field_obligation(row: CanonicalRow, field: RowFieldId, expected: SemType): GenericInstantiationCheck =
-    __compiler_builtin("std.semantic_instantiate_field_obligation")
+    match row.lookup(field, 0) {
+        RowFieldMissing => GenericInstantiationErr("concrete row missing required field")
+        RowFieldFound(found) =>
+            match unify(found, expected) {
+                Ok(_) => GenericInstantiationOk
+                Err(_) => GenericInstantiationErr("concrete row field type mismatch")
+            }
+    }
 
 /// Return true when a generic body produced obligations rather than concrete code only.
 def GenericBodyCheck.has_obligation(self): bool =

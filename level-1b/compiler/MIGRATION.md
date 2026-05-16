@@ -22,8 +22,8 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `type_record.chiba` | `compiler/semantic/type_record.chiba`, `compiler/semantic/type_row.chiba` | rewritten |
 | `type_nominal.chiba` | `compiler/semantic/type_nominal.chiba` | rewritten |
 | `type_method.chiba` | `compiler/semantic/method_operator.chiba` | contract only |
-| `type_template.chiba` | `compiler/semantic/template.chiba` | contract only |
-| `type_generic_body.chiba` | `compiler/semantic/generic_body.chiba`, `compiler/semantic/template.chiba` | contract only |
+| `type_template.chiba` | `compiler/semantic/template.chiba` | partial rewrite: typed-fact obligation collection rewritten; full template body driver still contract |
+| `type_generic_body.chiba` | `compiler/semantic/generic_body.chiba`, `compiler/semantic/template.chiba` | partial rewrite: generic add/field body and field instantiation checks rewritten; full template driver still contract |
 | `type_generalize.chiba` | `compiler/semantic/type_generalize.chiba` | rewritten |
 | `type_facts.chiba` | `compiler/semantic/type_facts.chiba` | contract only |
 | `type_capability.chiba` | `compiler/semantic/capability_rules.chiba`, `compiler/semantic/abi_capability.chiba` | contract only |

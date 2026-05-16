@@ -23,6 +23,27 @@ type CheckedTemplate {
 /// Check a generic body under abstract parameters.
 def check_template(module: TypedModule): Result[Array[CheckedTemplate], SemanticDiagnostics] = __compiler_builtin("std.semantic_check_template")
 
+/// Append one template obligation if the semantic obligation is generic.
+def push_template_obligation(out: Vec[TemplateObligation], obligation: SemanticObligation): Vec[TemplateObligation] =
+    match obligation {
+        ObligationField(TyVar(var), field, ty) =>
+            out.push(TemplateField(var, field, ty))
+        ObligationMethod(TyVar(var), name, _, _) =>
+            out.push(TemplateMethod(var, name))
+        ObligationOperator(name, TyVar(var), _, _) =>
+            out.push(TemplateOperator(var, name))
+        ObligationShapeDispatch(name, TyVar(var), _, _) =>
+            out.push(TemplateShapeDispatch(var, name))
+        ObligationContinuationCapability(TyVar(var), resume) =>
+            out.push(TemplateContinuationCapability(var, resume))
+        _ => out
+    }
+
+/// Collect template obligations from one facts array.
+def collect_template_obligations_loop(obligations: Array[SemanticObligation], index: usize, out: Vec[TemplateObligation]): Array[TemplateObligation] =
+    if index == obligations.len() { out.freeze() }
+    else { collect_template_obligations_loop(obligations, index + 1, push_template_obligation(out, obligations.get(index))) }
+
 /// Convert typed-fact obligations into template obligations.
 def collect_template_obligations(facts: TypedFacts): Array[TemplateObligation] =
-    __compiler_builtin("std.semantic_collect_template_obligations")
+    collect_template_obligations_loop(facts.obligations, 0, Vec[TemplateObligation].new())
