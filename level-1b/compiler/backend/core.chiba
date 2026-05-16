@@ -41,9 +41,41 @@ type WasmGcCoreModule {
     ops: Array[CoreOp],
 }
 
+/// Return the closure environment layout used by escaping closures.
+def closure_env_layout(): WasmGcLayout = layout_closure_env()
+
+/// Lower one closure simplification fact into an optional Core operation.
+def lower_closure_simplification(fact: ClosureSimplification): Option[CoreOp] =
+    match fact {
+        ClosureEnvErased(_) => None
+        ClosureDirectified(_) => None
+        ClosureDeadCaptureDropped(_) => None
+        ClosureKnownCalleeDirectCall(_) => None
+        ClosureKeptEscaping(_) =>
+            Some(CoreOp {
+                kind: CoreOpClosureCall,
+                layout: Some(closure_env_layout()),
+                tail: CorePlainCall,
+            })
+    }
+
+/// Lower simplification facts into a stable Core op stream.
+def lower_closure_simplifications(facts: Array[ClosureSimplification], index: usize, out: Vec[CoreOp]): Array[CoreOp] =
+    if index == facts.len() { out.freeze() }
+    else {
+        match lower_closure_simplification(facts.get(index)) {
+            Some(op) => lower_closure_simplifications(facts, index + 1, out.push(op))
+            None => lower_closure_simplifications(facts, index + 1, out)
+        }
+    }
+
 /// Lower optimized closure Core to Wasm-GC Core.
 def lower_wasm_gc_core(module: OptimizedClosureModule): WasmGcCoreModule =
-    __compiler_builtin("std.backend_lower_wasm_gc_core")
+    WasmGcCoreModule {
+        source: module,
+        layouts: build_wasm_gc_layouts(module),
+        ops: lower_closure_simplifications(module.simplifications, 0, Vec[CoreOp].new()),
+    }
 
 /// Return true when a Core op requires a layout reference.
 def CoreOpKind.requires_layout(self): bool =

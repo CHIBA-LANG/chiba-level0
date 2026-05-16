@@ -34,7 +34,7 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `usage.chiba` | `compiler/control/usage_subject.chiba`, `compiler/control/continuation_usage.chiba`, `compiler/closure/usage_cps.chiba` | contract only |
 | `cps.chiba` | `compiler/control/cps.chiba` | contract only |
 | `closure.chiba` | `compiler/closure/*.chiba` | contract only |
-| `core.chiba` | `compiler/backend/core.chiba`, `compiler/backend/layout.chiba` | contract only |
+| `core.chiba` | `compiler/backend/core.chiba`, `compiler/backend/layout.chiba` | rewritten |
 | `validate_core.chiba` | `compiler/backend/validate_core.chiba` | rewritten |
 | `nanopass.chiba` | `compiler/driver/nanopass_pipeline.chiba`, `compiler/driver/pass_driver.chiba`, `compiler/backend/driver.chiba` | contract only |
 
