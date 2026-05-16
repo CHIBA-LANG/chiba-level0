@@ -1,0 +1,33 @@
+/// Closure environment simplification.
+namespace compiler.closure.env_simplify
+
+use compiler.closure.lambda_lift.*
+
+/// Simplification performed after closure conversion and lifting.
+data ClosureSimplification {
+    ClosureEnvErased(BinderId),
+    ClosureDirectified(BinderId),
+    ClosureDeadCaptureDropped(BinderId),
+    ClosureKnownCalleeDirectCall(BinderId),
+    ClosureKeptEscaping(BinderId),
+}
+
+/// Final closure Core before Wasm-GC lowering.
+type OptimizedClosureModule {
+    source: LiftedClosureModule,
+    simplifications: Array[ClosureSimplification],
+}
+
+/// Shrink environments, erase no-capture closures, and directify single-use
+/// known closures.
+def simplify_closure_envs(module: LiftedClosureModule): OptimizedClosureModule =
+    __compiler_builtin("std.closure_simplify_envs")
+
+/// Return true when a simplification removes runtime allocation.
+def ClosureSimplification.removes_allocation(self): bool =
+    match self {
+        ClosureEnvErased(_) => true
+        ClosureDirectified(_) => true
+        ClosureKnownCalleeDirectCall(_) => true
+        _ => false
+    }

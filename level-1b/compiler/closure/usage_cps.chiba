@@ -1,0 +1,36 @@
+/// CPS-level usage analysis for closure and continuation lowering.
+namespace compiler.closure.usage_cps
+
+use compiler.control.cps.*
+use compiler.control.continuation_usage.*
+
+/// Runtime value class whose use count affects package materialization.
+data RuntimeUseSubject {
+    UseSubjectBinder(BinderId),
+    UseSubjectLambda(BinderId),
+    UseSubjectClosure(BinderId),
+    UseSubjectContinuation(BinderId),
+}
+
+/// CPS-level use fact after administrative beta-reduction.
+type CpsUseFact {
+    subject: RuntimeUseSubject,
+    count: UsageCount,
+}
+
+/// CPS module annotated with final use counts for closure conversion.
+type CpsUsageModule {
+    source: CpsModule,
+    facts: Array[CpsUseFact],
+}
+
+/// Recompute use counts on CPS Core.
+def analyze_cps_usage(module: CpsModule): CpsUsageModule =
+    __compiler_builtin("std.closure_analyze_cps_usage")
+
+/// Return true when a fact permits direct call/direct continuation lowering.
+def CpsUseFact.single_use(self): bool =
+    match self.count {
+        UseOne => true
+        _ => false
+    }

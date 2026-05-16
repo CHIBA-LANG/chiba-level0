@@ -1,0 +1,29 @@
+/// Continuation simplification on CPS Core.
+namespace compiler.closure.continuation_simplify
+
+use compiler.closure.usage_cps.*
+
+/// Continuation simplification decision.
+data ContinuationSimplification {
+    ContinuationDeleted(BinderId),
+    ContinuationInlined(BinderId),
+    ContinuationPackaged(BinderId),
+}
+
+/// CPS module after dead and single-use continuations have been simplified.
+type SimplifiedContinuationModule {
+    source: CpsUsageModule,
+    decisions: Array[ContinuationSimplification],
+}
+
+/// Delete unused continuations, inline single-use continuations, and mark
+/// many-use continuations as package-lowering inputs.
+def simplify_continuations(module: CpsUsageModule): SimplifiedContinuationModule =
+    __compiler_builtin("std.closure_simplify_continuations")
+
+/// Return true when a continuation decision allocates a runtime package.
+def ContinuationSimplification.materializes_package(self): bool =
+    match self {
+        ContinuationPackaged(_) => true
+        _ => false
+    }

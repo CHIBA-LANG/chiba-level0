@@ -1,0 +1,51 @@
+/// Closure conversion and capture legality.
+namespace compiler.closure.closure_convert
+
+use compiler.closure.continuation_simplify.*
+use compiler.control.replay_safety.*
+
+/// Captured runtime value accepted by closure conversion.
+data CaptureKind {
+    CaptureValue,
+    CaptureReplaySafeContinuation,
+    CaptureWorldLocalRejected,
+    CaptureThreadLocalRejected,
+    CaptureUnsafeRejected,
+}
+
+/// One field in a closure environment or continuation package.
+type CaptureField {
+    binder: BinderId,
+    kind: CaptureKind,
+}
+
+/// Runtime call shape after closure conversion.
+data ClosureCallKind {
+    ClosureDirectFunction(BinderId),
+    ClosureKnownCode(BinderId),
+    ClosureUnknownFunctionValue,
+}
+
+/// Stable closure or continuation environment layout.
+type ClosureEnvLayout {
+    owner: BinderId,
+    fields: Array[CaptureField],
+}
+
+/// Module after escaping lambdas have explicit code/env packages.
+type ClosureConvertedModule {
+    source: SimplifiedContinuationModule,
+    layouts: Array[ClosureEnvLayout],
+}
+
+/// Convert escaping lambdas and packaged continuations to explicit env layouts.
+def convert_closures(module: SimplifiedContinuationModule): Result[ClosureConvertedModule, SemanticDiagnostics] =
+    __compiler_builtin("std.closure_convert")
+
+/// Return true when a capture is legal to place in a runtime package.
+def CaptureKind.package_legal(self): bool =
+    match self {
+        CaptureValue => true
+        CaptureReplaySafeContinuation => true
+        _ => false
+    }

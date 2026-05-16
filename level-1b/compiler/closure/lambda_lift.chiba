@@ -1,0 +1,25 @@
+/// Lambda lifting for closure-converted Core.
+namespace compiler.closure.lambda_lift
+
+use compiler.closure.closure_convert.*
+
+/// Lifted function symbol generated from a nested function or lambda.
+type LiftedFunction {
+    owner: BinderId,
+    symbol: BinderId,
+    env: ClosureEnvLayout,
+}
+
+/// Module with nested functions assigned stable lifted symbols.
+type LiftedClosureModule {
+    source: ClosureConvertedModule,
+    functions: Array[LiftedFunction],
+}
+
+/// Lift nested functions into stable function symbols.
+def lift_lambdas(module: ClosureConvertedModule): LiftedClosureModule =
+    __compiler_builtin("std.closure_lift_lambdas")
+
+/// Return true when the lifted function can be called without an env object.
+def LiftedFunction.no_capture(self): bool =
+    self.env.fields.len() == 0
