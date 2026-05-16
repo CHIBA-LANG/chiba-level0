@@ -39,7 +39,22 @@ type TypedModule {
 }
 
 /// Run alpha, pattern, inference, template, method/operator, ABI, and capability passes.
-def run_typed_semantics(project: ProjectSurface): Result[TypedModule, SemanticDiagnostics] = __compiler_builtin("std.semantic_run_typed")
+def run_typed_semantics(project: ProjectSurface): Result[TypedModule, SemanticDiagnostics] =
+    match alpha_convert(project) {
+        alpha =>
+            match infer_types(alpha, elaborate_patterns(alpha)) {
+                Ok(inferred) =>
+                    match check_l2_types(inferred) {
+                        Ok(checked) =>
+                            match check_extern_abi(checked) {
+                                Ok(abi_checked) => check_capabilities(abi_checked)
+                                Err(errors) => Err(errors)
+                            }
+                        Err(errors) => Err(errors)
+                    }
+                Err(errors) => Err(errors)
+            }
+    }
 
 /// Return true when `left` should appear before `right`.
 def semantic_diagnostic_before(left: SemanticDiagnostic, right: SemanticDiagnostic): bool =

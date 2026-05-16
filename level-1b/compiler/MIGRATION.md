@@ -14,9 +14,9 @@ below must have a level-1b owner before Second Bootstrap validation.
 | `show.chiba` | `compiler/ir/show.chiba` | rewritten |
 | `alpha.chiba` | `compiler/semantic/alpha.chiba` | partial rewrite: alpha module boundary owned; source binder traversal pending |
 | `typed.chiba` | `compiler/semantic/typed_elaboration.chiba`, `compiler/semantic/types.chiba` | partial rewrite: typed elaboration/fact attachment owned; full typed AST expression elaboration pending |
-| `typed_semantic_check.chiba` | `compiler/semantic/driver.chiba`, `compiler/semantic/typed_elaboration.chiba` | partial rewrite: typed diagnostics sort and elaboration boundary owned; full semantic driver still contract |
+| `typed_semantic_check.chiba` | `compiler/semantic/driver.chiba`, `compiler/semantic/typed_elaboration.chiba` | partial rewrite: typed diagnostics sort, semantic pass graph, and elaboration boundary owned; full item/expression checks pending |
 | `type_kind.chiba` | `compiler/semantic/type_kind.chiba` | rewritten |
-| `type_l2_check.chiba` | `compiler/semantic/type_infer.chiba` | contract only |
+| `type_l2_check.chiba` | `compiler/semantic/type_infer.chiba` | partial rewrite: inference/check pass boundary owned; HM+row expression solver traversal pending |
 | `type_unify.chiba` | `compiler/semantic/type_unify.chiba` | rewritten |
 | `type_row.chiba` | `compiler/semantic/type_row.chiba` | rewritten |
 | `type_record.chiba` | `compiler/semantic/type_record.chiba`, `compiler/semantic/type_row.chiba` | rewritten |
