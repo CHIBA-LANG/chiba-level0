@@ -8,7 +8,7 @@ below must have a level-1b owner before Second Bootstrap validation.
 | --- | --- | --- |
 | `compile_if.chiba` | `compiler/source/compile_if.chiba` | rewritten |
 | `namespace_project_check.chiba` | `compiler/source/project.chiba` | contract only |
-| `source_semantic_check.chiba` | `compiler/source/semantic_gate.chiba`, `compiler/driver/pass_driver.chiba` | contract only |
+| `source_semantic_check.chiba` | `compiler/source/semantic_gate.chiba`, `compiler/driver/pass_driver.chiba` | partial rewrite: gate result and driver diagnostic flow owned; concrete source scans pending |
 | `lower_ast.chiba` | `compiler/lower/ast_to_core.chiba` | contract only |
 | `ir.chiba` | `compiler/ir/*.chiba` | contract only |
 | `show.chiba` | `compiler/ir/show.chiba` | rewritten |

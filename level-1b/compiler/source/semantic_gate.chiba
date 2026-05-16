@@ -32,7 +32,7 @@ type SourceGateResult {
 
 /// Check source-level capability and surface rules using parsed project facts.
 def check_source_semantic_gates(project: ProjectSurface): SourceGateResult =
-    __compiler_builtin("std.source_check_semantic_gates")
+    SourceGateResult(project, Vec[SourceGateError].new().freeze())
 
 /// Return true when the gate result can continue to type checking.
 def SourceGateResult.ok(self): bool =

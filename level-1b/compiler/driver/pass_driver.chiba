@@ -27,7 +27,21 @@ type DriverInput {
 }
 
 /// Run source loading, header filtering, and source-level semantic gates.
-def run_source_driver(input: DriverInput): Result[ProjectSurface, DriverDiagnostics] = __compiler_builtin("std.driver_run_source")
+def run_source_driver(input: DriverInput): Result[ProjectSurface, DriverDiagnostics] =
+    match check_source_semantic_gates(input.project) {
+        result =>
+            if result.ok() { Ok(result.project) }
+            else { Err(source_gate_diagnostics(result.errors, 0, Vec[DriverDiagnostic].new())) }
+    }
+
+/// Convert a source gate error into a driver diagnostic.
+def source_gate_diagnostic(error: SourceGateError): DriverDiagnostic =
+    DriverDiagnostic("<source>", 0, 0, error.message)
+
+/// Convert source gate errors into deterministic driver diagnostics.
+def source_gate_diagnostics(errors: Array[SourceGateError], index: usize, out: Vec[DriverDiagnostic]): DriverDiagnostics =
+    if index == errors.len() { DriverDiagnostics(out.freeze()).stable_sort() }
+    else { source_gate_diagnostics(errors, index + 1, out.push(source_gate_diagnostic(errors.get(index)))) }
 
 /// Return true when `left` should appear before `right` in diagnostic order.
 def driver_diagnostic_before(left: DriverDiagnostic, right: DriverDiagnostic): bool =
