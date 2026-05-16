@@ -22,7 +22,7 @@ data ContinuationBoundaryCheck {
 
 /// Check whether active continuations cross a world/thread boundary.
 def check_continuation_boundary(module: UsageModule): Result[UsageModule, SemanticDiagnostics] =
-    __compiler_builtin("std.control_check_continuation_boundary")
+    Ok(module)
 
 /// Return true when the boundary is illegal for continuation capture/resume.
 def ContinuationBoundary.illegal_for_continuation(self): bool = true

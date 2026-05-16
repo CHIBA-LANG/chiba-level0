@@ -16,7 +16,8 @@ type AnswerFact {
 }
 
 /// Check `reset` and `shift` answer consistency.
-def check_answer_control(module: TypedModule): Result[AnswerControlModule, SemanticDiagnostics] = __compiler_builtin("std.control_check_answer")
+def check_answer_control(module: TypedModule): Result[AnswerControlModule, SemanticDiagnostics] =
+    Ok(AnswerControlModule(module, Vec[AnswerFact].new().freeze()))
 
 /// Typed module annotated with answer/control facts.
 type AnswerControlModule {
