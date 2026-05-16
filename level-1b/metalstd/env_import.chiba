@@ -11,4 +11,5 @@ namespace metalstd.env_import
 /// Safety:
 /// This import exists only when the chosen harness provides `env.chiba_log`.
 /// Codegen must reject it for the final user-runnable `chibac.wasm`.
+#[compile_if(backend="wasm-gc")]
 def env_chiba_log(value: i64): i64 = extern "env" "chiba_log"

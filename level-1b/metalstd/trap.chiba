@@ -11,6 +11,7 @@ namespace metalstd.trap
 /// Safety:
 /// Calling this function never returns and must be used only at an explicit
 /// fatal boundary.
+#[compile_if(backend="wasm-gc")]
 def metal_trap(): () = __metal_intrinsic("trap")
 
 /// Abort execution with a byte message stored in ABI memory.
@@ -18,4 +19,5 @@ def metal_trap(): () = __metal_intrinsic("trap")
 /// Safety:
 /// `message` must point to readable ABI memory for `len` bytes. The message is
 /// not a managed `str` and must not be retained by the host after the trap.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def metal_panic(message: Ptr[u8], len: usize): () = __metal_intrinsic("panic")

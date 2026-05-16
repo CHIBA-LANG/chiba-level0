@@ -59,6 +59,18 @@ function previousDocBlock(lines, index) {
   return docs.reverse().join("\n");
 }
 
+function previousAttrBlock(lines, index) {
+  const attrs = [];
+  let cursor = index - 1;
+  while (cursor >= 0 && lines[cursor].trim() === "") cursor -= 1;
+  while (cursor >= 0 && lines[cursor].trimStart().startsWith("#[")) {
+    attrs.push(lines[cursor].trimStart());
+    cursor -= 1;
+    while (cursor >= 0 && lines[cursor].trim() === "") cursor -= 1;
+  }
+  return attrs.reverse().join("\n");
+}
+
 function isPublicItem(line) {
   const trimmed = line.trimStart();
   return /^(namespace|type|data|def)\b/.test(trimmed);
@@ -88,9 +100,13 @@ function checkSource(file, source) {
     const line = lines[i];
     if (!isPublicItem(line)) continue;
     const docs = previousDocBlock(lines, i);
+    const attrs = previousAttrBlock(lines, i);
     if (docs.length === 0) errors.push(`${rel}:${i + 1}: public item is missing /// doc comment`);
     if (isUnsafeSurface(line) && !/Safety:/m.test(docs)) {
       errors.push(`${rel}:${i + 1}: unsafe/ABI public item is missing /// Safety section`);
+    }
+    if (line.trimStart().startsWith("def ") && !/\bcompile_if\s*\(/.test(attrs)) {
+      errors.push(`${rel}:${i + 1}: Metal function/method is missing #[compile_if(...)]`);
     }
   }
 
@@ -118,6 +134,12 @@ function checkSource(file, source) {
 
   if (/\bextern\s+"metal"/.test(code)) errors.push(`${rel}: metal intrinsics must not be modeled as extern \"metal\" ABI`);
   if (/\bextern\s+"std"/.test(code)) errors.push(`${rel}: std is not an extern ABI`);
+  if (/\b__metal_intrinsic\s*\(/.test(code) && !/\bcompile_if\s*\(\s*(all\s*\()?\s*backend\s*=\s*"wasm-gc"/.test(code)) {
+    errors.push(`${rel}: metal intrinsics must be backend-gated with compile_if`);
+  }
+  if (/\bextern\s+"wasi"/.test(code) && !/\btarget\s*=\s*"wasm32-unknown-wasi"/.test(code)) {
+    errors.push(`${rel}: WASI externs must be target-gated with compile_if`);
+  }
   if (/\bheap_alloc\s*\(/.test(code)) errors.push(`${rel}: heap_alloc cannot be the ordinary heap`);
   if (/\blinear_(alloc|heap)\b/.test(code)) errors.push(`${rel}: linear memory allocator cannot be default heap`);
 

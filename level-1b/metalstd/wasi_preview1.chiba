@@ -37,6 +37,7 @@ type WasiIovec {
 /// Safety:
 /// `iovs` and `nwritten` must point to valid ABI scratch memory for the whole
 /// host call. The buffers referenced by each iovec must stay alive.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def WasiFd.write(self, iovs: Ptr[WasiCiovec], iovs_len: usize, nwritten: Ptr[usize]): WasiErrno =
     extern "wasi" "fd_write"
 
@@ -45,6 +46,7 @@ def WasiFd.write(self, iovs: Ptr[WasiCiovec], iovs_len: usize, nwritten: Ptr[usi
 /// Safety:
 /// `iovs` and `nread` must point to valid ABI scratch memory for the whole host
 /// call. The buffers referenced by each iovec must be writable.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def WasiFd.read(self, iovs: Ptr[WasiIovec], iovs_len: usize, nread: Ptr[usize]): WasiErrno =
     extern "wasi" "fd_read"
 
@@ -52,12 +54,14 @@ def WasiFd.read(self, iovs: Ptr[WasiIovec], iovs_len: usize, nread: Ptr[usize]):
 ///
 /// Safety:
 /// `self` must be a live descriptor owned by the current WASI instance.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def WasiFd.close(self): WasiErrno = extern "wasi" "fd_close"
 
 /// Return the byte counts needed for process arguments.
 ///
 /// Safety:
 /// `argc` and `argv_buf_size` must point to writable ABI scratch memory.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def wasi_args_sizes_get(argc: Ptr[usize], argv_buf_size: Ptr[usize]): WasiErrno =
     extern "wasi" "args_sizes_get"
 
@@ -66,12 +70,14 @@ def wasi_args_sizes_get(argc: Ptr[usize], argv_buf_size: Ptr[usize]): WasiErrno 
 /// Safety:
 /// `argv` and `argv_buf` must be sized according to a successful
 /// `wasi_args_sizes_get` call for the same process invocation.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def wasi_args_get(argv: Ptr[Ptr[u8]], argv_buf: Ptr[u8]): WasiErrno = extern "wasi" "args_get"
 
 /// Return the byte counts needed for process environment variables.
 ///
 /// Safety:
 /// `count` and `buf_size` must point to writable ABI scratch memory.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def wasi_environ_sizes_get(count: Ptr[usize], buf_size: Ptr[usize]): WasiErrno =
     extern "wasi" "environ_sizes_get"
 
@@ -80,6 +86,7 @@ def wasi_environ_sizes_get(count: Ptr[usize], buf_size: Ptr[usize]): WasiErrno =
 /// Safety:
 /// `environ` and `environ_buf` must be sized according to a successful
 /// `wasi_environ_sizes_get` call for the same process invocation.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def wasi_environ_get(environ: Ptr[Ptr[u8]], environ_buf: Ptr[u8]): WasiErrno =
     extern "wasi" "environ_get"
 
@@ -87,4 +94,5 @@ def wasi_environ_get(environ: Ptr[Ptr[u8]], environ_buf: Ptr[u8]): WasiErrno =
 ///
 /// Safety:
 /// Calling this function never returns to Chiba code.
+#[compile_if(all(backend="wasm-gc", target="wasm32-unknown-wasi"))]
 def wasi_proc_exit(status: u32): () = extern "wasi" "proc_exit"

@@ -26,30 +26,35 @@ data AtomicExchange[T] {
 /// Safety:
 /// `T` must be one of the level-1b atomic-capable types: `i32`, `i64`, `usize`,
 /// `bool`, or `Ptr[U]`.
+#[compile_if(backend="wasm-gc")]
 def Atomic[T].new(value: T): Atomic[T] = __metal_intrinsic("atomic_new")
 
 /// Load from an atomic cell with an explicit ordering.
 ///
 /// Safety:
 /// `order` must be legal for an atomic load.
+#[compile_if(backend="wasm-gc")]
 def Atomic[T].load(self, order: AtomicOrdering): T = __metal_intrinsic("atomic_load")
 
 /// Store to an atomic cell with an explicit ordering.
 ///
 /// Safety:
 /// `order` must be legal for an atomic store.
+#[compile_if(backend="wasm-gc")]
 def Atomic[T].store(self, value: T, order: AtomicOrdering): () = __metal_intrinsic("atomic_store")
 
 /// Swap an atomic cell and return the previous value.
 ///
 /// Safety:
 /// `T` must be supported by the target atomic lowering.
+#[compile_if(backend="wasm-gc")]
 def Atomic[T].swap(self, value: T, order: AtomicOrdering): T = __metal_intrinsic("atomic_swap")
 
 /// Compare and exchange an atomic cell.
 ///
 /// Safety:
 /// `success` and `failure` must be a legal compare-exchange ordering pair.
+#[compile_if(backend="wasm-gc")]
 def Atomic[T].compare_exchange(
     self: Atomic[T],
     current: T,
@@ -62,10 +67,12 @@ def Atomic[T].compare_exchange(
 ///
 /// Safety:
 /// `T` must be `i32`, `i64`, or `usize`.
+#[compile_if(backend="wasm-gc")]
 def Atomic[T].fetch_add(self, value: T, order: AtomicOrdering): T = __metal_intrinsic("atomic_fetch_add")
 
 /// Subtract from an integer atomic cell and return the previous value.
 ///
 /// Safety:
 /// `T` must be `i32`, `i64`, or `usize`.
+#[compile_if(backend="wasm-gc")]
 def Atomic[T].fetch_sub(self, value: T, order: AtomicOrdering): T = __metal_intrinsic("atomic_fetch_sub")
