@@ -1,0 +1,32 @@
+#![Metal]
+
+/// Linear-memory scratch helpers for host ABI calls.
+///
+/// Scratch memory is not the Chiba heap. It exists only to form WASI and FFI
+/// argument blocks that require linear-memory pointers.
+namespace level1b.metalstd.abi_scratch
+
+/// Linear-memory scratch region borrowed for one host call boundary.
+type AbiScratch {
+    base: Ptr[u8],
+    len: usize,
+}
+
+/// Borrow a scratch region for an ABI call.
+///
+/// Safety:
+/// The returned region is valid only until the matching ABI boundary completes.
+/// It must not be stored in ordinary Chiba values or used as managed storage.
+def abi_scratch_borrow(len: usize): AbiScratch = extern "metal" "abi_scratch_borrow"
+
+/// Return the base pointer for a scratch region.
+///
+/// Safety:
+/// The pointer must not escape the ABI boundary associated with `self`.
+def AbiScratch.ptr(self): Ptr[u8] = extern "metal" "abi_scratch_ptr"
+
+/// Return the byte length for a scratch region.
+///
+/// Safety:
+/// `self` must still denote a live ABI scratch borrow.
+def AbiScratch.len(self): usize = extern "metal" "abi_scratch_len"
