@@ -21,11 +21,11 @@ def CoreLayoutKind.dump_name(self): String =
 
 /// Dump one layout entry.
 def CoreLayout.dump(self): String =
-    "layout ".
-        concat(self.kind.dump_name()).
-        concat(" ").
-        concat(self.key).
-        concat("\n")
+    "layout "
+        .concat(self.kind.dump_name())
+        .concat(" ")
+        .concat(self.key)
+        .concat("\n")
 
 /// Dump layout entries in stable table order.
 def dump_core_layouts(layouts: Array[CoreLayout], index: usize, out: String): String =

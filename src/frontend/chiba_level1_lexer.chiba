@@ -299,6 +299,93 @@ def token_ends_line(tok: Token): i64 =
         _ => 0
     }
 
+def token_is_layout_trivia(tok: Token): i64 =
+    match tok {
+        Newline(_) => 1
+        DocComment(_) => 1
+        LineComment(_) => 1
+        _ => 0
+    }
+
+def token_is_operator_continuation(tok: Token): i64 =
+    match tok {
+        PipeGt => 1
+        ColonEq => 1
+        DotStar => 1
+        DotDot => 1
+        FatArrow => 1
+        ThinArrow => 1
+        EqEq => 1
+        BangEq => 1
+        LtEq => 1
+        GtEq => 1
+        LtLt => 1
+        GtGt => 1
+        AmpAmp => 1
+        PipePipe => 1
+        Eq => 1
+        Plus => 1
+        Minus => 1
+        Star => 1
+        Slash => 1
+        Percent => 1
+        Lt => 1
+        Gt => 1
+        Bang => 1
+        Amp => 1
+        Pipe => 1
+        Caret => 1
+        Colon => 1
+        Comma => 1
+        Dot => 1
+        _ => 0
+    }
+
+def tokenspan_vec_push_all(dst: Vec, src: Vec, i: i64): i64 =
+    if i >= vec_len(src) { 0 }
+    else {
+        let _ = vec_push(dst, vec_get(src, i))
+        tokenspan_vec_push_all(dst, src, i + 1)
+    }
+
+def lex_operator_gap_should_absorb(tokens: Vec, out: Vec, i: i64): i64 =
+    if i < 0 || i >= vec_len(tokens) { 0 }
+    else if vec_len(out) <= 0 { 0 }
+    else if i + 1 >= vec_len(tokens) { 0 }
+    else {
+        let ts = vec_get(tokens, i) as TokenSpan
+        let prev = vec_get(out, vec_len(out) - 1) as TokenSpan
+        let next = vec_get(tokens, i + 1) as TokenSpan
+        match ts.token {
+            Newline(_) =>
+                if token_is_operator_continuation(prev.token) != 0 && token_is_layout_trivia(next.token) == 0 { 1 }
+                else if token_is_layout_trivia(prev.token) == 0 && token_is_operator_continuation(next.token) != 0 { 1 }
+                else { 0 }
+            _ => 0
+        }
+    }
+
+def lex_normalize_operator_continuations_loop(tokens: Vec, i: i64, out: Vec, carry: Vec): Vec =
+    if i >= vec_len(tokens) {
+        let _ = if vec_len(carry) > 0 { tokenspan_vec_push_all(out, carry, 0) } else { 0 }
+        out
+    } else {
+        let ts = vec_get(tokens, i) as TokenSpan
+        if lex_operator_gap_should_absorb(tokens, out, i) != 0 {
+            let prev = vec_get(out, vec_len(out) - 1) as TokenSpan
+            let _ = vec_push(prev.trailing, ts as i64)
+            let _ = vec_push(carry, ts as i64)
+            lex_normalize_operator_continuations_loop(tokens, i + 1, out, carry)
+        } else {
+            let _ = if vec_len(carry) > 0 { tokenspan_vec_push_all(ts.leading, carry, 0) } else { 0 }
+            let _ = vec_push(out, ts as i64)
+            lex_normalize_operator_continuations_loop(tokens, i + 1, out, vec_new())
+        }
+    }
+
+def lex_normalize_operator_continuations(tokens: Vec): Vec =
+    lex_normalize_operator_continuations_loop(tokens, 0, vec_new(), vec_new())
+
 // ── generated types ──
 type Span { file: i64  line: i64  col: i64  len: i64 }
 type TokenSpan { token: Token  span: Span  leading: Vec  trailing: Vec }
@@ -876,5 +963,5 @@ def lex_all(src: i64, src_len: i64, file: i64): Vec = {
     let ctx = lex_new_ctx(src, src_len)
     let _ = lex_loop(pats, src, src_len, file, out, ctx)
         let _ = vec_push(out, tokenspan_make(Eof, Span { file: file, line: 0, col: 0, len: 0 }, vec_new(), vec_new()) as i64)
-    out
+    lex_normalize_operator_continuations(out)
 }

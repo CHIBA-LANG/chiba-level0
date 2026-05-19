@@ -13,6 +13,7 @@ mode STRING
 // Character classes and macros.
 @ws = [ \t]+
 @wsnl = [ \t]* "\r"? "\n" ([ \t]* "\r"? "\n")* [ \t]*
+@opws = [ \t\r\n]*
 @doccom = "///" [^\n]* ("\r"? "\n" [ \t]* "///" [^\n]*)*
 @linecom = "//" [^\n]* ("\r"? "\n" [ \t]* "//" [^\n]*)*
 @ident = $XID_START $XID_CONTINUE*
@@ -66,36 +67,36 @@ mode STRING
 @kw_send = "send" @wsnl?
 @kw_self = "self"
 
-@op_pipe_gt = "|>" @wsnl?
-@op_colon_eq = ":=" @wsnl?
-@op_dot_star = ".*"
-@op_dot_dot = ".." @wsnl?
-@op_fat_arrow = "=>" @wsnl?
-@op_thin_arrow = "->" @wsnl?
-@op_eq_eq = "==" @wsnl?
-@op_bang_eq = "!=" @wsnl?
-@op_lt_eq = "<=" @wsnl?
-@op_gt_eq = ">=" @wsnl?
-@op_lt_lt = "<<" @wsnl?
-@op_gt_gt = ">>" @wsnl?
-@op_amp_amp = "&&" @wsnl?
-@op_pipe_pipe = "||"
+@op_pipe_gt = @opws "|>" @opws
+@op_colon_eq = @opws ":=" @opws
+@op_dot_star = @opws ".*" @opws
+@op_dot_dot = @opws ".." @opws
+@op_fat_arrow = @opws "=>" @opws
+@op_thin_arrow = @opws "->" @opws
+@op_eq_eq = @opws "==" @opws
+@op_bang_eq = @opws "!=" @opws
+@op_lt_eq = @opws "<=" @opws
+@op_gt_eq = @opws ">=" @opws
+@op_lt_lt = @opws "<<" @opws
+@op_gt_gt = @opws ">>" @opws
+@op_amp_amp = @opws "&&" @opws
+@op_pipe_pipe = @opws "||" @opws
 
-@op_eq = "=" @wsnl?
-@op_plus = "+" @wsnl?
-@op_minus = "-" @wsnl?
-@op_star = "*" @wsnl?
-@op_slash = "/" @wsnl?
-@op_percent = "%" @wsnl?
-@op_lt = "<" @wsnl?
-@op_gt = ">" @wsnl?
-@op_bang = "!" @wsnl?
-@op_amp = "&" @wsnl?
-@op_pipe = "|"
-@op_caret = "^" @wsnl?
-@op_colon = ":" @wsnl?
-@op_comma = "," @wsnl?
-@op_dot = "." @wsnl?
+@op_eq = @opws "=" @opws
+@op_plus = @opws "+" @opws
+@op_minus = @opws "-" @opws
+@op_star = @opws "*" @opws
+@op_slash = @opws "/" @opws
+@op_percent = @opws "%" @opws
+@op_lt = @opws "<" @opws
+@op_gt = @opws ">" @opws
+@op_bang = @opws "!" @opws
+@op_amp = @opws "&" @opws
+@op_pipe = @opws "|" @opws
+@op_caret = @opws "^" @opws
+@op_colon = @opws ":" @opws
+@op_comma = @opws "," @opws
+@op_dot = @opws "." @opws
 @op_semicolon = ";" @wsnl?
 @op_lparen = "(" @wsnl?
 @op_lbrace = "{" @wsnl?
