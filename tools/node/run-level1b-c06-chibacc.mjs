@@ -5,6 +5,7 @@ import process from "node:process";
 
 const ROOT = "level-1b/std/chibacc";
 const CONT = "level-1b/supports/chibacc-continuation/alternative_recovery.chiba";
+const CODEGEN_CONTRACT = "level-1b/supports/chibacc-mini/codegen_contract.chiba";
 const MINI_ROOT = "level-1b/supports/chibacc-mini";
 const REQUIRED_FILES = ["ast.chiba", "codegen.chiba", "engine.chiba", "ir.chiba", "parser.chiba"];
 const REQUIRED_TEXT = [
@@ -126,6 +127,19 @@ function main() {
     fail(`continuation alternative smoke does not parse\n${parsed.stdout || parsed.stderr}`);
   }
   pass("chibacc continuation smoke parse");
+
+  const contractWat = run("./target/debug/level1c.o", ["wat", CODEGEN_CONTRACT]);
+  if (!contractWat.stdout.includes("(module")) {
+    fail(`codegen contract does not emit wat\n${contractWat.stdout || contractWat.stderr}`);
+  }
+  const watPath = path.join(".scratch/level-1b/chibacc-mini", "codegen-contract.wat");
+  fs.mkdirSync(path.dirname(watPath), { recursive: true });
+  fs.writeFileSync(watPath, contractWat.stdout);
+  const contractRun = run(process.execPath, ["--no-warnings", "tools/node/run-wat.mjs", watPath]);
+  if (!contractRun.stdout.split(/\s+/).includes("0")) {
+    fail(`codegen contract returned unexpected result\n${contractRun.stdout || contractRun.stderr}`);
+  }
+  pass("chibacc codegen contract");
 
   checkMiniSpecs();
 
