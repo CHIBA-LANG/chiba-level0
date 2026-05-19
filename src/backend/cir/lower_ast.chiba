@@ -221,6 +221,45 @@ def cir_lower_extern_import(abi: Str, symbol: Str): CirExternImport =
     else if streq(abi, mk_str("env", 3)) != 0 { cir_extern_import(CirExternAbiEnv, mk_str("env", 3), symbol) }
     else { cir_extern_import(CirExternAbiUnsupported(abi), mk_str("unsupported", 11), symbol) }
 
+def cir_lower_record_fields(ast: AST): CirRecordFieldExprList =
+    match ast {
+        NominalField_End => CirRecordFieldExprEnd
+        NominalField_Cons(head, tail) =>
+            match head {
+                NominalField(name, value) =>
+                    CirRecordFieldExprCons(CirRecordFieldExpr { field_name: name, value: cir_lower_expr(value) }, cir_lower_record_fields(tail))
+                NominalFieldAttrs(_, inner) =>
+                    match inner {
+                        NominalField(name, value) =>
+                            CirRecordFieldExprCons(CirRecordFieldExpr { field_name: name, value: cir_lower_expr(value) }, cir_lower_record_fields(tail))
+                        _ => cir_lower_record_fields(tail)
+                    }
+                _ => cir_lower_record_fields(tail)
+            }
+        Record_First(name, tail) =>
+            match tail {
+                RecordTail_Field(value, rest) =>
+                    CirRecordFieldExprCons(CirRecordFieldExpr { field_name: name, value: cir_lower_expr(value) }, cir_lower_record_fields(rest))
+                RecordTail_Shorthand(rest) =>
+                    CirRecordFieldExprCons(CirRecordFieldExpr { field_name: name, value: L0OpName(name) }, cir_lower_record_fields(rest))
+                _ => CirRecordFieldExprEnd
+            }
+        Record_Fields(fields) => cir_lower_record_fields(fields)
+        _ => CirRecordFieldExprEnd
+    }
+
+def cir_lower_match_ident_rest(base: CirExpr, rest: AST): CirExpr =
+    match rest {
+        MatchIdent_Call(args, tail) => cir_lower_match_ident_rest(L0OpCall(base, cir_lower_expr_list(args)), tail)
+        MatchIdent_Field(field, tail) => cir_lower_match_ident_rest(L0OpField(base, field), tail)
+        MatchIdent_Index(args, tail) => cir_lower_match_ident_rest(L0OpIndex(base, cir_lower_expr_list(args)), tail)
+        MatchIdent_Name => base
+        _ => cir_l0_unsupported(rest, mk_str("match ident unsupported", 23))
+    }
+
+def cir_lower_match_ident(name: Str, rest: AST): CirExpr =
+    cir_lower_match_ident_rest(L0OpName(name), rest)
+
 def cir_lower_ident_tail(name: Str, tail: AST): CirExpr =
     match tail {
         IdentTail_None => L0OpName(name)
@@ -228,7 +267,7 @@ def cir_lower_ident_tail(name: Str, tail: AST): CirExpr =
         IdentTail_Call(args, IdentCallClosure_Some(_, closure)) =>
             L0OpCall(L0OpName(name), CirExprCons(cir_lower_expr(closure), cir_lower_expr_list(args)))
         IdentTail_GenericCall(_, args) => L0OpCall(L0OpName(name), cir_lower_expr_list(args))
-        IdentTail_RecordCtor(body) => L0OpCall(L0OpName(name), CirExprCons(cir_lower_expr(Expr_Record(body)), CirExprEnd))
+        IdentTail_RecordCtor(body) => L0OpNominalCtor(name, cir_lower_record_fields(body))
         _ => cir_l0_unsupported(tail, mk_str("ident tail unsupported", 22))
     }
 
@@ -322,6 +361,7 @@ def cir_lower_expr(ast: AST): CirExpr =
         Expr_If(cond, then_block, else_branch) => L0OpIf(cir_lower_expr(cond), cir_lower_expr(then_block), cir_lower_expr(else_branch))
         IfCond_Expr(value) => cir_lower_expr(value)
         Expr_IfCondIdent(name, rest) => cir_lower_if_cond_ident(name, rest)
+        Expr_MatchIdent(name, rest) => cir_lower_match_ident(name, rest)
         Expr_Match(value, arms) => L0OpMatch(cir_lower_expr(value), cir_lower_match_arms(arms))
         Expr_Reset(label, body) => L0OpReset(cir_lower_control_label(label), cir_lower_expr(body))
         Expr_Shift(label, name, body) => L0OpShift(cir_lower_control_label(label), name, cir_lower_expr(body))
@@ -390,6 +430,41 @@ def cir_lower_def_item(name_ast: AST, rest: AST, source_ast: AST): CirItem =
         _ => L0ItemUnsupported(source_ast, CirUnsupportedAst(mk_str("def rest unsupported", 20)))
     }
 
+def cir_item_list_append(xs: CirItemList, ys: CirItemList): CirItemList =
+    match xs {
+        CirItemEnd => ys
+        CirItemCons(head, tail) => CirItemCons(head, cir_item_list_append(tail, ys))
+    }
+
+def cir_lower_variant_ctor_stub(data_name: Str, variant_name: Str): CirItem =
+    L0ItemDef(
+        variant_name,
+        CirParamEnd,
+        Type_Path(data_name, Type_Tail_End),
+        L0OpUnsupported(Expr_String, CirUnsupportedAst(mk_str("data ctor stub", 14)))
+    )
+
+def cir_lower_variant_ctor_items(data_name: Str, variants: AST): CirItemList =
+    match variants {
+        AdtVariant_End => CirItemEnd
+        AdtVariant_Cons(head, tail) =>
+            match head {
+                AdtVariant(name, _) => CirItemCons(cir_lower_variant_ctor_stub(data_name, name), cir_lower_variant_ctor_items(data_name, tail))
+                _ => cir_lower_variant_ctor_items(data_name, tail)
+            }
+        _ => CirItemEnd
+    }
+
+def cir_lower_item_list(ast: AST): CirItemList =
+    match ast {
+        Item_Def(_) => CirItemCons(cir_lower_item(ast), CirItemEnd)
+        Item_WithAttrs(_, item) => cir_lower_item_list(item)
+        Item_Type(_) => CirItemEnd
+        AdtRecordItem(_, _, _) => CirItemEnd
+        AdtItem(name, _, variants) => cir_lower_variant_ctor_items(name, variants)
+        _ => CirItemCons(cir_lower_item(ast), CirItemEnd)
+    }
+
 def cir_lower_item(ast: AST): CirItem =
     match ast {
         Item_Def(defn) =>
@@ -410,12 +485,12 @@ def cir_lower_item(ast: AST): CirItem =
 def cir_lower_items(ast: AST): CirItemList =
     match ast {
         Item_End => CirItemEnd
-        Item_Cons(head, tail) => CirItemCons(cir_lower_item(head), cir_lower_items(tail))
+        Item_Cons(head, tail) => cir_item_list_append(cir_lower_item_list(head), cir_lower_items(tail))
         _ => CirItemCons(L0ItemUnsupported(ast, CirUnsupportedAst(mk_str("item list unsupported", 21))), CirItemEnd)
     }
 
 def cir_lower_module(ast: AST): CirModule =
     match ast {
-        SourceFile(attrs, ns, items) => L0Module(SourceFile(attrs, ns, Item_End), cir_lower_items(items))
+        SourceFile(_, _, items) => L0Module(ast, cir_lower_items(items))
         _ => L0Module(ast, CirItemEnd)
     }

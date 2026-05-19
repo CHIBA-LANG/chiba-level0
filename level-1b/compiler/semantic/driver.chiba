@@ -79,13 +79,13 @@ def semantic_diagnostics_copy_suffix(items: Array[SemanticDiagnostic], index: us
 /// Insert one semantic diagnostic into an already sorted array.
 def semantic_diagnostics_insert(sorted: Array[SemanticDiagnostic], item: SemanticDiagnostic, index: usize): Array[SemanticDiagnostic] =
     if index == sorted.len() {
-        semantic_diagnostics_copy_prefix(sorted, index, Vec[SemanticDiagnostic].new(), 0)
-            .push(item)
-            .freeze()
+        semantic_diagnostics_copy_prefix(sorted, index, Vec[SemanticDiagnostic].new(), 0).
+            push(item).
+            freeze()
     } else if semantic_diagnostic_before(item, sorted.get(index)) {
         semantic_diagnostics_copy_suffix(sorted, index,
-            semantic_diagnostics_copy_prefix(sorted, index, Vec[SemanticDiagnostic].new(), 0).push(item))
-            .freeze()
+            semantic_diagnostics_copy_prefix(sorted, index, Vec[SemanticDiagnostic].new(), 0).push(item)).
+            freeze()
     } else { semantic_diagnostics_insert(sorted, item, index + 1) }
 
 /// Sort semantic diagnostics with stable insertion order for equal keys.

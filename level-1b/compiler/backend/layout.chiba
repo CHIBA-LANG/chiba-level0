@@ -55,11 +55,11 @@ def layout_slice_u8(): WasmGcLayout =
         id: 1,
         key: "std.Slice[u8]",
         kind: LayoutSliceView,
-        fields: Vec[WasmGcFieldLayout].new()
-            .push(wasm_gc_field("backing", "arrayref:u8"))
-            .push(wasm_gc_field("offset", "usize"))
-            .push(wasm_gc_field("len", "usize"))
-            .freeze(),
+        fields: Vec[WasmGcFieldLayout].new().
+            push(wasm_gc_field("backing", "arrayref:u8")).
+            push(wasm_gc_field("offset", "usize")).
+            push(wasm_gc_field("len", "usize")).
+            freeze(),
     }
 
 /// Generic closure environment package layout.
@@ -68,10 +68,10 @@ def layout_closure_env(): WasmGcLayout =
         id: 2,
         key: "compiler.closure.env",
         kind: LayoutClosureEnv,
-        fields: Vec[WasmGcFieldLayout].new()
-            .push(wasm_gc_field("fun", "funcref"))
-            .push(wasm_gc_field("env", "eqref"))
-            .freeze(),
+        fields: Vec[WasmGcFieldLayout].new().
+            push(wasm_gc_field("fun", "funcref")).
+            push(wasm_gc_field("env", "eqref")).
+            freeze(),
     }
 
 /// Delimited-continuation frame layout.
@@ -80,10 +80,10 @@ def layout_continuation_frame(): WasmGcLayout =
         id: 3,
         key: "compiler.continuation.frame",
         kind: LayoutContinuationFrame,
-        fields: Vec[WasmGcFieldLayout].new()
-            .push(wasm_gc_field("resume", "funcref"))
-            .push(wasm_gc_field("state", "eqref"))
-            .freeze(),
+        fields: Vec[WasmGcFieldLayout].new().
+            push(wasm_gc_field("resume", "funcref")).
+            push(wasm_gc_field("state", "eqref")).
+            freeze(),
     }
 
 /// Multi-shot continuation package layout.
@@ -92,22 +92,22 @@ def layout_continuation_package(): WasmGcLayout =
         id: 4,
         key: "compiler.continuation.package",
         kind: LayoutContinuationPackage,
-        fields: Vec[WasmGcFieldLayout].new()
-            .push(wasm_gc_field("frame", "continuation-frame"))
-            .push(wasm_gc_field("usage", "usize"))
-            .freeze(),
+        fields: Vec[WasmGcFieldLayout].new().
+            push(wasm_gc_field("frame", "continuation-frame")).
+            push(wasm_gc_field("usage", "usize")).
+            freeze(),
     }
 
 /// Build canonical Wasm-GC layouts from optimized closure Core.
 def build_wasm_gc_layouts(module: OptimizedClosureModule): WasmGcLayoutTable =
     WasmGcLayoutTable {
-        entries: Vec[WasmGcLayout].new()
-            .push(layout_array_u8())
-            .push(layout_slice_u8())
-            .push(layout_closure_env())
-            .push(layout_continuation_frame())
-            .push(layout_continuation_package())
-            .freeze(),
+        entries: Vec[WasmGcLayout].new().
+            push(layout_array_u8()).
+            push(layout_slice_u8()).
+            push(layout_closure_env()).
+            push(layout_continuation_frame()).
+            push(layout_continuation_package()).
+            freeze(),
     }
 
 /// Return true when a layout is a runtime package.

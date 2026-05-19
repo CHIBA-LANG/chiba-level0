@@ -228,6 +228,16 @@ def cir_typed_expr_list_in_g(args: CirExprList, env: CirTypeEnv, globals: CirGlo
         CirExprCons(head, tail) => CirExprCons(cir_typed_expr_in_g(head, env, globals), cir_typed_expr_list_in_g(tail, env, globals))
     }
 
+def cir_typed_record_field_exprs_in_g(args: CirRecordFieldExprList, env: CirTypeEnv, globals: CirGlobalTypeEnv): CirRecordFieldExprList =
+    match args {
+        CirRecordFieldExprEnd => CirRecordFieldExprEnd
+        CirRecordFieldExprCons(head, tail) =>
+            CirRecordFieldExprCons(
+                CirRecordFieldExpr { field_name: head.field_name, value: cir_typed_expr_in_g(head.value, env, globals) },
+                cir_typed_record_field_exprs_in_g(tail, env, globals)
+            )
+    }
+
 def cir_typed_expr_list_in(args: CirExprList, env: CirTypeEnv): CirExprList =
     cir_typed_expr_list_in_g(args, env, CirGlobalTypeEnvEnd)
 
@@ -294,6 +304,8 @@ def cir_typed_expr_in_g(expr: CirExpr, env: CirTypeEnv, globals: CirGlobalTypeEn
             let callee2 = cir_typed_expr_in_g(callee, env, globals)
             L2OpTyped(L1OpCall(callee2, cir_typed_expr_list_in_g(args, env, globals)), cir_typed_callee_result(callee2, globals))
         }
+        L1OpNominalCtor(name, fields) =>
+            L2OpTyped(L1OpNominalCtor(name, cir_typed_record_field_exprs_in_g(fields, env, globals)), CirTyConst(name))
         L1OpField(value, field) => L2OpTyped(L1OpField(cir_typed_expr_in_g(value, env, globals), field), CirTyUnknown)
         L1OpIndex(value, args) => {
             let args2 = cir_typed_expr_list_in_g(args, env, globals)

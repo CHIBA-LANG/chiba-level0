@@ -604,7 +604,7 @@ rule if_cond_ident_rest ::=
     ;
 
 rule if_cond_binary_rhs ::=
-    name:Ident LParen args:arg_list RParen => Expr_Call(Expr_Name(name), args)
+    name:Ident rest:match_value_ident_rest => expr_from_match_ident_rest(name, rest)
     | value:expr => value
     ;
 
@@ -627,7 +627,9 @@ rule match_value ::=
     ;
 
 rule match_value_ident_rest ::= 
-    LParen args:arg_list RParen => MatchIdent_Call(args)
+    LParen args:arg_list RParen rest:match_value_ident_rest => MatchIdent_Call(args, rest)
+    | Dot field:Ident rest:match_value_ident_rest => MatchIdent_Field(field, rest)
+    | LBracket args:expr_list_opt RBracket rest:match_value_ident_rest => MatchIdent_Index(args, rest)
     | => MatchIdent_Name
     ;
 
@@ -1134,7 +1136,9 @@ rule arg_tail ::=
         IfCondIdent_Name,
         Expr_Match(AST, AST),
         Expr_MatchIdent(Str, AST),
-        MatchIdent_Call(AST),
+        MatchIdent_Call(AST, AST),
+        MatchIdent_Field(Str, AST),
+        MatchIdent_Index(AST, AST),
         MatchIdent_Name,
         Expr_Reset(AST, AST),
         Expr_Shift(AST, Str, AST),
@@ -1277,6 +1281,18 @@ rule arg_tail ::=
             BlockExprOrStmt_Stmt(body) => block_prepend_stmt(Stmt_Expr(value), body)
             _ => Expr_Block(Stmt_End, TailExpr_Some(value))
         }
+
+    def expr_apply_match_ident_rest(base: AST, rest: AST): AST =
+        match rest {
+            MatchIdent_Call(args, tail) => expr_apply_match_ident_rest(Expr_Call(base, args), tail)
+            MatchIdent_Field(field, tail) => expr_apply_match_ident_rest(Expr_Field(base, field), tail)
+            MatchIdent_Index(args, tail) => expr_apply_match_ident_rest(Expr_Index(base, args), tail)
+            MatchIdent_Name => base
+            _ => base
+        }
+
+    def expr_from_match_ident_rest(name: Str, rest: AST): AST =
+        expr_apply_match_ident_rest(Expr_Name(name), rest)
 
     def data_body_from_first(first: Str, rest: AST): AST =
         match rest {

@@ -12,6 +12,12 @@
     - nanopass dump shows `validation err("dangling symbol")` on those constructor refs during L8 validated Core, so the next real fix belongs to object/type/data lowering or symbol synthesis, not to smoke syntax
   - immediate next step
     - add/finish a minimal backend path for nominal record/data object construction + field access that `std.chibacc` runtime values need, then retry `codegen_contract` wat/run
+  - frontend surface decision
+    - spec surface for multiline chaining remains trailing-operator form like `x.\n  to_string().\n  xxx()`
+    - if we additionally support general-user off-spec continuation like `a\n.b` / line-leading operators, do it in lexer/token normalization for **all operators**, not by adding parser grammar arms
+    - intended lexer direction: normalize operator continuations around newline/space (conceptually `\s* OP \s*`) so parser still sees one continuous operator chain
+
+# checklists: need to check all when level-1b is finished
 
 - string interpolation
   - `"a {y} b"` == `"a " + Y.to_string(y) + " b"`

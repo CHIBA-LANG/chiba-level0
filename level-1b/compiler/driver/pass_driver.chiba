@@ -66,13 +66,13 @@ def driver_diagnostics_copy_suffix(items: Array[DriverDiagnostic], index: usize,
 /// Insert one diagnostic into an already sorted diagnostic array.
 def driver_diagnostics_insert(sorted: Array[DriverDiagnostic], item: DriverDiagnostic, index: usize): Array[DriverDiagnostic] =
     if index == sorted.len() {
-        driver_diagnostics_copy_prefix(sorted, index, Vec[DriverDiagnostic].new(), 0)
-            .push(item)
-            .freeze()
+        driver_diagnostics_copy_prefix(sorted, index, Vec[DriverDiagnostic].new(), 0).
+            push(item).
+            freeze()
     } else if driver_diagnostic_before(item, sorted.get(index)) {
         driver_diagnostics_copy_suffix(sorted, index,
-            driver_diagnostics_copy_prefix(sorted, index, Vec[DriverDiagnostic].new(), 0).push(item))
-            .freeze()
+            driver_diagnostics_copy_prefix(sorted, index, Vec[DriverDiagnostic].new(), 0).push(item)).
+            freeze()
     } else { driver_diagnostics_insert(sorted, item, index + 1) }
 
 /// Sort diagnostic arrays with stable insertion order for equal keys.

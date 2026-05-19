@@ -51,6 +51,16 @@ def cir_l7_core_expr_list(args: CirExprList): CirExprList =
         CirExprCons(head, tail) => CirExprCons(cir_l7_core_expr(head), cir_l7_core_expr_list(tail))
     }
 
+def cir_l7_core_record_field_exprs(args: CirRecordFieldExprList): CirRecordFieldExprList =
+    match args {
+        CirRecordFieldExprEnd => CirRecordFieldExprEnd
+        CirRecordFieldExprCons(head, tail) =>
+            CirRecordFieldExprCons(
+                CirRecordFieldExpr { field_name: head.field_name, value: cir_l7_core_expr(head.value) },
+                cir_l7_core_record_field_exprs(tail)
+            )
+    }
+
 def cir_l7_core_stmt(stmt: CirStmt): CirStmt =
     match stmt {
         L2StmtLet(binder, ty, value) => L2StmtLet(binder, ty, cir_l7_core_expr(value))
@@ -102,6 +112,7 @@ def cir_l7_core_expr_payload(expr: CirExpr): CirExpr =
         L1OpBlock(stmts, tail) => L1OpBlock(cir_l7_core_stmt_list(stmts), cir_l7_core_expr(tail))
         L1OpIf(cond, then_expr, else_expr) => L1OpIf(cir_l7_core_expr(cond), cir_l7_core_expr(then_expr), cir_l7_core_expr(else_expr))
         L1OpCall(callee, args) => L1OpCall(cir_l7_core_expr(callee), cir_l7_core_expr_list(args))
+        L1OpNominalCtor(name, fields) => L1OpNominalCtor(name, cir_l7_core_record_field_exprs(fields))
         L1OpField(value, field) => L1OpField(cir_l7_core_expr(value), field)
         L1OpIndex(value, args) => L1OpIndex(cir_l7_core_expr(value), cir_l7_core_expr_list(args))
         L1OpAssign(lhs, rhs) => L1OpAssign(cir_l7_core_expr(lhs), cir_l7_core_expr(rhs))

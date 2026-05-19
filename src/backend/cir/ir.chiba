@@ -374,6 +374,16 @@ data CirStringPartList {
     CirStringPartEnd
 }
 
+type CirRecordFieldExpr {
+    field_name: Str
+    value: CirExpr
+}
+
+data CirRecordFieldExprList {
+    CirRecordFieldExprCons(CirRecordFieldExpr, CirRecordFieldExprList),
+    CirRecordFieldExprEnd
+}
+
 data CirMatchArmList {
     CirMatchArmCons(CirMatchArm, CirMatchArmList),
     CirMatchArmEnd
@@ -410,6 +420,9 @@ data CirExpr {
 
     L0OpCall(CirExpr, CirExprList),
     L1OpCall(CirExpr, CirExprList),
+
+    L0OpNominalCtor(Str, CirRecordFieldExprList),
+    L1OpNominalCtor(Str, CirRecordFieldExprList),
 
     L0OpField(CirExpr, Str),
     L1OpField(CirExpr, Str),
